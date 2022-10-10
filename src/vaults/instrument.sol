@@ -200,7 +200,10 @@ abstract contract Instrument {
 
     /// @notice called before resolve, to avoid calculating redemption price based on manipulations 
     function store_internal_balance() external onlyVault{
+
         maturity_balance = balanceOfUnderlying(address(this)); 
+        if (vault.decimal_mismatch()) maturity_balance = vault.decAssetsToShares(maturity_balance); 
+
     }
 
     function getMaturityBalance() public view returns(uint256){
@@ -262,6 +265,9 @@ contract CreditLine is Instrument {
     uint256 drawdown_block; 
     bool didDrawdown; 
 
+    uint256 gracePeriod; 
+    uint256 resolveBlock; 
+    uint256 constant DUST = 1e18; //1usd
 
     enum LoanStatus{
         notApproved,
@@ -291,14 +297,11 @@ contract CreditLine is Instrument {
         uint256 _notionalInterest, 
         uint256 _duration,
         uint256 _faceValue,
-
         address _collateral, //collateral for the dao, could be their own native token or some tokenized revenue 
         address _oracle, // oracle for price of collateral 
         uint256 _collateral_balance, //promised collateral balance
         uint256 _collateral_type
-
-
-    )  Instrument(vault, _borrower){
+    )  Instrument(vault, _borrower) {
         borrower = _borrower; 
         principal = _principal; 
         notionalInterest = _notionalInterest; 
@@ -312,7 +315,7 @@ contract CreditLine is Instrument {
 
         loanStatus = LoanStatus.notApproved; 
 
-        proxy = new Proxy(_borrower); 
+        proxy = new Proxy(address(this), _borrower); 
     }
 
     function getCurrentTime() internal view returns(uint256){
@@ -339,7 +342,9 @@ contract CreditLine is Instrument {
 
     /// @notice if possible, and borrower defaults, liquidates given collateral to underlying
     /// and push back to vault. If not possible, push the collateral back to
-    function liquidateAndPushToVault() public virtual onlyAuthorized{}
+    function liquidateAndPushToVault() internal  {}
+
+    function auctionAndPushToVault() internal {} 
 
     /// @notice After grace period auction off ownership to some other party and transfer the funds back to vault 
     /// @dev assumes collateral has already been transferred to vault, needs to be checked by the caller 
@@ -388,38 +393,12 @@ contract CreditLine is Instrument {
 
     /// @notice can only redeem collateral when debt is fully paid 
     function releaseAllCollateral() internal {
-        require(loanStatus == LoanStatus.matured || loanStatus == LoanStatus.prepayment_fulfilled); 
+        require(loanStatus == LoanStatus.matured || loanStatus == LoanStatus.prepayment_fulfilled, "Loan status err"); 
 
         ERC20(collateral).transfer(msg.sender,collateral_balance); 
     }
 
-    /// @notice should be called  at default by validators
-    /// calling this function will go thorugh the necessary process
-    /// to recollateralize lent out principal. 
-    function onDefault() external onlyAuthorized{
-        require(loanStatus == LoanStatus.isDefault); 
 
-        // If collateral is liquidateable, liquidate and push to vault
-        if (isLiquidatable(collateral)) {
-        liquidateAndPushToVault(); 
-        }
-
-        // If collateral is not, just escrow it to vault?
-
-        // If ownership, calculate revenue to be escrowed and transfer it to vault 
-    }
-
-
-    function beginGracePeriod() external onlyAuthorized{
-        require(block.timestamp >= drawdown_block + toSeconds(duration)); 
-        gracePeriodStart = block.timestamp; 
-        loanStatus = LoanStatus.grace_period; 
-    }
-    function declareDefault() external onlyAuthorized {
-        require(loanStatus == LoanStatus.grace_period); 
-
-        loanStatus = LoanStatus.isDefault; 
-    }
 
     /// @notice should only be called when (portion of) principal is repayed
     function adjustInterestOwed() internal {
@@ -440,14 +419,21 @@ contract CreditLine is Instrument {
         loanStatus = LoanStatus.approvedNotDrawdowned;
     }
 
-    function onMaturity() internal {
+    function onMaturity() external onlyUtilizer {
+        require(loanStatus == LoanStatus.prepayment_fulfilled || loanStatus == LoanStatus.matured,"Not matured"); 
+        require(block.number > resolveBlock, "Block equal"); 
 
         if (collateral_type == CollateralType.liquidateAble || collateral_type == CollateralType.nonLiquid ){
             releaseAllCollateral(); 
         }
 
         else proxy.changeOwnership(borrower);
-    
+        
+        bool isPrepaid = loanStatus == LoanStatus.prepayment_fulfilled? true:false;
+        console.log('isprepaid', isPrepaid); 
+        // Write to storage resolve details (principal+interest repaid, is prepaid, etc) 
+        vault.pingMaturity(address(this), isPrepaid); 
+
     }
 
     /// @notice borrower can see how much to repay now starting from last repayment time, also used to calculated
@@ -456,7 +442,7 @@ contract CreditLine is Instrument {
 
         // Normalized to year
         uint256 elapsedTime = toYear(getCurrentTime() - lastRepaymentTime);
-
+        console.log('elapsedTime', elapsedTime); 
         // Owed interest from last timestamp till now  + any unpaid interest that has accumulated
         return elapsedTime.mulWadDown(interestAPR.mulWadDown(principalOwed)) + accumulated_interest ; 
     }
@@ -488,7 +474,7 @@ contract CreditLine is Instrument {
         uint256 owedInterest = interestToRepay(); 
         uint256 repay_principal; 
         uint256 repay_interest = _repay_amount; 
-        console.log('owedinterest', owedInterest);
+        console.log('owedinterest', owedInterest, accumulated_interest);
         // Push remaineder to repaying principal 
         if (_repay_amount >= owedInterest){
             repay_principal += (_repay_amount - owedInterest);  
@@ -499,26 +485,22 @@ contract CreditLine is Instrument {
         //else repay_amount is less than owed interest, accumulate the debt 
         else accumulated_interest = owedInterest - repay_interest;
 
-        transfer_liq_from(msg.sender, address(this), _repay_amount);
-
         if(handleRepay(repay_principal, repay_interest)){
 
-            // Prepayment //TODO cases where repayed a significant portion at the start
-            if (block.timestamp <= drawdown_block + toSeconds(duration)) {
-                loanStatus = LoanStatus.prepayment_fulfilled; 
-                onMaturity(); 
-                vault.pingMaturity(address(this), true); 
-            }
+            // Save resolve block, so that onMaturity can be called later
+            resolveBlock = block.number; 
+
+            // Prepayment //TODO cases where repayed a significant portion at the start but paid rest at maturity date
+            if (isPaymentPremature()) loanStatus = LoanStatus.prepayment_fulfilled; 
 
             // Repayed at full maturity 
-            else {
-                loanStatus = LoanStatus.matured; 
-                onMaturity(); 
-                vault.pingMaturity(address(this), false); 
-            }
+            else loanStatus = LoanStatus.matured; 
+
         }
 
-        lastRepaymentTime = block.timestamp; 
+        lastRepaymentTime = getCurrentTime();  
+
+        transfer_liq_from(msg.sender, address(this), _repay_amount);
 
     }   
 
@@ -528,6 +510,7 @@ contract CreditLine is Instrument {
         totalOwed -= Math.min((repay_principal + repay_interest), totalOwed); 
         principalOwed -= Math.min(repay_principal, principalOwed);
         interestOwed -= Math.min(repay_interest, interestOwed);
+        console.log('repayment', repay_principal, repay_interest); 
         console.log('interestOwed should be same here', interestOwed, principalOwed); 
         principalRepayed += repay_principal;
         interestRepayed += repay_interest; 
@@ -536,6 +519,57 @@ contract CreditLine is Instrument {
         bool fullyRepayed = (principalOwed == 0 && interestOwed == 0)? true : false; 
         return fullyRepayed; 
     }
+
+
+
+
+    function setGracePeriod() external {}
+
+    /// @notice callable by anyone 
+    function beginGracePeriod() external {
+       // require(block.timestamp >= drawdown_block + toSeconds(duration), "time err"); 
+        require(principalOwed > 0 && interestOwed > 0, "repaid"); 
+        gracePeriodStart = block.timestamp; 
+        loanStatus = LoanStatus.grace_period; 
+    }
+
+    function declareDefault() external onlyAuthorized {
+       // require(gracePeriodStart + gracePeriod >= block.timestamp);
+        require(loanStatus == LoanStatus.grace_period); 
+
+        loanStatus = LoanStatus.isDefault; 
+    }
+
+    /// @notice should be called  at default by validators
+    /// calling this function will go thorugh the necessary process
+    /// to recoup bad debt, and will push the remaining funds to vault
+    function onDefault() external onlyAuthorized{
+        require(loanStatus == LoanStatus.isDefault); 
+
+        // If collateral is liquidateable, liquidate at dex and push to vault
+        if (isLiquidatable(collateral)) {
+            liquidateAndPushToVault(); //TODO get pool 
+        }
+
+        // Else for non liquid governance tokens or ownership, should auction off 
+        else {
+            auctionAndPushToVault(); 
+        }
+
+        //Testing purposes only 
+        underlying.transferFrom(msg.sender, address(this), principal/2); 
+
+    }
+
+    /// @notice when principal/interest owed becomes 0, need to find out if this is prepaid
+    function isPaymentPremature() internal returns(bool){
+        // bool timeCondition = getCurrentTime() <= drawdown_block + toSeconds(duration); 
+        bool amountCondition = (principal+notionalInterest) > (principalRepayed + interestRepayed) + DUST; 
+
+        // timeCondition implies amountCondition, but not the other way around 
+        return amountCondition; 
+    }
+
 
     function toYear(uint256 sec) internal pure returns(uint256){
         return (sec*1e18)/uint256(31536000); 
@@ -569,14 +603,14 @@ contract Proxy{
     /// @notice owner is first set to be the instrument contract
     /// and is meant to be changed back to the borrower or whoever is
     /// buying the ownership 
-    constructor(address _delegator){
-        owner = msg.sender; 
+    constructor(address _owner, address _delegator){
+        owner = _owner; 
         delegator = _delegator; 
 
     }
 
     function changeOwnership(address newOwner) external {
-        require(msg.sender == owner); 
+        require(msg.sender == owner, "Not owner"); 
         owner = newOwner; 
     }
 
@@ -651,6 +685,10 @@ contract Proxy{
         assembly {
             outBytes4 := mload(add(inBytes, 4))
         }
+    }
+
+    function getOwner() public view returns(address){
+        return owner; 
     }
 }
 
