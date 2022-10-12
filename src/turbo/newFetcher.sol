@@ -142,8 +142,8 @@ contract Fetcher {
     ) internal view returns (StaticMarketBundle memory bundle) {
         MarketManager.CoreMarketData memory m_data = _marketManager.getMarket(_marketId);
         bundle.creationTimestamp = m_data.creationTimestamp;
-        bundle.long = address(m_data.long);
-        bundle.short = address(m_data.short);
+        bundle.long = address(m_data.longZCB);
+        bundle.short = address(m_data.shortZCB);
         bundle.parameters = _marketManager.getParameters(_marketId);
         bundle.marketId = _marketId;
     }

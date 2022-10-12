@@ -108,6 +108,11 @@ contract Vault is ERC4626, Auth{
         //totalSupply = type(uint256).max;
     }
 
+    function getInstrumentType(uint256 marketId) public view returns(uint256){
+        // return 0 if credit line //TODO 
+        return 0; 
+    }
+
     function getInstrumentData(Instrument _instrument) public view returns (InstrumentData memory) {
         return instrument_data[_instrument];
     }
@@ -321,19 +326,18 @@ contract Vault is ERC4626, Auth{
     /// records balances+PnL of instrument
     /// @dev need to store internal balance that is used to calculate the redemption price 
     function beforeResolve(uint256 marketId) public {
-
         Instrument _instrument = Instruments[marketId]; 
 
         require(msg.sender == address(_instrument) || msg.sender == address(controller), "Not allowed"); 
         require(isTrusted( _instrument), "Not trusted"); 
 
+        // Should revert if can't be resolved 
         _instrument.prepareWithdraw(); 
 
         // Record profit/loss used for calculation of redemption price 
         harvest(address(_instrument));
 
         _instrument.store_internal_balance(); 
-        console.log('maturitybal', _instrument.getMaturityBalance()); 
         prepareResolveBlock[marketId] = ResolveVar(block.number,true) ;  
       }
 
@@ -345,9 +349,9 @@ contract Vault is ERC4626, Auth{
     ) external onlyController
     returns(bool, uint256, uint256, bool) {
         Instrument _instrument = Instruments[marketId];
+        ResolveVar memory rvar = prepareResolveBlock[marketId]; 
         require(_instrument.isLocked(), "Not Locked");
-        // require( prepareResolveBlock[marketId].isPrepared && prepareResolveBlock[marketId].endBlock < block.number,
-        //  "Wait before resolve"); 
+        require(rvar.isPrepared && rvar.endBlock < block.number, "can't resolve"); 
 
         uint256 bal = UNDERLYING.balanceOf(address(this)); 
         uint256 instrument_balance = _instrument.getMaturityBalance(); 
@@ -378,9 +382,6 @@ contract Vault is ERC4626, Auth{
         }
 
         withdrawFromInstrument(_instrument, instrument_balance);
-
-        console.log('balance increase', bal, UNDERLYING.balanceOf(address(this))); 
-        console.log('balance increase', data.balance, data.principal); 
         removeInstrument(data.marketId);
 
         return(atLoss, extra_gain, total_loss, prematureResolve); 

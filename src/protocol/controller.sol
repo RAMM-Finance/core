@@ -1,10 +1,9 @@
 pragma solidity ^0.8.4;
-import {MarketManager, WrappedCollateral} from "./marketmanager.sol";
+import {MarketManager} from "./marketmanager.sol";
 import {ReputationNFT} from "./reputationtoken.sol";
 import {OwnedERC20} from "../turbo/OwnedShareToken.sol";
 import {LinearBondingCurve} from "../bonds/LinearBondingCurve.sol";
 import {BondingCurve} from "../bonds/bondingcurve.sol";
-import {LinearBondingCurveFactory} from "../bonds/LinearBondingCurveFactory.sol"; 
 import {Vault} from "../vaults/vault.sol";
 import {Instrument} from "../vaults/instrument.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
@@ -16,7 +15,7 @@ import {config} from "./helpers.sol";
 import {ShortBondingCurve} from "../bonds/LinearShortZCB.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@interep/contracts/IInterep.sol";
-
+import {SyntheticZCBPoolFactory, SyntheticZCBPool} from "../bonds/synthetic.sol"; 
 
 
 contract Controller {
@@ -44,7 +43,6 @@ contract Controller {
   mapping(address => bool) public  verified;
   mapping(uint256 => MarketData) public market_data; // id => recipient
   mapping(address=> uint256) public ad_to_id; //utilizer address to marketId
-  // mapping(address=>uint256[]) public utilizer_marketIds; //utilizer address to multiple marketIds
   mapping(uint256=> Vault) public vaults; // vault id to Vault contract
   mapping(uint256=> uint256) public id_parent; //marketId-> vaultId 
   mapping(uint256=> uint256) public vault_debt; //vault debt for each marketId
@@ -56,13 +54,11 @@ contract Controller {
   // TrustedMarketFactoryV3 marketFactory;
   MarketManager marketManager;
   ReputationNFT repNFT; 
-  LinearBondingCurveFactory linearBCFactory; 
   VaultFactory vaultFactory; 
+  SyntheticZCBPoolFactory poolFactory; 
 
   uint256 constant TWITTER_UNRATED_GROUP_ID = 16106950158033643226105886729341667676405340206102109927577753383156646348711;
   bytes32 constant private signal = bytes32("twitter-unrated");
-  uint256 constant private insurance_constant = 5e5; //1 is 1e6, also needs to be able to be changed 
-  uint256 constant PRICE_PRECISION = 1e18; 
   
   // Bond Curve Name
   string constant baseName = "Bond";
@@ -72,10 +68,10 @@ contract Controller {
   uint256 nonce = 0;
 
   /* ========== MODIFIERS ========== */
-  // modifier onlyValidator(uint256 marketId) {
-  //     require(marketManager.isValidator(marketId, msg.sender)|| msg.sender == creator_address);
-  //     _;
-  // }
+  modifier onlyValidator(uint256 marketId) {
+      require(marketManager.isValidator(marketId, msg.sender)|| msg.sender == creator_address);
+      _;
+  }
 
   modifier onlyOwner() {
       require(msg.sender == creator_address, "Only Owner can call this function");
@@ -88,27 +84,30 @@ contract Controller {
 
   constructor (
       address _creator_address,
-      address _interep_address
+      address _interep_address,
+      address _bcFactory
   ) {
       creator_address = _creator_address;
       interep = IInterep(_interep_address);
-
-      linearBCFactory = new LinearBondingCurveFactory(); 
   }
 
   /*----Setup Functions----*/
 
   function setMarketManager(address _marketManager) public onlyOwner {
-      require(_marketManager != address(0));
-      marketManager = MarketManager(_marketManager);
+    require(_marketManager != address(0));
+    marketManager = MarketManager(_marketManager);
   }
 
   function setReputationNFT(address NFT_address) public onlyOwner{
-      repNFT = ReputationNFT(NFT_address); 
+    repNFT = ReputationNFT(NFT_address); 
   }
 
   function setVaultFactory(address _vaultFactory) public onlyOwner {
     vaultFactory = VaultFactory(_vaultFactory); 
+  }
+
+  function setPoolFactory(address _poolFactory) public onlyOwner{
+    poolFactory = SyntheticZCBPoolFactory(_poolFactory); 
   }
 
   function verifyAddress(
@@ -125,7 +124,6 @@ contract Controller {
     verified[msg.sender] = true;
   }
 
-
   function mintRepNFT(
     address NFT_address,
     address trader
@@ -139,22 +137,16 @@ contract Controller {
     address to, 
     uint256 marketId) 
   external onlyManager{
-    console.log('vault debt', vault_debt[marketId], amount); 
-    // require(vault_debt[marketId] >= amount, "No funds left for redemption"); 
-    // unchecked{ vault_debt[marketId] -= amount;} 
-
     vaults[id_parent[marketId]].trusted_transfer(amount,to); 
   }
-
-  /**
-   @notice creates vault
-   @param underlying: underlying asset for vault
-   @param _onlyVerified: only verified users can mint shares
-   @param _r: minimum reputation score to mint shares
-   @param _asset_limit: max number of shares for a single address
-   @param _total_asset_limit: max number of shares for entire vault
-   @param default_params: default params for markets created by vault
-   */
+  
+  /// @notice creates vault
+  /// @param underlying: underlying asset for vault
+  /// @param _onlyVerified: only verified users can mint shares
+  /// @param _r: minimum reputation score to mint shares
+  /// @param _asset_limit: max number of shares for a single address
+  /// @param _total_asset_limit: max number of shares for entire vault
+  /// @param default_params: default params for markets created by vault
   function createVault(
     address underlying,
     bool _onlyVerified, 
@@ -176,64 +168,6 @@ contract Controller {
     vaults[vaultId] = newVault;
   }
 
-
-
-  function marketIdToVaultId(uint256 marketId) public view returns(uint256){
-    return id_parent[marketId]; 
-  }
-
-  function getMarketIds(uint256 vaultId) public view returns (uint256[] memory) {
-    return vault_to_marketIds[vaultId];
-  }
-
-  /////INITIATORS/////
-
-  /**
-   @param P: principal
-   @param I: expected yield (total interest)
-   @param sigma is the proportion of P that is going to be bought at a discount 
-   */
-  function createZCBs(
-    uint256 P,
-    uint256 I, 
-    uint256 sigma, 
-    uint256 marketId
-    ) internal returns (BondingCurve, ShortBondingCurve) {
-
-    WrappedCollateral wCollateral = new WrappedCollateral(
-      "name", 
-      "symbol", 
-      address(this), 
-      address(getVault(marketId).UNDERLYING())
-      ); 
-
-    BondingCurve _long = linearBCFactory.newLongZCB(
-      string(abi.encodePacked(baseName, "-", Strings.toString(nonce))),
-     string(abi.encodePacked(baseSymbol, Strings.toString(nonce))), 
-     address(marketManager),
-     address(wCollateral),
-    // getVaultAd( marketId), 
-     P,
-     I, 
-     sigma);
-
-    ShortBondingCurve _short = linearBCFactory.newShortZCB(
-      string(abi.encodePacked(s_baseName, "-", Strings.toString(nonce))), 
-      string(abi.encodePacked(s_baseSymbol, Strings.toString(nonce))), 
-      address(marketManager),
-      address(wCollateral),  
-
-      // getVaultAd( marketId), 
-      address(_long), 
-      marketId); 
-
-    nonce++;
-
-    return (_long, _short);
-  }
-
-
-
   /// @notice initiates market, called by frontend loan proposal or instrument form submit button.
   /// @dev Instrument should already be deployed 
   /// @param recipient: utilizer for the associated instrument
@@ -244,108 +178,79 @@ contract Controller {
     Vault.InstrumentData memory instrumentData, 
     uint256 vaultId
   ) external  {
-    require(instrumentData.Instrument_address != address(0), "must not be zero address");
-    require(instrumentData.principal >= config.WAD, "Precision err"); 
-    require(address(vaults[vaultId]) != address(0), "Vault doesn't' exist");
-    require(recipient != address(0), "recipient must not be zero address");
+    require(recipient != address(0), "address0"); 
+    require(instrumentData.Instrument_address != address(0), "address0");
+    require(address(vaults[vaultId]) != address(0), "address0");
+    require(instrumentData.principal >= config.WAD, "numERR"); 
 
-    Vault vault = Vault(vaults[vaultId]); 
-
+    Vault vault = vaults[vaultId]; 
     uint256 marketId = marketManager.marketCount();
-    
     id_parent[marketId] = vaultId;
     vault_to_marketIds[vaultId].push(marketId);
-
-    marketManager.setParameters(
-      vault.get_vault_params(), 
-      vault.utilizationRate(), 
-      marketId
-    ); 
-
-    (BondingCurve _long, ShortBondingCurve _short) = createZCBs(
-      instrumentData.principal,
-      instrumentData.expectedYield, 
-      marketManager.getParameters(marketId).sigma, 
-      marketId
-    );
-
-    marketManager.newMarket(
-      marketId, 
-      instrumentData.principal, 
-      instrumentData.expectedYield,      
-      _long,
-      _short,
-      instrumentData.description,
-      block.timestamp
-    );
-
-    ad_to_id[recipient] = marketId; //only for testing purposes, one utilizer should be able to create multiple markets
-    instrumentData.marketId = marketId;
-
-    vault.addProposal(instrumentData);
-
     market_data[marketId] = MarketData(instrumentData.Instrument_address, recipient);
 
+    marketManager.setParameters(vault.get_vault_params(), vault.utilizationRate(), marketId); //TODO non-default 
+
+    // Create new pool and bonds and store initial price and liquidity for the pool
+    (address longZCB, address shortZCB, SyntheticZCBPool pool) 
+              = poolFactory.newPool(address(vaults[vaultId].UNDERLYING()), address(marketManager)); 
+    pool.calculateInitCurveParams(instrumentData.principal,
+                                  instrumentData.expectedYield, 
+                                  marketManager.getParameters(marketId).sigma); 
+
+    marketManager.newMarket(marketId, 
+                            instrumentData.principal, 
+                            instrumentData.expectedYield,   
+                            pool, 
+                            longZCB,
+                            shortZCB,
+                            instrumentData.description,
+                            block.timestamp);
+
+    // add vault proposal 
+    instrumentData.marketId = marketId;
+    vault.addProposal(instrumentData);
+
+    // Prepare list of those with high reputation 
     repNFT.storeTopReputation(marketManager.getParameters(marketId).r,  marketId); 
 
     emit MarketInitiated(marketId, recipient);
+    ad_to_id[recipient] = marketId; //only for testing purposes, one utilizer should be able to create multiple markets
   }
 
-
-
-
   /// @notice Resolve function 1
-  /// @notice Prepare market/instrument for closing, called separately before resolveMarket
-  /// exists to circumvent manipulations   
-  function beforeResolve(uint256 marketId) 
-  external 
+  /// @dev Prepare market/instrument for closing, called separately before resolveMarket
+  function beforeResolve(uint256 marketId) external 
   //onlyKeepers 
   {
     vaults[id_parent[marketId]].beforeResolve(marketId);
   }
-
-
-  /**
-  Resolve function 2
-  @notice main function called at maturity OR premature resolve of instrument(from early default)
-  
-  When market finishes at maturity, need to 
-  1. burn all vault tokens in bc 
-  2. mint all incoming redeeming vault tokens 
-
-  Validators can call this function as they are incentivized to redeem
-  any funds left for the instrument , irrespective of whether it is in profit or inloss. 
-  */
+ 
+  /// Resolve function 2
+  /// @notice main function called at maturity OR premature resolve of instrument(from early default)  
+  /// @dev Validators can call this function as they are incentivized to redeem
+  /// any funds left for the instrument, irrespective of whether it is in profit or inloss. 
   function resolveMarket(
     uint256 marketId
-  ) external 
-  //onlyValidators
-  {
-    (bool atLoss,
-    uint256 extra_gain,
-    uint256 principal_loss, 
-    bool premature) = vaults[id_parent[marketId]].resolveInstrument(marketId); 
+    ) external onlyValidator(marketId){
+    (bool atLoss, uint256 extra_gain, uint256 principal_loss, bool premature) 
+          = vaults[id_parent[marketId]].resolveInstrument(marketId); 
 
     marketManager.update_redemption_price(marketId, atLoss, extra_gain, principal_loss, premature); 
 
     cleanUpDust(marketId); 
   }
 
-  /// @notice When market resolves, should collect 
-  /// remaining liquidity and/or dust from the wCollateral and send them  
-  /// back to the vault
+  /// @notice When market resolves, should collect remaining liquidity and/or dust from  
+  /// the pool and send them back to the vault
   /// @dev should be called before redeem_transfer is allowed 
-  function cleanUpDust(
-    uint256 marketId
-    ) internal {
-    WrappedCollateral(marketManager.getZCB(marketId).getCollateral()).flush(getVaultAd( marketId));
+  function cleanUpDust(uint256 marketId) internal {
+    marketManager.getPool(marketId).flush(getVaultAd(marketId), type(uint256).max); 
   }
 
   /// @notice checks for maturity, resolve at maturity
   /// @param marketId: called for anyone.
-  function checkInstrument(
-      uint256 marketId
-  ) external
+  function checkInstrument(uint256 marketId) external
   ///onlyKeepers 
    returns (bool) {
     Vault.InstrumentData memory data = vaults[id_parent[marketId]].fetchInstrumentData( marketId);
@@ -360,7 +265,6 @@ contract Controller {
     }
     return false;
   }
-
 
   /// @notice when market is resolved(maturity/early default), calculates score
   /// and update each assessment phase trader's reputation, called by individual traders when redeeming 
@@ -381,7 +285,8 @@ contract Controller {
   }
 
   /// @notice function that closes the instrument/market before maturity, maybe to realize gains/cut losses fast
-  /// or debt is prematurely fully repaid, or underlying strategy is deemed dangerous, etc.  
+  /// or debt is prematurely fully repaid, or underlying strategy is deemed dangerous, etc. 
+  /// After, the resolveMarket function should be called in a new block  
   /// @dev withdraws all balance from the instrument. 
   /// If assets in instrument is not in underlying, need all balances to be divested to underlying 
   /// Ideally this should be called by several validators, maybe implement a voting scheme and have a keeper call it.
@@ -394,10 +299,7 @@ contract Controller {
 
     // Harvests/records all profit & losses
     vault.beforeResolve(marketId); 
-
     return true;
-
-    //Now the resolveMarket function should be called in the next transaction 
   }
 
   /// @notice called by the validator when market conditions are met
@@ -406,73 +308,57 @@ contract Controller {
       uint256 marketId
   ) external onlyManager {
     Vault vault = vaults[id_parent[marketId]]; 
-    BondingCurve bc = marketManager.getZCB(marketId); 
+    SyntheticZCBPool pool = marketManager.getPool(marketId); 
 
-    require(marketManager.getCurrentMarketPhase(marketId) == 3,"Market Condition Not met");
-    require(vault.instrumentApprovalCondition(marketId), "Instrument approval condition met");
+    require(marketManager.getCurrentMarketPhase(marketId) == 3,"!marketCondition");
+    require(vault.instrumentApprovalCondition(marketId), "!instrumentCondition");
 
-    fetchAndStoreMarketDataForApproval(marketId, bc); 
+    if (vault.getInstrumentType(marketId) == 0) storeCredit(marketId, pool); 
 
     // For market to go to a post assessment stage there always needs to be a lower bound set  
-    marketManager.approveMarketAndSetLowerBound(marketId); 
+    marketManager.approveMarket(marketId); 
 
-    // move liquidity from wCollateral to vault, which will be used to fund the instrument
-    // this debt will be stored to later pull back to wCollateral  
-    uint256 reserves_to_push = bc.getReserves() + bc.getDiscountedReserves(); 
-    console.log('bc reserves', bc.getReserves(), bc.getDiscountedReserves()); 
-    console.log('wcollateral balance before',vault.UNDERLYING().balanceOf(bc.getCollateral()));  
-    WrappedCollateral(bc.getCollateral()).trustedTransfer(address(vault), reserves_to_push); 
-    vault_debt[marketId] = reserves_to_push;
-    console.log('wcollateral balance',vault.UNDERLYING().balanceOf(bc.getCollateral()));  
+    // pull from pool to vault, which will be used to fund the instrument
+    pool.flush(address(vault), marketManager.loggedCollaterals(marketId)); 
 
     // Trust and deposit to the instrument contract
     vault.trustInstrument(marketId, approvalDatas[marketId]);
-  }
 
+    // Since funds are transfered from pool to vault, set default liquidity in pool to 0 
+    pool.resetLiq(); 
+  }
 
   /// @notice receives necessary market information. Only applicable for creditlines 
   /// required for market approval such as max principal, quoted interest rate
-  function fetchAndStoreMarketDataForApproval(uint256 marketId, BondingCurve bc) internal{
-
-    (uint256 proposed_principal, uint256 proposed_yield) = vaults[id_parent[marketId]].viewPrincipalAndYield(marketId); 
+  function storeCredit(uint256 marketId, SyntheticZCBPool pool) internal{
+    (uint256 proposed_principal, uint256 proposed_yield) 
+          = vaults[id_parent[marketId]].viewPrincipalAndYield(marketId); 
 
     // get max_principal which is (s+1) * total long bought for creditline, or just be
     // proposed principal for other instruments 
-    uint256 max_principal = (marketManager.getParameters(marketId).s + config.WAD).mulWadDown(
-                            bc.getTotalCollateral()) ; 
-    console.log('maxprincipal', max_principal, bc.getTotalCollateral()); 
-    max_principal = min(max_principal, proposed_principal); 
+    uint256 max_principal = min((marketManager.getParameters(marketId).s + config.WAD)
+                            .mulWadDown(marketManager.loggedCollaterals(marketId)),
+                            proposed_principal ); 
 
-    // Notional amount denominated in underlying, which is the area between curve and 1 at the x-axis point 
-    // where area under curve is max_principal 
-    uint256 quoted_interest = bc.calculateArbitraryPurchaseReturn(max_principal, 0) - max_principal; 
-    console.log('quoted', quoted_interest); 
+    // Required notional yield amount denominated in underlying  given credit determined by managers
+    uint256 quoted_interest = pool.areaBetweenCurveAndMax(max_principal); 
 
     approvalDatas[marketId] = ApprovalData(max_principal, quoted_interest); 
   }
-
 
   function denyMarket(
       uint256 marketId
   ) external  
   //onlyValidator(marketId) 
-  {
-    require(marketManager.duringMarketAssessment(marketId), "Not during assessment");
-    
+  { require(marketManager.duringMarketAssessment(marketId), "Not during assessment");
     marketManager.denyMarket(marketId);
-
     vaults[id_parent[marketId]].denyInstrument(marketId);
-
     cleanUpDust(marketId); 
-
   }
 
- 
-  /* --------GETTER FUNCTIONS---------  */
   function getMarketId(address recipient) public view returns(uint256){
     return ad_to_id[recipient];
   }
-
   function getVault(uint256 marketId) public view returns(Vault){
     return vaults[id_parent[marketId]]; 
   }
@@ -492,6 +378,12 @@ contract Controller {
     return id_parent[marketId]; 
   }
 
+  function marketIdToVaultId(uint256 marketId) public view returns(uint256){
+    return id_parent[marketId]; 
+  }
+  function getMarketIds(uint256 vaultId) public view returns (uint256[] memory) {
+    return vault_to_marketIds[vaultId];
+  }
   function max(uint256 a, uint256 b) internal pure returns (uint256) {
       return a >= b ? a : b;
   }
@@ -501,15 +393,107 @@ contract Controller {
 
 
 
-///  deprecated
-/// @notice called when market is resolved 
-  function redeem_mint(
-    uint256 amount, 
-    address to, 
-    uint256 marketId) 
-  external onlyManager{
-    vaults[id_parent[marketId]].controller_mint(amount,to); 
-  }
+///deprecated 
+
+
+  // /// @notice initiates market, called by frontend loan proposal or instrument form submit button.
+  // /// @dev Instrument should already be deployed 
+  // /// @param recipient: utilizer for the associated instrument
+  // /// @param instrumentData: instrument arguments
+  // /// @param vaultId: vault identifier
+  // function initiateMarket(
+  //   address recipient,
+  //   Vault.InstrumentData memory instrumentData, 
+  //   uint256 vaultId
+  // ) external  {
+  //   require(instrumentData.Instrument_address != address(0), "must not be zero address");
+  //   require(instrumentData.principal >= config.WAD, "Precision err"); 
+  //   require(address(vaults[vaultId]) != address(0), "Vault doesn't' exist");
+  //   require(recipient != address(0), "recipient must not be zero address");
+
+  //   Vault vault = Vault(vaults[vaultId]); 
+
+  //   uint256 marketId = marketManager.marketCount();
+    
+  //   id_parent[marketId] = vaultId;
+  //   vault_to_marketIds[vaultId].push(marketId);
+
+  //   marketManager.setParameters(
+  //     vault.get_vault_params(), 
+  //     vault.utilizationRate(), 
+  //     marketId
+  //   ); 
+
+  //   (BondingCurve _long, ShortBondingCurve _short) = createZCBs(
+  //     instrumentData.principal,
+  //     instrumentData.expectedYield, 
+  //     marketManager.getParameters(marketId).sigma, 
+  //     marketId
+  //   );
+
+  //   marketManager.newMarket(
+  //     marketId, 
+  //     instrumentData.principal, 
+  //     instrumentData.expectedYield,      
+  //     _long,
+  //     _short,
+  //     instrumentData.description,
+  //     block.timestamp
+  //   );
+
+  //   ad_to_id[recipient] = marketId; //only for testing purposes, one utilizer should be able to create multiple markets
+  //   instrumentData.marketId = marketId;
+
+  //   vault.addProposal(instrumentData);
+
+  //   market_data[marketId] = MarketData(instrumentData.Instrument_address, recipient);
+
+  //   repNFT.storeTopReputation(marketManager.getParameters(marketId).r,  marketId); 
+
+  //   emit MarketInitiated(marketId, recipient);
+  // }
+
+  // /// @param P: principal
+  // /// @param I: expected yield (total interest)
+  // /// @param sigma is the proportion of P that is going to be bought at a discount 
+  // function createZCBs(
+  //   uint256 P,
+  //   uint256 I, 
+  //   uint256 sigma, 
+  //   uint256 marketId
+  //   ) internal returns (BondingCurve, ShortBondingCurve) {
+
+  //   WrappedCollateral wCollateral = new WrappedCollateral(
+  //     "name", 
+  //     "symbol", 
+  //     address(this), 
+  //     address(getVault(marketId).UNDERLYING())
+  //     ); 
+
+  //   BondingCurve _long = linearBCFactory.newLongZCB(
+  //     string(abi.encodePacked(baseName, "-", Strings.toString(nonce))),
+  //    string(abi.encodePacked(baseSymbol, Strings.toString(nonce))), 
+  //    address(marketManager),
+  //    address(wCollateral),
+  //   // getVaultAd( marketId), 
+  //    P,
+  //    I, 
+  //    sigma);
+
+  //   ShortBondingCurve _short = linearBCFactory.newShortZCB(
+  //     string(abi.encodePacked(s_baseName, "-", Strings.toString(nonce))), 
+  //     string(abi.encodePacked(s_baseSymbol, Strings.toString(nonce))), 
+  //     address(marketManager),
+  //     address(wCollateral),  
+
+  //     // getVaultAd( marketId), 
+  //     address(_long), 
+  //     marketId); 
+
+  //   nonce++;
+  //   return (_long, _short);
+  // }
+
 
 }
 
