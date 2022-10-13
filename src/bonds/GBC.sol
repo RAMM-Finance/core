@@ -16,23 +16,23 @@ contract GranularBondingCurve{
     using Position for Position.Info;
     using SafeCast for uint256; 
 
- 	modifier onlyOwner(){
-    	require(owner == msg.sender , "Not owner"); 
-    	_;
-  	}
+    modifier onlyOwner(){
+        require(owner == msg.sender , "Not owner"); 
+        _;
+    }
 
- 	modifier onlyEntry(){
-    	require(entry == msg.sender , "Not Entry"); 
-    	_;
-  	}
-  	
-  	bool private _mutex;
-  	modifier _lock_() {
-    	require(!_mutex, "ERR_REENTRY");
-    	_mutex = true;
-    	_;
-    	_mutex = false;
-  	}
+    modifier onlyEntry(){
+        require(entry == msg.sender , "Not Entry"); 
+        _;
+    }
+    
+    bool private _mutex;
+    modifier _lock_() {
+        require(!_mutex, "ERR_REENTRY");
+        _mutex = true;
+        _;
+        _mutex = false;
+    }
 
     constructor(
         address _baseToken,
@@ -77,14 +77,14 @@ contract GranularBondingCurve{
     function setLiquidity(uint128 liq) external 
     //onlyEntry
     {
-   		liquidity = liq; 
+        liquidity = liq; 
     }
 
     function setEntry(address _entry) external onlyOwner{
-    	entry = _entry; 
+        entry = _entry; 
     }
     function lock() external onlyOwner{
-    	slot0.unlocked = !slot0.unlocked; 
+        slot0.unlocked = !slot0.unlocked; 
     }
 
     function positionIsFilled(
@@ -176,9 +176,9 @@ contract GranularBondingCurve{
     }
 
     struct swapVars{
-    	uint256 a;
-    	uint256 s; 
-    	uint256 b; 
+        uint256 a;
+        uint256 s; 
+        uint256 b; 
     }
 
     /// param +amountSpecified is in base if moveUp, else is in trade
@@ -208,20 +208,20 @@ contract GranularBondingCurve{
             point: slot0.point
             }); 
         swapVars memory vars = swapVars({
-        	a:0,
-        	b:0,
-        	s:0
-        	});
+            a:0,
+            b:0,
+            s:0
+            });
 
         bool exactInput = amountSpecified > 0;
 
         // increment price by 1/1e18 if at boundary, and go back up a point,
         // should be negligible compared to fees TODO 
         if (mod0(state.curPrice, pDelta) && !moveUp) {
-        	state.curPrice += 1; 
-        	state.point = priceToPoint(state.curPrice);
-        	slot0.point = state.point; 
-        	slot0Start.point = state.point; 
+            state.curPrice += 1; 
+            state.point = priceToPoint(state.curPrice);
+            slot0.point = state.point; 
+            slot0Start.point = state.point; 
         }
 
         while (state.amountSpecifiedRemaining !=0 && state.curPrice != priceLimit){
@@ -345,7 +345,7 @@ contract GranularBondingCurve{
         uint128 amount,
         bool isAsk 
         ) public onlyEntry _lock_  returns(uint256 amountToReturn) {
-    	require(priceToPoint(uint256(slot0.curPrice)) != point, "Can't reduce order for current tick"); 
+        require(priceToPoint(uint256(slot0.curPrice)) != point, "Can't reduce order for current tick"); 
 
         Position.Info storage position = positions.get(msg.sender, point, point+1);
 
@@ -689,21 +689,21 @@ contract GranularBondingCurve{
         else {
             if(moveUp){
                 uint256 remaining = uint256(-amountRemaining); 
-            	nextPrice = vars.a.mulWadUp(remaining) + curPrice; 
+                nextPrice = vars.a.mulWadUp(remaining) + curPrice; 
 
                 // if overshoot
-            	if(nextPrice>=targetPrice){
-            		amountIn = xMax(targetPrice, curPrice,  vars.a); 
-            		nextPrice = targetPrice; 
+                if(nextPrice>=targetPrice){
+                    amountIn = xMax(targetPrice, curPrice,  vars.a); 
+                    nextPrice = targetPrice; 
 
                     // Prevent stuck cases where point is almost filled but not quite 
                     if(remaining - amountIn<=ROUNDLIMIT){
                         amountIn = remaining; 
                     } 
-            	}
-            	else amountIn = remaining; 
+                }
+                else amountIn = remaining; 
 
-            	amountOut = LinearCurve.areaUnderCurveRoundUp(amountIn, 0, vars.a, curPrice); //you want this to be more, so round up
+                amountOut = LinearCurve.areaUnderCurveRoundUp(amountIn, 0, vars.a, curPrice); //you want this to be more, so round up
 
             }
             else{
@@ -731,12 +731,12 @@ contract GranularBondingCurve{
     }
 
     function liquidityGivenTrade(uint256 p2, uint256 p1, uint256 T) public pure returns(uint256){
-    	require(p2>=p1, "price ERR"); 
-    	return T.divWadDown(p2-p1); 
+        require(p2>=p1, "price ERR"); 
+        return T.divWadDown(p2-p1); 
     }
     function liquidityGivenBase(uint256 p2, uint256 p1, uint256 B) public pure returns(uint256){
         require(p2>=p1, "price ERR"); 
-    	return B.divWadDown((p2-p1).mulWadDown((p2+p1)/2)); 
+        return B.divWadDown((p2-p1).mulWadDown((p2+p1)/2)); 
     }
 
     function pointToPrice(uint16 point) public pure returns(uint160){
@@ -1016,7 +1016,7 @@ library Tick {
         ) internal view returns(uint128){
         Tick.Info memory info = self[tick]; 
         assert(info.askLiquidityGross==0 || info.bidLiquidityGross==0); 
-    	return info.askLiquidityGross + info.bidLiquidityGross; 
+        return info.askLiquidityGross + info.bidLiquidityGross; 
     }
 
     function deleteOneTimeLiquidity(
@@ -1157,21 +1157,21 @@ contract SpotPool is GranularBondingCurve{
 
     function handleBuys(address recipient, uint256 amountOut, uint256 amountIn, bool up) internal {
 
-    	if(up){
-        	TradeToken.transfer(recipient, amountOut); 
-        	BaseToken.transferFrom(recipient, address(this), amountIn);
-    	}
+        if(up){
+            TradeToken.transfer(recipient, amountOut); 
+            BaseToken.transferFrom(recipient, address(this), amountIn);
+        }
 
-    	else{
-        	BaseToken.transfer(recipient, amountOut); 
-        	TradeToken.transferFrom(recipient, address(this), amountIn);
-    	}
+        else{
+            BaseToken.transfer(recipient, amountOut); 
+            TradeToken.transferFrom(recipient, address(this), amountIn);
+        }
     }
 
 
     /// @notice if buyTradeForBase, move up, and vice versa 
     function takerTrade(
-    	address recipient, 
+        address recipient, 
         bool buyTradeForBase, 
         int256 amountIn,
         uint256 priceLimit, 
@@ -1382,9 +1382,9 @@ contract BoundedDerivativesPool {
             // collateral used to buy short 
             poolamountIn = poolamountOut.mulWadDown(maxPrice) - poolamountIn; 
 
-            if (noCallBack) burnAndPush(msg.sender, poolamountIn,poolamountOut, true);
+            if (noCallBack) burnAndPush(msg.sender, poolamountIn,poolamountOut, false);
             else {
-                burnAndPush(abi.decode(data, (address)), poolamountIn,poolamountOut,true ); 
+                burnAndPush(abi.decode(data, (address)), poolamountIn,poolamountOut,false ); 
                 poolamountOut = cached_poolamountIn; 
             }
 
@@ -1403,26 +1403,26 @@ contract BoundedDerivativesPool {
         )external  returns(uint256 toEscrowAmount, uint128 crossId){
 
         if(isLong){
-        	// escrowAmount is base 
+            // escrowAmount is base 
             (toEscrowAmount, crossId) = pool.placeLimitOrder(
-            	recipient,
-            	point, 
-            	uint128(pool.liquidityGivenBase(pool.pointToPrice(point+1), pool.pointToPrice(point), amount)), 
-            	false
-            	); 
+                recipient,
+                point, 
+                uint128(pool.liquidityGivenBase(pool.pointToPrice(point+1), pool.pointToPrice(point), amount)), 
+                false
+                ); 
 
             BaseToken.transferFrom(recipient, address(this), toEscrowAmount); 
         }
 
         // need to set limit for sells, but claiming process is different then regular sells 
         else{
-        	// escrowAmount is trade 
+            // escrowAmount is trade 
             (toEscrowAmount, crossId) = pool.placeLimitOrder(
-            	recipient, 
-            	point,
-            	uint128(pool.liquidityGivenTrade(pool.pointToPrice(point+1), pool.pointToPrice(point),amount)) , 
-            	true
-            	); 
+                recipient, 
+                point,
+                uint128(pool.liquidityGivenTrade(pool.pointToPrice(point+1), pool.pointToPrice(point),amount)) , 
+                true
+                ); 
 
             // escrow amount is (maxPrice - avgPrice) * quantity 
             uint256 escrowCollateral = toEscrowAmount - pool.baseGivenLiquidity(
@@ -1450,7 +1450,7 @@ contract BoundedDerivativesPool {
             TradeToken.mint(recipient, claimedAmount);          
         }
 
-        else{        	
+        else{           
             s_tradeToken.mint(recipient, 
                 pool.tradeGivenLiquidity(
                     pool.pointToPrice(point+1), 
@@ -1477,11 +1477,11 @@ contract BoundedDerivativesPool {
         if(isLong){
             // close long is putting up trades for sells, 
             (toEscrowAmount, crossId) = pool.placeLimitOrder(
-            	recipient, 
-            	point, 
-            	uint128(pool.liquidityGivenTrade(pool.pointToPrice(point+1), pool.pointToPrice(point),amount)), 
-            	true
-            	); 
+                recipient, 
+                point, 
+                uint128(pool.liquidityGivenTrade(pool.pointToPrice(point+1), pool.pointToPrice(point),amount)), 
+                true
+                ); 
             //maybe burn it when claiming, and just escrow? 
             TradeToken.burn(recipient, toEscrowAmount); 
         }
@@ -1489,11 +1489,11 @@ contract BoundedDerivativesPool {
         else{
             // Place limit orders for buys 
             (toEscrowAmount, crossId) = pool.placeLimitOrder(
-            	recipient, 
-            	point,
-            	uint128(pool.liquidityGivenTrade(pool.pointToPrice(point+1), pool.pointToPrice(point),amount)), 
-            	false
-            	); 
+                recipient, 
+                point,
+                uint128(pool.liquidityGivenTrade(pool.pointToPrice(point+1), pool.pointToPrice(point),amount)), 
+                false
+                ); 
 
             // burn s_tradeTokens,
             s_tradeToken.burn(recipient,  
@@ -1504,7 +1504,7 @@ contract BoundedDerivativesPool {
                 )
             ); 
             console.log('should be same,', (pool.liquidityGivenTrade(pool.pointToPrice(point+1), pool.pointToPrice(point),amount)),
-            	pool.tradeGivenLiquidity(
+                pool.tradeGivenLiquidity(
                     pool.pointToPrice(point+1), 
                     pool.pointToPrice(point), 
                     pool.getLiq(msg.sender, point, true) )); 
@@ -1523,7 +1523,7 @@ contract BoundedDerivativesPool {
             BaseToken.transfer(recipient, claimedAmount); 
         }
         else{
-        	uint128 liq = pool.getLiq(recipient, point, false); 
+            uint128 liq = pool.getLiq(recipient, point, false); 
 
             // Buy is filled, which means somebody burnt trade, so claimedAmount is in trade
             claimedAmount = pool.claimFilledOrder(recipient, point, false);
@@ -1558,11 +1558,11 @@ contract BoundedDerivativesPool {
 
     /// @notice amount is in base if long, trade if short 
     function makerReduceOpen(
-    	uint16 point, 
-    	uint256 amount, 
-    	bool isLong, 
+        uint16 point, 
+        uint256 amount, 
+        bool isLong, 
         address recipient
-    	) external{
+        ) external{
     
         if(isLong){
             uint256 returned_amount = pool.reduceLimitOrder(
@@ -1595,14 +1595,14 @@ contract BoundedDerivativesPool {
     }
 
     /// @notice amount is in trade if long, ALSO trade if short 
-    function makerReduceClose(    	
-    	uint16 point, 
-    	uint256 amount, 
-    	bool isLong,
+    function makerReduceClose(      
+        uint16 point, 
+        uint256 amount, 
+        bool isLong,
         address recipient
-    	) external{
+        ) external{
 
-    	if(isLong){
+        if(isLong){
             uint256 returned_amount = pool.reduceLimitOrder(
                 recipient, 
                 point, 
@@ -1611,23 +1611,23 @@ contract BoundedDerivativesPool {
                     uint256(pool.pointToPrice(point)), amount).toUint128(), 
                 true
                 ); 
-    		// need to send trade back 
-    		TradeToken.mint(recipient, returned_amount); 
-    	}
+            // need to send trade back 
+            TradeToken.mint(recipient, returned_amount); 
+        }
 
-    	else{
-    		// reduce limit bids 
-    		pool.reduceLimitOrder(
-    			recipient, 
-    			point, 
-				pool.liquidityGivenTrade(
+        else{
+            // reduce limit bids 
+            pool.reduceLimitOrder(
+                recipient, 
+                point, 
+                pool.liquidityGivenTrade(
                     uint256(pool.pointToPrice(point+1)), 
                     uint256(pool.pointToPrice(point)), amount).toUint128(), 
-    			false
-    		); 
-    		 
-    		s_tradeToken.mint(recipient, amount); 
-    	}
+                false
+            ); 
+             
+            s_tradeToken.mint(recipient, amount); 
+        }
     }
 
     function provideLiquidity(
