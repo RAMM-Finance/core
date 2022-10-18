@@ -77,7 +77,7 @@ contract MarketManager is Owned
     uint256 val_cap;// total zcb validators can buy at a discount
     uint256 avg_price; //price the validators can buy zcb at a discount 
     address[] candidates; // possible validators
-    mapping(address=>boolean) isCandidate;
+    mapping(address=>bool) isCandidate;
     address[] validators;
     uint8 confirmations;
     bool requested; // true if already requested random numbers from array.
