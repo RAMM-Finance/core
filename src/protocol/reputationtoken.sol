@@ -27,7 +27,7 @@ contract ReputationNFT is ERC721 {
     uint256 tokensBought;
   }
 
-    struct TopReputation{
+  struct TopReputation{
     address trader; 
     uint256 score; 
   }

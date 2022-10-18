@@ -5,9 +5,10 @@ import "./reputationtoken.sol";
 import {BondingCurve} from "../bonds/bondingcurve.sol";
 import {Controller} from "./controller.sol";
 import {OwnedERC20} from "../turbo/OwnedShareToken.sol";
-import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+//import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import {ERC20} from "solmate/src/tokens/ERC20.sol";
 import "forge-std/console.sol";
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {SafeTransferLib} from "solmate/src/utils/SafeTransferLib.sol";
 import {LinearShortZCB, ShortBondingCurve} from "../bonds/LinearShortZCB.sol"; 
 import {FixedPointMathLib} from "solmate/src/utils/FixedPointMathLib.sol";
 import {VRFConsumerBaseV2} from "../chainlink/VRFConsumerBaseV2.sol";
@@ -19,6 +20,7 @@ contract MarketManager is Owned
  // VRFConsumerBaseV2 
  {
   using FixedPointMathLib for uint256;
+  using SafeTransferLib for ERC20;
 
   // Chainlink state variables
   VRFCoordinatorV2Interface COORDINATOR;
@@ -75,12 +77,16 @@ contract MarketManager is Owned
     uint256 val_cap;// total zcb validators can buy at a discount
     uint256 avg_price; //price the validators can buy zcb at a discount 
     address[] candidates; // possible validators
+    mapping(address=>boolean) isCandidate;
     address[] validators;
     uint8 confirmations;
     bool requested; // true if already requested random numbers from array.
     mapping(address => uint256) sales; // amount of zcb bought per validator
+    mapping(address => bool) staked; // true if address has staked vt.
     uint256 totalSales; // total amount of zcb bought;
-    uint256 numApprovedValidators; 
+    uint256 totalStaked; // total amount of vault token staked.
+    uint256 numApprovedValidators;
+    uint256 amount; // amount staked
   }
 
   /// @param N: upper bound on number of validators chosen.
@@ -90,6 +96,7 @@ contract MarketManager is Owned
   /// @param delta: Upper and lower bound for price which is added/subtracted from alpha 
   /// @param r:  reputation ranking for onlyRep phase
   /// @param s: senior coefficient; how much senior capital the managers can attract at approval 
+  /// @param steak: steak*approved_principal is the staking amount.
   /// param beta: how much volatility managers are absorbing 
   /// param leverage: how much leverage managers can apply 
   /// param base_budget: higher base_budget means lower decentralization, 
@@ -101,7 +108,8 @@ contract MarketManager is Owned
     uint256 omega;
     uint256 delta; 
     uint256 r;
-    uint256 s; 
+    uint256 s;
+    uint256 steak;
   }
 
   modifier onlyController(){
@@ -113,6 +121,7 @@ contract MarketManager is Owned
     require(address(controller) == msg.sender || msg.sender == owner || msg.sender == address(this), "is not controller"); 
     _;
   }
+
   modifier _lock_() {
     require(!_mutex, "ERR_REENTRY");
     _mutex = true;
@@ -177,7 +186,7 @@ contract MarketManager is Owned
     address _shortZCB, 
     string calldata _description, 
     uint256 _creationTimestamp
-    ) external onlyController{
+    ) external onlyController {
 
     markets.push(CoreMarketData(
       bondPool, 
@@ -190,8 +199,9 @@ contract MarketManager is Owned
     ));
 
     uint256 base_budget = 1000 * config.WAD; //TODO 
-    setMarketPhase(marketId, true, true, base_budget);  
-    setValidatorCap(marketId, principal); 
+    setMarketPhase(marketId, true, true, base_budget);
+    _setValidatorAmount(marketId, principal);
+    _setValidatorCap(marketId, principal); 
     // setUpperBound(marketId, principal.mulWadDown(parameters[marketId].alpha+ parameters[marketId].delta));  
   }
 
@@ -413,7 +423,6 @@ contract MarketManager is Owned
       }
     }
 
-
     //During the early risk assessment phase only reputable can buy 
     if (_onlyReputable){
       if (!isReputable(trader, marketId)){ 
@@ -440,7 +449,7 @@ contract MarketManager is Owned
   /// @notice called when market initialized, calculates the average price and quantities of zcb
   /// validators will buy at a discount when approving
   /// valcap = sigma * princpal.
-  function setValidatorCap(
+  function _setValidatorCap(
     uint256 marketId,
     uint256 principal
   ) internal {
@@ -455,6 +464,10 @@ contract MarketManager is Owned
 
     validator_data[marketId].val_cap = discount_cap;
     validator_data[marketId].avg_price = avgPrice; 
+  }
+
+  function _setValidatorAmount(uint256 marketId, uint256 principal) internal {
+    validator_data[marketId].amount = parameters[marketId].steak.mulWadDown(principal);
   }
 
   function isValidator(uint256 marketId, address user) view public returns(bool){
@@ -518,24 +531,46 @@ contract MarketManager is Owned
     address[] memory temp = validator_data[marketId].candidates;
     uint256 _N = parameters[marketId].N;
     uint256 length = _N;
-
-    for (uint8 i = 0; i < _N; i++) {
-      uint j = randomWords[i] % length;
-      address selected = temp[j];
-      validator_data[marketId].validators.push(selected);
+    
+    // get validators
+    for (uint8 i=0; i<_N; i++) {
+      uint256 j = _weightedRetrieve(temp, length, randomWords[i]);
+      validator_data[marketId].validators.push(temp[j]);
       temp[j] = temp[length - 1];
       length--;
     }
+  }
+
+  function _weightedRetrieve(address[] memory group, uint256 length, uint256 randomWord) view internal returns (uint256) {
+    uint256 sum_weights;
+
+    for (uint8 i=0; i<length; i++) {
+      sum_weights += rep.getReputationScore(group[i]);
+    }
+
+    uint256 tmp = randomWord % sum_weights;
+
+    for (uint8 i=0; i<length; i++) {
+      uint256 wt = rep.getReputationScore(group[i]);
+      if (tmp < wt) {
+        return i;
+      }
+      unchecked {
+        tmp -= wt;
+      }
+      
+    }
+    console.log("should never be here");
   }
 
   function getValidatorRequiredCollateral(uint256 marketId) public view returns(uint256){
     uint256 val_cap =  validator_data[marketId].val_cap; 
     uint256 zcb_for_sale = val_cap/parameters[marketId].N; 
     return zcb_for_sale.mulWadDown(validator_data[marketId].avg_price); 
-  } 
+  }
 
   function numValidatorLeftToApproval(uint256 marketId) public view returns(uint256){
-    return parameters[marketId].N - validator_data[marketId].numApprovedValidators; 
+    return parameters[marketId].N - validator_data[marketId].numApprovedValidators;
   }
 
   /// @notice allows validators to buy at a discount 
@@ -544,11 +579,11 @@ contract MarketManager is Owned
   /// val_cap/num validators zcb 
   /// They also need to hold the corresponding vault, so they are incentivized to assess at a systemic level and avoid highly 
   /// correlated instruments 
-  /// TODO change this to staking system 
   function validatorBuy(
     uint256 marketId
   ) external  {
     require(marketCondition(marketId), "Market can't be approved"); 
+    // require(isValidator(marketId, msg.sender), "Not Validator");
     SyntheticZCBPool bondPool = markets[marketId].bondPool; 
 
     uint256 val_cap =  validator_data[marketId].val_cap; 
@@ -569,9 +604,35 @@ contract MarketManager is Owned
     if (validatorApprovalCondition(marketId)) controller.approveMarket(marketId);
   }
 
+  // function validatorStake(
+  //   uint256 marketId
+  // ) external {
+  //   require(isValidator(marketId, msg.sender), "Caller is not validator for this market");
+  //   require(marketCondition(marketId), "Market can't be approved");
+  //   // require(!validator_data[marketId].staked[msg.sender], "caller already staked for this market");
+
+  //   // stake vault token to market manager contract.
+  //   ERC20(controller.getVaultAd(marketId)).safeTransferFrom(msg.sender, address(this), validator_data[marketId].amount);
+
+  //   validator_data[marketId].totalStaked += validator_data[marketId].amount;
+  //   validator_data[marketId].numApprovedValidators ++; // redundant bc of confirmations
+  //   validator_data[marketId].confirmations ++;
+  //   validator_data[marketId].staked[msg.sender] = true;
+
+  //   if (validatorApprovalCondition(marketId)) {
+  //     controller.approveMarket(marketId);
+  //   }
+  // }
+
+  // function validatorResolution(uint256 marketId) external view returns {
+  // }
+
   function validatorApprovalCondition(uint256 marketId ) public view returns(bool){
-    return (validator_data[marketId].totalSales >= validator_data[marketId].val_cap); 
+    return (validator_data[marketId].totalSales >= validator_data[marketId].val_cap);
+    //return (validator_data[marketId].confirmations == validator_data[marketId].validators.length) // approved if number of stakes == number of validators
   }
+
+
 
   /// @notice log how much collateral trader has at stake, 
   /// to be used for redeeming, restricting trades
@@ -650,9 +711,14 @@ contract MarketManager is Owned
 
     // During assessment, real bonds are issued from utilizer, they are the sole LP 
     if (duringMarketAssessment(_marketId)){
-      // Phase Transitions when conditions met 
+      // Phase Transitions when conditions met
       if(onlyReputable(_marketId)){
-        uint256 total_bought = loggedCollaterals[_marketId]; 
+        uint256 total_bought = loggedCollaterals[_marketId];
+
+        if(!validator_data[_marketId].isCandidate[msg.sender]) {
+          validator_data[_marketId].isCandidate[msg.sender] = true;
+          validator_data[_marketId].candidates.push(msg.sender);
+        }
 
         if (total_bought >= parameters[_marketId].omega.mulWadDown(
               controller

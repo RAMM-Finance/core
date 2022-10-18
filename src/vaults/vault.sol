@@ -47,7 +47,7 @@ contract Vault is ERC4626, Auth{
     mapping(address => uint256) public  num_proposals;
     mapping(uint256=> Instrument) public Instruments; //marketID-> Instrument
     mapping(uint256 => bool) resolveBeforeMaturity;
-    mapping(uint256=>ResolveVar) prepareResolveBlock; 
+    mapping(uint256=>ResolveVar) prepareResolveBlock;
 
     enum InstrumentType {
         CreditLine,
