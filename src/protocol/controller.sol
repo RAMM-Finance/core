@@ -84,8 +84,7 @@ contract Controller {
 
   constructor (
       address _creator_address,
-      address _interep_address,
-      address _bcFactory
+      address _interep_address
   ) {
       creator_address = _creator_address;
       interep = IInterep(_interep_address);

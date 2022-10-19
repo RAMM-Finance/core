@@ -127,7 +127,7 @@ contract Fetcher {
         return StaticVaultBundle(
             0,
             new uint256[](0),
-            MarketManager.MarketParameters(0,0,0,0,0,0,0),
+            MarketManager.MarketParameters(0,0,0,0,0,0,0,0),
             false,
             0,
             0,
