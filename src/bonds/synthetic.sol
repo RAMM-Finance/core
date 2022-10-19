@@ -3,6 +3,7 @@ import {BoundedDerivativesPool, LinearCurve} from "./GBC.sol";
 import {FixedPointMathLib} from "solmate/src/utils/FixedPointMathLib.sol";
 import {config} from "../protocol/helpers.sol"; 
 import {ERC20} from "./libraries.sol"; 
+import "forge-std/console.sol";
 
 contract SyntheticZCBPoolFactory{
 	address public immutable controller;
@@ -41,6 +42,7 @@ contract SyntheticZCBPool is BoundedDerivativesPool{
     uint256  public discount_cap; 
     uint256 discountedReserves; 
 
+
     address public immutable entry; 
     address public immutable controller; 
 	constructor(address base, 
@@ -66,7 +68,7 @@ contract SyntheticZCBPool is BoundedDerivativesPool{
 		uint256 precision = config.WAD; 
 
 		b_initial = (2*P).divWadDown(P+I) - precision; 
-		a_initial = (precision-b).divWadDown(P+I); 
+		a_initial = (precision-b_initial).divWadDown(P+I); 
 
 		// Calculate and store maximum tokens for discounts, and get new initial price after saving for discounts
 		(discount_cap, b) = LinearCurve.amountOutGivenIn(P.mulWadDown(sigma), 0, a_initial, b_initial, true);
@@ -89,7 +91,7 @@ contract SyntheticZCBPool is BoundedDerivativesPool{
 		) external{
 		require(msg.sender == entry, "entryERR"); 
 
-		BaseToken.mint(receiver, amount);
+		TradeToken.mint(receiver, amount);
 		discountedReserves += amount;  
 	}
 
@@ -113,5 +115,8 @@ contract SyntheticZCBPool is BoundedDerivativesPool{
 	function resetLiq() external{
 		require(msg.sender == controller, "entryERR"); 
 		pool.setLiquidity(0); 
+	}
+	function cBal() external view returns(uint256){
+		return BaseToken.balanceOf(address(this)); 
 	}
 }

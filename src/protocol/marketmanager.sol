@@ -49,8 +49,8 @@ contract MarketManager is Owned
   mapping(uint256=> mapping(address=>bool)) private redeemed; 
   mapping(uint256=>mapping(address=>bool)) isShortZCB; //marketId-> address-> isshortZCB
   mapping(uint256=>mapping(address=>uint256) )assessment_shorts; // short collateral during assessment
-  mapping(uint256=> mapping(address=>uint256)) longTrades; 
-  mapping(uint256=> mapping(address=>uint256)) shortTrades;
+  mapping(uint256=> mapping(address=>uint256)) public longTrades; 
+  mapping(uint256=> mapping(address=>uint256)) public shortTrades;
   mapping(uint256=> uint256) public loggedCollaterals;
 
   struct CoreMarketData {
@@ -273,6 +273,7 @@ contract MarketManager is Owned
     require(restriction_data[marketId].duringAssessment, "Not in assessment"); 
     MarketPhaseData storage data = restriction_data[marketId]; 
     data.duringAssessment = false;
+    data.alive = false; 
   }
 
   /// @notice main approval function called by controller
@@ -336,11 +337,13 @@ contract MarketManager is Owned
   /// 4: post assessment(accepted or denied), amortized liquidity 
   function getCurrentMarketPhase(uint256 marketId) public view returns(uint256){
     if (onlyReputable(marketId)){
+      console.log("?"); 
       assert(!marketCondition(marketId) && !isMarketApproved(marketId) && duringMarketAssessment(marketId) ); 
       return 1; 
     }
 
     else if (duringMarketAssessment(marketId) && !onlyReputable(marketId)){
+      console.log("??");
       assert(!isMarketApproved(marketId)); 
       if (marketCondition(marketId)) return 3; 
       return 2; 
@@ -412,12 +415,15 @@ contract MarketManager is Owned
 
     bool _duringMarketAssessment = duringMarketAssessment(marketId);
     bool _onlyReputable =  onlyReputable(marketId);
+
     if(amount>0){
       if (_duringMarketAssessment){
         if (!isVerified(trader)) 
           revert("not verified");
+
         if (loggedCollaterals[marketId] + uint256(amount) >= markets[marketId].assessmentBound) 
           revert("exceeds limit"); 
+
         if (!(getTraderBudget(marketId, trader)>= uint256(amount) + rep.balances(marketId, trader))) 
           revert("budget limit");
       }
@@ -439,10 +445,18 @@ contract MarketManager is Owned
   ) internal view returns(bool) {
     require(marketActive(marketId), "Market Not Active");
 
-    // For current onchain conditions, the estimated collateral 
-    // trader would obtain should be less than budget  
-    // if (!(getTraderBudget(marketId, trader) >= zcb.calculateSaleReturn(amount))) return false; 
-    
+    if(duringMarketAssessment(marketId)) {
+      // restrict attacking via disapproving the utilizer by just shorting a bunch
+     // if(amount>= hedgeAmount) return false; 
+
+      //else return true;
+    }
+    else{
+      // restrict naked CDS amount
+      
+      // 
+    } 
+
     return true; 
   }
 
@@ -581,7 +595,7 @@ contract MarketManager is Owned
   /// correlated instruments 
   function validatorBuy(
     uint256 marketId
-  ) external  {
+  ) external returns(uint256){
     require(marketCondition(marketId), "Market can't be approved"); 
     // require(isValidator(marketId, msg.sender), "Not Validator");
     SyntheticZCBPool bondPool = markets[marketId].bondPool; 
@@ -602,6 +616,7 @@ contract MarketManager is Owned
 
     // Last validator pays more gas, is fair because earlier validators are more uncertain 
     if (validatorApprovalCondition(marketId)) controller.approveMarket(marketId);
+    return collateral_required; 
   }
 
   // function validatorStake(
@@ -709,6 +724,11 @@ contract MarketManager is Owned
 
     SyntheticZCBPool bondPool = markets[_marketId].bondPool; 
 
+    (amountIn, amountOut) = bondPool.takerOpen(true, _amountIn, _priceLimit, abi.encode(msg.sender)); 
+
+    //Need to log assessment trades for updating reputation scores or returning collateral when market denied 
+    _logTrades(_marketId, msg.sender, amountIn, 0, true, true);
+
     // During assessment, real bonds are issued from utilizer, they are the sole LP 
     if (duringMarketAssessment(_marketId)){
       // Phase Transitions when conditions met
@@ -727,13 +747,9 @@ contract MarketManager is Owned
               .principal)
         ) {
           restriction_data[_marketId].onlyReputable = false;
-          _getValidators(_marketId);
+          //_getValidators(_marketId);
         }
       }
-      (amountIn, amountOut) = bondPool.takerOpen(true, _amountIn, _priceLimit, abi.encode(msg.sender)); 
-
-      //Need to log assessment trades for updating reputation scores or returning collateral when market denied 
-      _logTrades(_marketId, msg.sender, amountIn, 0, true, true);
     }
 
     // Synthetic bonds are issued (liquidity provision are amortized as counterparties)
@@ -755,6 +771,7 @@ contract MarketManager is Owned
       uint256 _priceLimit, 
       bytes calldata _tradeRequestData 
     ) external _lock_ returns (uint256 amountIn, uint256 amountOut){
+    // if (duringMarketAssessment(_marketId)) revert("can't close during assessment"); 
     require(!restriction_data[_marketId].resolved, "must not be resolved");
     require(_canSell(msg.sender, _amountIn, _marketId),"Trade Restricted");
     SyntheticZCBPool bondPool = markets[_marketId].bondPool; 
@@ -762,10 +779,11 @@ contract MarketManager is Owned
     if (duringMarketAssessment(_marketId)){
       deduct_selling_fee(); //TODO 
 
-      _logTrades(_marketId, msg.sender, amountIn, 0, false, true );                                          
-
       (amountIn, amountOut) = bondPool.takerClose(
                                     true, int256(_amountIn), _priceLimit, abi.encode(msg.sender));
+
+      _logTrades(_marketId, msg.sender, amountIn, 0, false, true );                                          
+
     }
     else{
       (uint16 point, bool isTaker) = abi.decode(_tradeRequestData, (uint16,bool ));

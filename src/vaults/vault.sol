@@ -181,6 +181,8 @@ contract Vault is ERC4626, Auth{
       require(instrument_data[instrument].trusted, "UNTRUSTED Instrument");
 
       if (decimal_mismatch) underlyingAmount = decSharesToAssets(underlyingAmount); 
+
+      if (underlyingAmount > UNDERLYING.balanceOf(address(this))) revert("Not enough bal in vault"); 
       console.log('deposit amount and current balance', underlyingAmount, UNDERLYING.balanceOf(address(this)));
 
       totalInstrumentHoldings += underlyingAmount; 

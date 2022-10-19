@@ -22,7 +22,7 @@ contract GranularBondingCurve{
     }
 
     modifier onlyEntry(){
-        require(entry == msg.sender , "Not Entry"); 
+        require(entry == msg.sender  || msg.sender == address(this),"Not Entry"); 
         _;
     }
     
@@ -191,7 +191,7 @@ contract GranularBondingCurve{
         int256 amountSpecified, 
         uint256 priceLimit, 
         bytes calldata data
-        ) external onlyEntry _lock_ returns(uint256 amountIn, uint256 amountOut){
+        ) public onlyEntry _lock_ returns(uint256 amountIn, uint256 amountOut){
         console.logString('---New Trade---'); 
 
         Slot0 memory slot0Start = slot0; 
@@ -295,8 +295,13 @@ contract GranularBondingCurve{
 
         if (moveUp) feeGrowthGlobalBase = state.feeGrowthGlobal; 
             
+        // (amountIn, amountOut) = exactInput
+        //                         ? moveUp ? (uint256(amountSpecified-state.amountSpecifiedRemaining ) + ROUNDLIMIT, state.amountCalculated)//TODO roundfixes
+        //                                  : (uint256(amountSpecified-state.amountSpecifiedRemaining ), state.amountCalculated)
+        //                         : (state.amountCalculated + ROUNDLIMIT, uint256(-amountSpecified+state.amountSpecifiedRemaining )); 
+
         (amountIn, amountOut) = exactInput
-                                ? moveUp ? (uint256(amountSpecified-state.amountSpecifiedRemaining ) + ROUNDLIMIT, state.amountCalculated)//TODO roundfixes
+                                ? moveUp ? (uint256(amountSpecified-state.amountSpecifiedRemaining ) , state.amountCalculated)//TODO roundfixes
                                          : (uint256(amountSpecified-state.amountSpecifiedRemaining ), state.amountCalculated)
                                 : (state.amountCalculated + ROUNDLIMIT, uint256(-amountSpecified+state.amountSpecifiedRemaining )); 
     }
@@ -1144,7 +1149,7 @@ contract SpotPool is GranularBondingCurve{
 
     ERC20 BaseToken; //junior
     ERC20 TradeToken; //senior 
-    GranularBondingCurve public pool; 
+    // GranularBondingCurve public pool; 
 
     constructor(
         address _baseToken, 
@@ -1152,13 +1157,16 @@ contract SpotPool is GranularBondingCurve{
         )GranularBondingCurve(_baseToken,_tradeToken){
         BaseToken = ERC20(_baseToken); 
         TradeToken = ERC20(_tradeToken); 
-        pool = new GranularBondingCurve(_baseToken,_tradeToken); 
+        // pool = new GranularBondingCurve(_baseToken,_tradeToken); 
     }
 
     function handleBuys(address recipient, uint256 amountOut, uint256 amountIn, bool up) internal {
 
         if(up){
+            console.log('balances', TradeToken.balanceOf(address(this)), BaseToken.balanceOf(address(this)));
+            console.log('togive', amountOut, amountIn); 
             TradeToken.transfer(recipient, amountOut); 
+            console.log('balofre', BaseToken.balanceOf(recipient));
             BaseToken.transferFrom(recipient, address(this), amountIn);
         }
 
@@ -1168,6 +1176,9 @@ contract SpotPool is GranularBondingCurve{
         }
     }
 
+    // function getCurPrice() external view returns(uint256){
+    //     return uint256(pool.getCurPrice());
+    // }
 
     /// @notice if buyTradeForBase, move up, and vice versa 
     function takerTrade(
@@ -1178,7 +1189,7 @@ contract SpotPool is GranularBondingCurve{
         bytes calldata data        
         ) external returns(uint256 poolamountIn, uint256 poolamountOut){
 
-        (poolamountIn, poolamountOut) = pool.trade(
+        (poolamountIn, poolamountOut) = this.trade(
             recipient, 
             buyTradeForBase, 
             amountIn,  
@@ -1188,13 +1199,17 @@ contract SpotPool is GranularBondingCurve{
         handleBuys(recipient, poolamountOut, poolamountIn, buyTradeForBase); 
     }
 
+    /// @notice specify how much trade trader intends to sell/buy 
     function makerTrade(
         bool buyTradeForBase,
         uint256 amountIn,
         uint16 point
         ) external {
-
-        (uint256 toEscrowAmount, uint128 crossId) = placeLimitOrder(msg.sender, point, uint128(amountIn), !buyTradeForBase); 
+        (uint256 toEscrowAmount, uint128 crossId) 
+                = this.placeLimitOrder(msg.sender, 
+                    point, 
+                    uint128(liquidityGivenTrade(pointToPrice(point+1), pointToPrice(point), amountIn)), 
+                    !buyTradeForBase); 
 
         // Collateral for bids
         if (buyTradeForBase) BaseToken.transferFrom(msg.sender, address(this), toEscrowAmount); 
@@ -1207,7 +1222,7 @@ contract SpotPool is GranularBondingCurve{
         uint16 point, 
         bool buyTradeForBase
         ) external {
-        uint256 claimedAmount = claimFilledOrder(
+        uint256 claimedAmount = this.claimFilledOrder(
             msg.sender, 
             point, 
             !buyTradeForBase
@@ -1688,4 +1703,5 @@ interface iTradeCallBack{
         uint256 amount0,
  bytes calldata data    ) external;
 } 
+
 
