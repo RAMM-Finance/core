@@ -194,17 +194,11 @@ contract Controller {
     (address longZCB, address shortZCB, SyntheticZCBPool pool) 
               = poolFactory.newPool(address(vaults[vaultId].UNDERLYING()), address(marketManager)); 
     pool.calculateInitCurveParams(instrumentData.principal,
-                                  instrumentData.expectedYield, 
-                                  marketManager.getParameters(marketId).sigma); 
+        instrumentData.expectedYield, marketManager.getParameters(marketId).sigma); 
 
     marketManager.newMarket(marketId, 
-                            instrumentData.principal, 
-                            instrumentData.expectedYield,   
-                            pool, 
-                            longZCB,
-                            shortZCB,
-                            instrumentData.description,
-                            block.timestamp);
+        instrumentData.principal, instrumentData.expectedYield, pool, longZCB,
+        shortZCB, instrumentData.description, block.timestamp);
 
     // add vault proposal 
     instrumentData.marketId = marketId;
@@ -219,8 +213,11 @@ contract Controller {
 
   /// @notice Resolve function 1
   /// @dev Prepare market/instrument for closing, called separately before resolveMarket
+  /// this is either called automatically from the instrument when conditions are met i.e fully repaid principal + interest
+  /// or, in the event of a default, by validators who deem the principal recouperation is finished
+  /// and need to collect remaining funds by redeeming ZCB
   function beforeResolve(uint256 marketId) external 
-  //onlyKeepers 
+  //onlyValidator(marketId) 
   {
     vaults[id_parent[marketId]].beforeResolve(marketId);
   }
@@ -231,7 +228,9 @@ contract Controller {
   /// any funds left for the instrument, irrespective of whether it is in profit or inloss. 
   function resolveMarket(
     uint256 marketId
-    ) external onlyValidator(marketId){
+    ) external 
+  //onlyValidator(marketId)
+  {
     (bool atLoss, uint256 extra_gain, uint256 principal_loss, bool premature) 
           = vaults[id_parent[marketId]].resolveInstrument(marketId); 
 
@@ -273,14 +272,9 @@ contract Controller {
     bool increment) 
   external onlyManager {
     uint256 implied_probs = marketManager.assessment_probs(marketId, trader);
-
-    if (increment) {
-      uint256 scoreToAdd = implied_probs.mulDivDown(implied_probs, config.WAD); //Experiment
-      repNFT.addScore(trader, scoreToAdd);
-    } else{
-      uint256 scoreToDeduct = implied_probs.mulDivDown(implied_probs, config.WAD); //Experiment
-      repNFT.decrementScore(trader, scoreToDeduct); 
-    }
+    int256 scoreToUpdate = increment ? int256(implied_probs.mulDivDown(implied_probs, config.WAD)) //experiment 
+                                     : -int256(implied_probs.mulDivDown(implied_probs, config.WAD));
+    repNFT.updateScore( trader, scoreToUpdate); 
   }
 
   /// @notice function that closes the instrument/market before maturity, maybe to realize gains/cut losses fast
@@ -340,7 +334,7 @@ contract Controller {
                             proposed_principal ); 
 
     // Required notional yield amount denominated in underlying  given credit determined by managers
-    uint256 quoted_interest = pool.areaBetweenCurveAndMax(max_principal); 
+    uint256 quoted_interest = min(pool.areaBetweenCurveAndMax(max_principal), proposed_yield ); 
 
     approvalDatas[marketId] = ApprovalData(max_principal, quoted_interest); 
   }

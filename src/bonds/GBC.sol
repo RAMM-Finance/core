@@ -1425,7 +1425,7 @@ contract BoundedDerivativesPool {
                 uint128(pool.liquidityGivenBase(pool.pointToPrice(point+1), pool.pointToPrice(point), amount)), 
                 false
                 ); 
-
+            console.log('here>'); 
             BaseToken.transferFrom(recipient, address(this), toEscrowAmount); 
         }
 
@@ -1510,19 +1510,9 @@ contract BoundedDerivativesPool {
                 false
                 ); 
 
-            // burn s_tradeTokens,
-            s_tradeToken.burn(recipient,  
-                pool.tradeGivenLiquidity(
-                    pool.pointToPrice(point+1), 
-                    pool.pointToPrice(point), 
-                    pool.getLiq(msg.sender, point, true)
-                )
-            ); 
-            console.log('should be same,', (pool.liquidityGivenTrade(pool.pointToPrice(point+1), pool.pointToPrice(point),amount)),
-                pool.tradeGivenLiquidity(
-                    pool.pointToPrice(point+1), 
-                    pool.pointToPrice(point), 
-                    pool.getLiq(msg.sender, point, true) )); 
+            // burn s_tradeTokens, 
+            s_tradeToken.burn(recipient, amount); 
+
         }
     }
 

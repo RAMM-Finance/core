@@ -39,7 +39,6 @@ contract MarketManager is Owned
   mapping(uint256 => ValidatorData) validator_data; //marketId-> total amount of zcb validators can buy 
   mapping(uint256=> mapping(address=> uint256)) sale_data; //marketId-> total amount of zcb bought
   mapping(uint256=>uint256) private redemption_prices; //redemption price for each market, set when market resolves 
-  mapping(uint256=>mapping(address=>uint256)) private assessment_collaterals;  //marketId-> trader->collateralIn
   mapping(uint256=>mapping(address=>uint256)) private assessment_prices; 
   mapping(uint256=>mapping(address=>bool)) private assessment_trader;
   mapping(uint256=>mapping(address=>uint256) ) public assessment_probs; 
@@ -418,6 +417,9 @@ contract MarketManager is Owned
 
     if(amount>0){
       if (_duringMarketAssessment){
+        if(queuedRepUpdates[trader] > queuedRepThreshold)
+          revert("Rep queue threshold"); 
+
         if (!isVerified(trader)) 
           revert("not verified");
 
@@ -647,7 +649,20 @@ contract MarketManager is Owned
     //return (validator_data[marketId].confirmations == validator_data[marketId].validators.length) // approved if number of stakes == number of validators
   }
 
+  /// @notice calculates implied probability of the trader, used to
+  /// update the reputation score by brier scoring mechanism 
+  /// @param budget of trader in collateral decimals 
+  function calcImpliedProbability(
+    uint256 bondAmount, 
+    uint256 collateral_amount,
+    uint256 budget) public pure returns(uint256){
 
+    uint256 avg_price = collateral_amount.divWadDown(bondAmount); 
+    uint256 b = avg_price.mulWadDown(config.WAD - avg_price);
+    uint256 ratio = bondAmount.divWadDown(budget); 
+
+    return ratio.mulWadDown(b)+ avg_price;
+  }
 
   /// @notice log how much collateral trader has at stake, 
   /// to be used for redeeming, restricting trades
@@ -661,9 +676,13 @@ contract MarketManager is Owned
     ) internal {
 
     if (isLong){
+
+      // If buying bond during assessment, trader is manager, so should update 
       if (isBuy) {
         longTrades[marketId][trader] += collateral; 
         loggedCollaterals[marketId] += collateral; 
+        queuedRepUpdates[msg.sender] += 1; 
+
       }
       else {
         longTrades[marketId][trader] -= collateral;
@@ -711,6 +730,8 @@ contract MarketManager is Owned
 
   function deduct_selling_fee() internal {}
 
+  mapping(address => uint8) public queuedRepUpdates; 
+  uint8 public constant queuedRepThreshold = 3; // at most 3 simultaneous assessment per manager
   /// @notice main entry point for longZCB buys 
   /// @param _amountIn is negative if specified in zcb quantity
   function buyBond(
@@ -724,13 +745,20 @@ contract MarketManager is Owned
 
     SyntheticZCBPool bondPool = markets[_marketId].bondPool; 
 
-    (amountIn, amountOut) = bondPool.takerOpen(true, _amountIn, _priceLimit, abi.encode(msg.sender)); 
-
-    //Need to log assessment trades for updating reputation scores or returning collateral when market denied 
-    _logTrades(_marketId, msg.sender, amountIn, 0, true, true);
-
     // During assessment, real bonds are issued from utilizer, they are the sole LP 
     if (duringMarketAssessment(_marketId)){
+      (amountIn, amountOut) = bondPool.takerOpen(true, _amountIn, _priceLimit, abi.encode(msg.sender)); 
+
+      //Need to log assessment trades for updating reputation scores or returning collateral when market denied 
+      _logTrades(_marketId, msg.sender, amountIn, 0, true, true);
+
+      // Get implied probability estimates by summing up all this managers bought for this market 
+      assessment_probs[_marketId][msg.sender] = calcImpliedProbability(
+          getZCB(_marketId).balanceOf(msg.sender), 
+          longTrades[_marketId][msg.sender], 
+          getTraderBudget(_marketId, msg.sender) 
+      ); 
+
       // Phase Transitions when conditions met
       if(onlyReputable(_marketId)){
         uint256 total_bought = loggedCollaterals[_marketId];
@@ -777,7 +805,6 @@ contract MarketManager is Owned
     SyntheticZCBPool bondPool = markets[_marketId].bondPool; 
 
     if (duringMarketAssessment(_marketId)){
-      deduct_selling_fee(); //TODO 
 
       (amountIn, amountOut) = bondPool.takerClose(
                                     true, int256(_amountIn), _priceLimit, abi.encode(msg.sender));
@@ -786,11 +813,13 @@ contract MarketManager is Owned
 
     }
     else{
+      deduct_selling_fee(); //TODO, if validator or manager, deduct reputation 
+
       (uint16 point, bool isTaker) = abi.decode(_tradeRequestData, (uint16,bool ));
       if(isTaker) (amountIn, amountOut) = bondPool.takerClose(
               true, int256(_amountIn), _priceLimit, abi.encode(msg.sender));
       else {
-        (uint256 escrowAmount, uint128 crossId) = bondPool.makerClose(point, uint256(_amountIn), false, msg.sender);        
+        (uint256 escrowAmount, uint128 crossId) = bondPool.makerClose(point, uint256(_amountIn), true, msg.sender);        
       }
     }
   } 
@@ -812,9 +841,10 @@ contract MarketManager is Owned
 
       _logTrades(_marketId, msg.sender, amountOut, amountIn, true, false);
 
-      deduct_selling_fee(); 
     }
     else{
+      deduct_selling_fee(); //if naked CDS( staked vault)
+
       (uint16 point, bool isTaker) = abi.decode(_tradeRequestData, (uint16,bool ));
       if (isTaker)
         (amountOut, amountIn) = bondPool.takerOpen(false, int256(_amountIn), _priceLimit, abi.encode(msg.sender));
@@ -844,7 +874,7 @@ contract MarketManager is Owned
     else{
       (uint16 point, bool isTaker) = abi.decode(_tradeRequestData, (uint16,bool ));
       if (isTaker)
-        (amountOut, amountIn) = bondPool.takerClose(false, int256(_amountIn), _priceLimit, abi.encode(msg.sender));
+        (amountOut, amountIn) = bondPool.takerClose(false, -int256(_amountIn), _priceLimit, abi.encode(msg.sender));
       
       else{
         (uint256 escrowAmount, uint128 crossId) = bondPool.makerClose(point, _amountIn, false, msg.sender);
@@ -893,6 +923,11 @@ contract MarketManager is Owned
 
       // Burn all their balance 
       bondPool.trustedBurn(msg.sender, balance, true); 
+      
+      // This means that the sender is a manager
+      if (queuedRepUpdates[msg.sender] > 0){
+        unchecked{queuedRepUpdates[msg.sender] -= 1;} 
+      }    
     }
 
     // Before redeem_transfer is called all funds for this instrument should be back in the vault
@@ -956,11 +991,18 @@ contract MarketManager is Owned
 
     if (!isValidator(marketId, msg.sender)) {
       bool increment = redemption_price >= config.WAD? true: false;
+      console.log('redemption_price', redemption_price); 
       controller.updateReputation(marketId, msg.sender, increment);
     }
 
+    // This means that the sender is a manager
+    if (queuedRepUpdates[msg.sender] > 0){
+     unchecked{queuedRepUpdates[msg.sender] -= 1;} 
+   }
+
     bondPool.trustedBurn(msg.sender, zcb_redeem_amount, true); 
     controller.redeem_transfer(collateral_redeem_amount, msg.sender, marketId); 
+
   }
 
   /// @notice called by short buyers when market is resolved  
@@ -985,309 +1027,5 @@ contract MarketManager is Owned
     controller.redeem_transfer(collateral_redeem_amount, msg.sender, marketId); 
   }
 
-
-
-
-
-
-// ////DEPRECATED
-//   /// @notice called by user to repay shorts
-//   /// @param close_amount is in of shortZCB, 18dec 
-//   function closeShort(
-//     uint256 marketId, 
-//     uint256 close_amount, 
-//     uint256 min_collateral_out
-//     ) external _lock_ {
-
-
-    
-//     ShortBondingCurve shortZCB = markets[marketId].short; //ShortBondingCurve(shortZCBs[marketId]);
-
-//     _repayForShort(msg.sender, marketId, close_amount);
-
-//     shortZCB.transferFrom(msg.sender, address(this), close_amount);
-
-//     // This will buy close_amount worth of longZCB to the shortZCB contract 
-//     (uint256 returned_collateral, uint256 tokenToBeBurned) = shortZCB.trustedClose(address(this), close_amount, min_collateral_out);  
-//      _logTrades(marketId, msg.sender, returned_collateral, false, false); 
-
-//     if(duringMarketAssessment(marketId)){
-//       assessment_shorts[marketId][msg.sender] -= returned_collateral;  
-//     }
-
-//     // Now burn the contract's bought longZCB imediately  
-//     markets[marketId].long.trustedDiscountedBurn(address(shortZCB), tokenToBeBurned);
-
-//     // Return collateral to trader 
-//     WrappedCollateral(shortZCB.getCollateral()).redeem(address(this), msg.sender, returned_collateral); 
-
-
-//   }
-
-//   function _logAssessmentShorts(uint256 marketId, address trader, uint256 collateralIn) internal {
-//     assessment_shorts[marketId][trader] += collateralIn; 
-//   }
-//   /**
-//    @param collateralIn: amount of collateral (vt)
-//    */
-//   function openShort(
-//     uint256 marketId,
-//     uint256 collateralIn, 
-//     uint256 min_amount_out
-//   ) external _lock_ {
-
-//     if (duringMarketAssessment(marketId)) assessment_shorts[marketId][trader] += collateralIn;
-
-    
-//     //ShortBondingCurve shortZCB = ShortBondingCurve(shortZCBs[marketId]); 
-//     ShortBondingCurve shortZCB = markets[marketId].short;
-//     WrappedCollateral wCollateral = WrappedCollateral(shortZCB.getCollateral()); 
-
-//     // Mint wCollateral to this address
-//     wCollateral.mint(msg.sender, address(this), collateralIn); 
-//     wCollateral.approve(address(shortZCB), collateralIn); 
-
-//     // lendAmount: amount of zcb to borrow w/ shortZCB pricing
-//     (uint lendAmount, uint c) = shortZCB.calculateAmountGivenSell(collateralIn);
-//     _logTrades(marketId, msg.sender, collateralIn, true, false); 
-
-//     // zcb minted to shortzcb contract
-//     _lendForShort(msg.sender, marketId, lendAmount);
-
-//     if (duringMarketAssessment(marketId)) deduct_selling_fee(); 
-
-//     shortZCB.trustedShort(address(this), collateralIn, min_amount_out); 
-
-//     shortZCB.transfer(msg.sender, lendAmount); 
-
-
-//   }
-
-//   /// @notice called when short is being opened, it allows shortZCB contract to 
-//   /// "borrow" by minting new ZCB to the shortZCB contract. 
-//   /// @dev although minting new zcb is different from borrowing from existing zcb holders, 
-//   /// in the context of our bonding curve prediction 
-//   /// market this is alllowed since we just dont allow longZCB holders 
-//   /// to sell when liquidity dries up   
-//   function _lendForShort(
-//     address trader, 
-//     uint256 marketId, 
-//     uint256 requested_zcb
-//     ) internal {
-//     // BondingCurve zcb = BondingCurve(controller.getZCB_ad(marketId));
-//     BondingCurve zcb = markets[marketId].long;
-
-//     // Log debt data 
-//     CDP storage cdp = debt_pools[marketId];
-//     cdp.collateral_amount[trader] += requested_zcb; 
-//     cdp.borrowed_amount[trader] += requested_zcb;  
-//     cdp.total_debt += requested_zcb; 
-//     cdp.total_collateral += requested_zcb; //only ds 
-//     collateral_pot[marketId] += requested_zcb; //Total ds collateral 
-
-//     zcb.trustedDiscountedMint(address(markets[marketId].short), requested_zcb); 
-//   }
-
-//    function _repayForShort(
-//     address trader, 
-//     uint256 marketId, 
-//     uint256 repaying_zcb
-//     ) internal {
-//     // BondingCurve zcb = BondingCurve(controller.getZCB_ad(marketId));
-//     BondingCurve zcb = markets[marketId].long;
-
-//     CDP storage cdp = debt_pools[marketId];
-//     cdp.collateral_amount[trader] -= repaying_zcb; 
-//     cdp.borrowed_amount[trader] -= repaying_zcb; 
-//     cdp.total_debt -= repaying_zcb; 
-//     cdp.total_collateral -= repaying_zcb; 
-//     collateral_pot[marketId] -= repaying_zcb;
-//   }
-//   function sell(
-//       uint256 _marketId,
-//       uint256 _zcb_amount_in, 
-//       uint256 _min_collateral_out
-//     ) external _lock_ returns (uint256 amountOut){
-//     require(!restriction_data[_marketId].resolved, "must not be resolved");
-//     require(_canSell(msg.sender, 
-//       _zcb_amount_in, 
-//       _marketId),"Trade Restricted");
-
-//     //BondingCurve zcb = BondingCurve(controller.getZCB_ad(_marketId)); // SOMEHOW GET ZCB
-//     BondingCurve zcb = markets[_marketId].long;
-
-//     zcb.transferFrom(msg.sender, address(this), _zcb_amount_in); 
-
-//     // wCollateral to this address
-//     amountOut = zcb.trustedSell(address(this), _zcb_amount_in, _min_collateral_out);
-
-//     _logTrades(_marketId, msg.sender, amountOut, false, true); 
-
-//     //Send collateral to trader 
-//     WrappedCollateral(zcb.getCollateral()).redeem(address(this), msg.sender, amountOut); 
-
-//     if (!duringMarketAssessment(_marketId)) deduct_selling_fee(); 
-
-//     // queuedRepUpdates[msg.sender] -= 1; 
-
-//   }
-//   /// @notice main entry point for longZCB buys
-//   /// @param _collateralIn: amount of collateral tokens in WAD
-//   /// @param _min_amount_out is min quantity of ZCB returned
-//   function buy(
-//       uint256 _marketId,
-//       uint256 _collateralIn,
-//       uint256 _min_amount_out
-//     ) external _lock_ returns (uint256 amountOut) {
-//     require(!restriction_data[_marketId].resolved, "must not be resolved");
-//     _canBuy(msg.sender, _collateralIn, _marketId);
-
-//     // BondingCurve zcb = BondingCurve(controller.getZCB_ad(_marketId)); // SOMEHOW GET ZCB
-//     BondingCurve zcb = markets[_marketId].long;
-//     WrappedCollateral wCollateral = WrappedCollateral(zcb.getCollateral()); 
-
-//     // Mint wCollateral to this address
-//     wCollateral.mint(msg.sender, address(this), _collateralIn); 
-//     wCollateral.approve(address(zcb), _collateralIn); 
-
-//     // reentrant locked and trusted contract with no hooks, so ok 
-//     // need to set reuputation phase after the trade 
-//     amountOut = zcb.trustedBuy(address(this), _collateralIn, _min_amount_out);
-
-//     //Need to log assessment trades for updating reputation scores or returning collateral
-//     //when market denied 
-//     _logTrades(_marketId, msg.sender, _collateralIn, true, true); 
-
-//     if (duringMarketAssessment(_marketId)){
-
-//       // rep.incrementBalance(_marketId, msg.sender, _collateralIn);
-
-//       // keep track of amount bought during reputation phase
-//       // and make transitions from onlyReputation true->false
-//       if(onlyReputable(_marketId)){
-//         uint256 principal = controller.getVault(_marketId).fetchInstrumentData(_marketId).principal;
-//         uint256 total_bought = zcb.getTotalCollateral();
-
-//         // first time rep user buying.
-//         if (!assessment_trader[_marketId][msg.sender]) {
-//           validator_data[_marketId].candidates.push(msg.sender);
-//         }
-
-//         if (total_bought >= parameters[_marketId].omega.mulWadDown(principal)) {
-//           setReputationPhase(_marketId, false);
-//           _getValidators(_marketId);
-//         }
-//       }
-      
-//       assessment_probs[_marketId][msg.sender] =  zcb.calcImpliedProbability(
-//           _collateralIn, 
-//           getTraderBudget(_marketId, msg.sender) 
-//       ); 
-  
-//       }
-
-//     zcb.transfer(msg.sender, amountOut); 
-
-
-//   }
-//     /// @notice setup for long and short ZCBs.
-//   function setCurves(
-//     uint256 marketId
-//   ) internal {
-//     markets[marketId].longZCB.setShortZCB(address(markets[marketId].short));
-//   }
-//   /// @notice During assessment phase, need to log the trader's 
-//   /// total collateral when he bought zcb. Trader can only redeem collateral in 
-//   /// when market is not approved 
-//   function _logAssessmentTrade(
-//     uint256 marketId, 
-//     address trader, 
-//     uint256 collateralIn,
-//     uint256 probability
-//     )
-//     internal 
-//   { 
-//     assessment_trader[marketId][trader] = true; 
-//     assessment_collaterals[marketId][trader] += collateralIn;
-//     assessment_probs[marketId][trader] = probability; 
-
-//     // queuedRepUpdates[msg.sender] += 1; 
-
-//   }
-//   struct CDP{
-//     mapping(address=>uint256) collateral_amount;
-//     mapping(address=>uint256) borrowed_amount; 
-//     uint256 total_debt; 
-//     uint256 total_collateral;
-//   }
-//   /// @notice called by controller when market is approved
-//   function setLowerBound(
-//     uint256 marketId, 
-//     uint256 new_lower_bound
-//     ) private {
-//     // BondingCurve(controller.getZCB_ad(marketId)).setLowerBound(new_lower_bound);
-//     markets[marketId].long.setLowerBound(new_lower_bound);
-//   }
-//   /// @notice main approval function called by controller
-//   /// @dev if market is alive and market is not during assessment, it is approved. 
-//   function approveMarket( uint256 marketId) external onlyControllerOwnerInternal {
-//     require(restriction_data[marketId].alive, "phaseERR");
-//     restriction_data[marketId].duringAssessment = false; 
-//   }
-
-//   function getDebtPosition(address trader, uint256 marketId) public view returns(uint256, uint256){
-//     CDP storage cdp = debt_pools[marketId];
-//     return (cdp.collateral_amount[trader], cdp.borrowed_amount[trader]);
-//   }
 }
-
-/// @notice simple wrapped collateral to be used in markets instead of 
-/// collateral, so that collateral used to buy bonds during assessment 
-// /// is used for lending Redeemable for collateral one to one 
-// contract WrappedCollateral is OwnedERC20 {
-
-//   ERC20 collateral; 
-//   uint256 dec_dif; 
-//   constructor (
-//       string memory name,
-//       string memory symbol,
-//       address owner, 
-//       address _collateral
-//       ) OwnedERC20(name, symbol, owner) {
-//       collateral = ERC20(_collateral);
-
-//       // collateral_dec = collateral.decimals();
-//       collateral.approve(owner, type(uint256).max); 
-
-//       dec_dif = decimals() - collateral.decimals(); //12 for USDC, 0 for 18
-//     }
-
-//   /// @notice called when buying 
-//   /// @param _amount is always in 18 
-//   function mint(address _from, address _target, uint256 _amount) external {
-//     uint256 amount = _amount/(10**dec_dif); 
-//     collateral.transferFrom(_from, address(this), amount); 
-//     _mint(_target, _amount); 
-//   }
-
-//   /// @notice called when selling 
-//   function redeem(address _from, address _target, uint256 _amount) external {
-//     uint256 amount = _amount/(10**dec_dif); 
-
-//     _burn(_from, _amount); 
-//     collateral.transfer(_target, amount); 
-//   }
-
-//   function trustedTransfer(address _target, uint256 _amount) external {
-//     require(msg.sender == owner, "Not owner"); 
-//     uint256 amount = _amount/(10**dec_dif); 
-//     collateral.transfer(_target, amount); 
-//   }
-
-//   function flush(address flushTo) external onlyOwner{
-
-//     collateral.transfer(flushTo, collateral.balanceOf(address(this))); 
-//   }
-
-// }
 
