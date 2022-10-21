@@ -428,6 +428,9 @@ contract MarketManager is Owned
 
         if (!(getTraderBudget(marketId, trader)>= uint256(amount) + rep.balances(marketId, trader))) 
           revert("budget limit");
+
+        if (rep.getReputationScore(trader) == 0)
+          revert("Reputation 0"); 
       }
     }
 
@@ -681,24 +684,19 @@ contract MarketManager is Owned
       if (isBuy) {
         longTrades[marketId][trader] += collateral; 
         loggedCollaterals[marketId] += collateral; 
-        queuedRepUpdates[msg.sender] += 1; 
-
-      }
-      else {
+        queuedRepUpdates[trader] += 1; 
+        } else {
         longTrades[marketId][trader] -= collateral;
         loggedCollaterals[marketId] -= collateral; 
-      } 
-    }
-
-    else{
+        } 
+      } else{
       if (isBuy) {
         // shortCollateral is amount trader pays to buy shortZCB
         shortTrades[marketId][trader] += shortCollateral;
 
         // collateral is the area under the curve that is subtracted due to the (short)selling
         loggedCollaterals[marketId] -= collateral; 
-      } 
-      else {
+        } else {
         // revert if underflow, which means trader sold short at a profit, which is not allowed during assessment 
         shortTrades[marketId][trader] -= shortCollateral; 
         loggedCollaterals[marketId] += collateral; 
@@ -728,8 +726,17 @@ contract MarketManager is Owned
     SyntheticZCBPool(msg.sender).BaseToken().transferFrom(abi.decode(data, (address)), msg.sender, amount); 
   }
 
-  function deduct_selling_fee() internal {}
+  /// @notice deduce fees for non vault stakers, should go down as maturity time approach 0 
+  function deduct_selling_fee(uint256 marketId ) internal view returns(uint256){
 
+    // Linearly decreasing fee 
+    uint256 normalizedTime = (controller.getVault(marketId).fetchInstrumentData(marketId).maturityDate
+      - block.timestamp)* config.WAD / controller.getVault(marketId).fetchInstrumentData(marketId).duration; 
+    return normalizedTime.mulWadDown( riskTransferPenalty); 
+
+  }
+
+  uint256 public constant riskTransferPenalty = 1e17; 
   mapping(address => uint8) public queuedRepUpdates; 
   uint8 public constant queuedRepThreshold = 3; // at most 3 simultaneous assessment per manager
   /// @notice main entry point for longZCB buys 
@@ -813,7 +820,7 @@ contract MarketManager is Owned
 
     }
     else{
-      deduct_selling_fee(); //TODO, if validator or manager, deduct reputation 
+      deduct_selling_fee( _marketId ); //TODO, if validator or manager, deduct reputation 
 
       (uint16 point, bool isTaker) = abi.decode(_tradeRequestData, (uint16,bool ));
       if(isTaker) (amountIn, amountOut) = bondPool.takerClose(
@@ -843,7 +850,7 @@ contract MarketManager is Owned
 
     }
     else{
-      deduct_selling_fee(); //if naked CDS( staked vault)
+      //deduct_selling_fee(); //if naked CDS( staked vault)
 
       (uint16 point, bool isTaker) = abi.decode(_tradeRequestData, (uint16,bool ));
       if (isTaker)
@@ -869,7 +876,7 @@ contract MarketManager is Owned
       (amountOut, amountIn) = bondPool.takerClose(false, -int256(_amountIn), _priceLimit, abi.encode(msg.sender));
 
       _logTrades(_marketId, msg.sender, amountOut, amountIn, true, false); 
-      deduct_selling_fee(); 
+     // deduct_selling_fee(); 
     }
     else{
       (uint16 point, bool isTaker) = abi.decode(_tradeRequestData, (uint16,bool ));
@@ -962,6 +969,7 @@ contract MarketManager is Owned
         redemption_prices[marketId] = 0; 
       }
       else {
+        console.log('loss',loss, total_supply); 
         redemption_prices[marketId] = config.WAD - loss.divWadDown(total_supply);
       }
     }
@@ -1025,6 +1033,131 @@ contract MarketManager is Owned
 
     bondPool.trustedBurn(msg.sender, shortZCB_redeem_amount, false); 
     controller.redeem_transfer(collateral_redeem_amount, msg.sender, marketId); 
+  }
+
+  /// @notice returns the manager's maximum leverage 
+  function getMaxLeverage(address manager) public view returns(uint256){
+    return (rep.getReputationScore(manager) * config.WAD).sqrt(); //TODO experiment 
+  }
+  // mapping(uint256=> mapping(address=>uint256 )) leverageMap; //marketId-> address->leverage 
+  mapping(uint256=>mapping(address=> LeveredBond)) leveragePosition; 
+  struct LeveredBond{
+    uint128 debt; 
+    uint128 amount; // how much bonds were bought with the given leverage
+  }
+
+  /// @notice for managers that are a) meet certain reputation threshold and b) choose to be more
+  /// capital efficient with their zcb purchase. 
+  /// @param _amountIn (in collateral) already accounts for the leverage, so the actual amount manager is transferring
+  /// is _amountIn/_leverage 
+  /// @dev the marketmanager should take custody of the quantity bought with leverage
+  /// and instead return notes of the levered position 
+  /// TODO do + instead of creating new positions 
+  function buyBondLevered(
+    uint256 _marketId, 
+    uint256 _amountIn, 
+    uint256 _priceLimit, 
+    uint256 _leverage //in 18 dec 
+    ) external _lock_ returns(uint256 amountIn, uint256 amountOut){
+    require(duringMarketAssessment(_marketId), "PhaseERR"); 
+    require(!restriction_data[_marketId].resolved, "must not be resolved");
+    require(_leverage <= getMaxLeverage(msg.sender) && _leverage >= config.WAD, "exceeds allowed leverage");
+    _canBuy(msg.sender, int256(_amountIn), _marketId);
+    SyntheticZCBPool bondPool = markets[_marketId].bondPool; 
+
+    // stack collateral from trader and borrowing from vault 
+    uint256 amountPulled = _amountIn.divWadDown(_leverage); 
+    bondPool.BaseToken().transferFrom(msg.sender, address(this), amountPulled); 
+    controller.pullLeverage(_marketId, _amountIn - amountPulled); 
+
+    // Buy with leverage, zcb transferred here
+    bondPool.BaseToken().approve(address(bondPool), _amountIn); 
+    (amountIn, amountOut) = bondPool.takerOpen(true, int256(_amountIn), _priceLimit, abi.encode(address(this))); 
+
+    //Need to log assessment trades for updating reputation scores or returning collateral when market denied 
+    _logTrades(_marketId, msg.sender, _amountIn, 0, true, true);
+
+    // Get implied probability estimates by summing up all this managers bought for this market 
+    assessment_probs[_marketId][msg.sender] = calcImpliedProbability(
+        getZCB(_marketId).balanceOf(msg.sender), 
+        longTrades[_marketId][msg.sender], 
+        getTraderBudget(_marketId, msg.sender) 
+    ); 
+
+    // Phase Transitions when conditions met
+    if(onlyReputable(_marketId)){
+      uint256 total_bought = loggedCollaterals[_marketId];
+
+      if (total_bought >= parameters[_marketId].omega.mulWadDown(
+            controller
+            .getVault(_marketId)
+            .fetchInstrumentData(_marketId)
+            .principal)
+      ) {
+        restriction_data[_marketId].onlyReputable = false;
+        //_getValidators(_marketId);
+      }
+    }
+    // create note to trader 
+    leveragePosition[_marketId][msg.sender] = LeveredBond(uint128(_amountIn - amountPulled ),uint128(amountOut)) ; 
+  }
+
+  function redeemLeveredBond(uint256 marketId) public{
+    require(!marketActive(marketId), "Market Active"); 
+    require(restriction_data[marketId].resolved, "Market not resolved"); 
+    require(!redeemed[marketId][msg.sender], "Already Redeemed");
+    redeemed[marketId][msg.sender] = true; 
+
+    if (isValidator(marketId, msg.sender)) delete validator_data[marketId].sales[msg.sender]; 
+
+    LeveredBond memory position = leveragePosition[marketId][msg.sender]; 
+    require(position.amount>0, "ERR"); 
+
+    uint256 redemption_price = get_redemption_price(marketId); 
+    uint256 collateral_back = redemption_price.mulWadDown(position.amount) ; 
+    uint256 collateral_redeem_amount = collateral_back >= uint256(position.debt)  
+        ? collateral_back - uint256(position.debt) : 0; 
+
+    if (!isValidator(marketId, msg.sender)) {
+      bool increment = redemption_price >= config.WAD? true: false;
+      controller.updateReputation(marketId, msg.sender, increment);
+    }
+
+    // This means that the sender is a manager
+    if (queuedRepUpdates[msg.sender] > 0){
+     unchecked{queuedRepUpdates[msg.sender] -= 1;} 
+    }
+
+    leveragePosition[marketId][msg.sender].amount = 0; 
+    markets[marketId].bondPool.trustedBurn(address(this), position.amount, true); 
+    controller.redeem_transfer(collateral_redeem_amount, msg.sender, marketId); 
+  }
+
+  function redeemDeniedLeveredBond(uint256 marketId) public returns(uint collateral_amount){
+    LeveredBond memory position = leveragePosition[marketId][msg.sender]; 
+    require(position.amount>0, "ERR"); 
+    leveragePosition[marketId][msg.sender].amount = 0; 
+
+    // TODO this means if trader's loss will be refunded if loss was realized before denied market
+    if (isValidator(marketId, msg.sender)) {
+      collateral_amount = validator_data[marketId].sales[msg.sender].mulWadDown(validator_data[marketId].avg_price);
+      delete validator_data[marketId].sales[msg.sender];
+    }
+    else{
+      collateral_amount = longTrades[marketId][msg.sender]; 
+      delete longTrades[marketId][msg.sender]; 
+    }
+
+    // Burn all their position, 
+    markets[marketId].bondPool.trustedBurn(address(this), position.amount, true); 
+
+    // This means that the sender is a manager
+    if (queuedRepUpdates[msg.sender] > 0){
+      unchecked{queuedRepUpdates[msg.sender] -= 1;} 
+    }    
+
+    // Before redeem_transfer is called all funds for this instrument should be back in the vault
+    controller.redeem_transfer(collateral_amount - position.debt, msg.sender, marketId);
   }
 
 }

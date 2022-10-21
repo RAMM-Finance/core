@@ -99,7 +99,10 @@ contract ReputationNFT is ERC721 {
 
     ReputationData storage data = _reputation[_ownerToId[to]];
     if (score > 0) data.score = data.score + uint256(score);
-    else data.score = data.score - uint256(score); 
+    else{
+        if (data.score <= uint256(-score)) data.score = 0; 
+        else data.score = data.score -uint256(-score); 
+      } 
 
     storeTopX(data.score, to); 
   }

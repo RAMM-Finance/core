@@ -349,6 +349,10 @@ contract Controller {
     cleanUpDust(marketId); 
   }
 
+  function pullLeverage(uint256 marketId, uint256 amount) external onlyManager{
+    getVault(marketId).trusted_transfer(amount, address(marketManager)); 
+  }
+
   function getMarketId(address recipient) public view returns(uint256){
     return ad_to_id[recipient];
   }
