@@ -402,120 +402,120 @@ contract FullCycleTest is Test {
     function setRedemptionPrice() public{
 
     }
-    // function testSomeLongSomeShortApprove() public{
-    //     testVars2 memory vars; 
+    function testSomeLongSomeShortApprove() public{
+        testVars2 memory vars; 
 
-    //     somelongsomeshort(vars, true);
+        somelongsomeshort(vars, true);
 
-    //     // validators invest and approve  
-    //     doApprove(vars); 
+        // validators invest and approve  
+        doApprove(vars); 
         
-    //     // did correct amount go to vault? the short collateral should stay in pool 
-    //     assertApproxEqAbs(vars.s_amountIn, marketmanager.shortTrades(vars.marketId, chris), 10); 
-    //     assertApproxEqAbs(marketmanager.getShortZCB(vars.marketId).balanceOf(chris), 
-    //         marketmanager.getPool(vars.marketId).cBal(), 10); 
+        // did correct amount go to vault? the short collateral should stay in pool 
+        assertApproxEqAbs(vars.s_amountIn, marketmanager.shortTrades(vars.marketId, chris), 10); 
+        assertApproxEqAbs(marketmanager.getShortZCB(vars.marketId).balanceOf(chris), 
+            marketmanager.getPool(vars.marketId).cBal(), 10); 
 
-    //     // how does liquidity change after approval, can people trade in zero liq 
-    //     assertEq(uint256(marketmanager.getPool(vars.marketId).pool().liquidity()), 0); 
-    // }
+        // how does liquidity change after approval, can people trade in zero liq 
+        assertEq(uint256(marketmanager.getPool(vars.marketId).pool().liquidity()), 0); 
+    }
 
 
-    // function testSomeLongSomeShortDeny() public{
-    //     testVars2 memory vars; 
+    function testSomeLongSomeShortDeny() public{
+        testVars2 memory vars; 
 
-    //     somelongsomeshort(vars, true);
+        somelongsomeshort(vars, true);
 
-    //     // validators deny 
-    //     doDeny(vars); 
+        // validators deny 
+        doDeny(vars); 
 
-    //     vars.sumofcollateral = marketmanager.longTrades(vars.marketId, jonna)
-    //     +marketmanager.longTrades(vars.marketId, sybal)
-    //     +marketmanager.shortTrades(vars.marketId, chris)
-    //     +marketmanager.longTrades(vars.marketId, chris)
-    //     +marketmanager.longTrades(vars.marketId, miku); 
-    //     assertApproxEqAbs(vars.sumofcollateral, vars.cbalbefore, 10); 
+        vars.sumofcollateral = marketmanager.longTrades(vars.marketId, jonna)
+        +marketmanager.longTrades(vars.marketId, sybal)
+        +marketmanager.shortTrades(vars.marketId, chris)
+        +marketmanager.longTrades(vars.marketId, chris)
+        +marketmanager.longTrades(vars.marketId, miku); 
+        assertApproxEqAbs(vars.sumofcollateral, vars.cbalbefore, 10); 
 
-    //     vars.vaultBalBeforeRedeem = collateral.balanceOf(controller.getVaultAd(vars.marketId)); 
+        vars.vaultBalBeforeRedeem = collateral.balanceOf(controller.getVaultAd(vars.marketId)); 
 
-    //     // LEt everyone redeem, total redemption should equal their contribution 
-    //     vm.prank(jonna); 
-    //     marketmanager.redeemDeniedMarket(vars.marketId, true); 
-    //     vm.prank(sybal); 
-    //     marketmanager.redeemDeniedMarket(vars.marketId, true); 
-    //     vm.prank(chris); 
-    //     marketmanager.redeemDeniedMarket(vars.marketId, false); 
-    //     vm.prank(miku); 
-    //     marketmanager.redeemDeniedMarket(vars.marketId, true); 
-    //     assertApproxEqAbs(
-    //         vars.vaultBalBeforeRedeem - collateral.balanceOf(controller.getVaultAd(vars.marketId)) , 
-    //         vars.sumofcollateral, 10
-    //         ); 
-    // }
+        // LEt everyone redeem, total redemption should equal their contribution 
+        vm.prank(jonna); 
+        marketmanager.redeemDeniedMarket(vars.marketId, true); 
+        vm.prank(sybal); 
+        marketmanager.redeemDeniedMarket(vars.marketId, true); 
+        vm.prank(chris); 
+        marketmanager.redeemDeniedMarket(vars.marketId, false); 
+        vm.prank(miku); 
+        marketmanager.redeemDeniedMarket(vars.marketId, true); 
+        assertApproxEqAbs(
+            vars.vaultBalBeforeRedeem - collateral.balanceOf(controller.getVaultAd(vars.marketId)) , 
+            vars.sumofcollateral, 10
+            ); 
+    }
 
-    // function testLPsCanShortBeforeApproval() public{
-    //     testVars2 memory vars; 
+    function testLPsCanShortBeforeApproval() public{
+        testVars2 memory vars; 
 
-    //     somelongsomeshort(vars, false);
+        somelongsomeshort(vars, false);
 
-    //     bytes memory data; 
-    //     doApproveCol(address(marketmanager), goku); 
-    //     vm.prank(goku); 
-    //     (vars.s_amountIn, vars.s_amountOut) =
-    //         marketmanager.shortBond(vars.marketId, vars.amount1, vars.curPrice + precision/10 , data); 
-    //     assertApproxEqAbs(marketmanager.getShortZCB(vars.marketId).balanceOf(goku),  vars.s_amountIn+ vars.s_amountOut, 10); 
+        bytes memory data; 
+        doApproveCol(address(marketmanager), goku); 
+        vm.prank(goku); 
+        (vars.s_amountIn, vars.s_amountOut) =
+            marketmanager.shortBond(vars.marketId, vars.amount1, vars.curPrice + precision/10 , data); 
+        assertApproxEqAbs(marketmanager.getShortZCB(vars.marketId).balanceOf(goku),  vars.s_amountIn+ vars.s_amountOut, 10); 
 
-    //     //redeem denied 
-    //     uint balbefore = collateral.balanceOf(goku); 
-    //     doDeny(vars); 
-    //     vm.prank(goku); 
-    //     marketmanager.redeemDeniedMarket(vars.marketId, false); 
-    //     assertEq(marketmanager.getShortZCB(vars.marketId).balanceOf(goku), 0);
-    //     assertApproxEqAbs(collateral.balanceOf(goku)-balbefore, vars.s_amountIn, 10);  
-    // }
+        //redeem denied 
+        uint balbefore = collateral.balanceOf(goku); 
+        doDeny(vars); 
+        vm.prank(goku); 
+        marketmanager.redeemDeniedMarket(vars.marketId, false); 
+        assertEq(marketmanager.getShortZCB(vars.marketId).balanceOf(goku), 0);
+        assertApproxEqAbs(collateral.balanceOf(goku)-balbefore, vars.s_amountIn, 10);  
+    }
 
-    // function testLPsCanLongAndShortAfterApproval() public{
+    function testLPsCanLongAndShortAfterApproval() public{
 
-    //     testVars2 memory vars; 
+        testVars2 memory vars; 
 
-    //     somelongsomeshort(vars, true); 
+        somelongsomeshort(vars, true); 
 
-    //     doApprove(vars); 
+        doApprove(vars); 
 
-    //     //set bids at current price 
-    //      bytes memory data = abi.encode(uint16(uint16(marketmanager.getPool(vars.marketId).pool().getCurPrice()/1e16) -1),
-    //        false ); 
-    //     doApproveCol(address(marketmanager.getPool(vars.marketId)), jonna); 
-    //     vm.prank(jonna); 
-    //     marketmanager.buyBond(vars.marketId, int256(vars.amount1) , 0, data); 
+        //set bids at current price 
+         bytes memory data = abi.encode(uint16(uint16(marketmanager.getPool(vars.marketId).pool().getCurPrice()/1e16) -1),
+           false ); 
+        doApproveCol(address(marketmanager.getPool(vars.marketId)), jonna); 
+        vm.prank(jonna); 
+        marketmanager.buyBond(vars.marketId, int256(vars.amount1) , 0, data); 
 
-    //     // let someone short
-    //     bytes memory data2 = abi.encode(0,
-    //        true ); 
-    //     doApproveCol(address(marketmanager), goku); 
-    //     vm.prank(goku); 
-    //     (vars.s_amountIn, vars.s_amountOut) =
-    //         marketmanager.shortBond(vars.marketId, vars.amount3, vars.curPrice - precision/10 , data2); 
-    //     assertApproxEqAbs(vars.s_amountIn+ vars.s_amountOut, vars.amount3 , 10);
+        // let someone short
+        bytes memory data2 = abi.encode(0,
+           true ); 
+        doApproveCol(address(marketmanager), goku); 
+        vm.prank(goku); 
+        (vars.s_amountIn, vars.s_amountOut) =
+            marketmanager.shortBond(vars.marketId, vars.amount3, vars.curPrice - precision/10 , data2); 
+        assertApproxEqAbs(vars.s_amountIn+ vars.s_amountOut, vars.amount3 , 10);
 
-    //     // let someone close long limit 
-    //     uint256 bal2 = marketmanager.getZCB(vars.marketId).balanceOf(jonna); 
-    //     bytes memory data4 = abi.encode(uint16(uint16(marketmanager.getPool(vars.marketId).pool().getCurPrice()/1e16) +1),
-    //        false ); 
-    //     vm.prank(jonna); 
-    //     marketmanager.sellBond( vars.marketId, bal2, 0, data4); 
-    //     assertEq(marketmanager.getZCB(vars.marketId).balanceOf(jonna), 0); 
+        // let someone close long limit 
+        uint256 bal2 = marketmanager.getZCB(vars.marketId).balanceOf(jonna); 
+        bytes memory data4 = abi.encode(uint16(uint16(marketmanager.getPool(vars.marketId).pool().getCurPrice()/1e16) +1),
+           false ); 
+        vm.prank(jonna); 
+        marketmanager.sellBond( vars.marketId, bal2, 0, data4); 
+        assertEq(marketmanager.getZCB(vars.marketId).balanceOf(jonna), 0); 
 
-    //      // close all short via limit or via taker. half via limit half via taker 
-    //     bytes memory data3 = abi.encode(uint16(uint16(marketmanager.getPool(vars.marketId).pool().getCurPrice()/1e16) -1),
-    //        false ); 
-    //     uint256 bal = marketmanager.getShortZCB(vars.marketId).balanceOf(goku); 
-    //     vm.prank(goku); 
-    //     marketmanager.coverBondShort(vars.marketId, bal/2, 0, data3);   // limit
-    //     vm.prank(goku); 
-    //     marketmanager.coverBondShort(vars.marketId, (bal/2)-1, 0, data2); // taker, buy up 
-    //     assertApproxEqAbs(marketmanager.getShortZCB(vars.marketId).balanceOf(goku),0,1); 
+         // close all short via limit or via taker. half via limit half via taker 
+        bytes memory data3 = abi.encode(uint16(uint16(marketmanager.getPool(vars.marketId).pool().getCurPrice()/1e16) -1),
+           false ); 
+        uint256 bal = marketmanager.getShortZCB(vars.marketId).balanceOf(goku); 
+        vm.prank(goku); 
+        marketmanager.coverBondShort(vars.marketId, bal/2, 0, data3);   // limit
+        vm.prank(goku); 
+        marketmanager.coverBondShort(vars.marketId, (bal/2)-1, 0, data2); // taker, buy up 
+        assertApproxEqAbs(marketmanager.getShortZCB(vars.marketId).balanceOf(goku),0,1); 
         
-    // }
+    }
 
 
     function testManagersCompensationVanilaRedeem() public{
