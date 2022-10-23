@@ -1268,7 +1268,7 @@ contract BoundedDerivativesPool {
         noCallBack = _noCallBack; 
     }
 
-
+    /// @notice recipient recieves amountOut in exchange for giving this contract amountIn (base)
     function mintAndPull(address recipient, uint256 amountOut, uint256 amountIn, bool isLong) internal  {
         
         console.log('mint/pull amount,', amountOut, amountIn); 
@@ -1294,8 +1294,8 @@ contract BoundedDerivativesPool {
         return BaseToken.balanceOf(address(this)); 
     }
     /// @notice Long up the curve, or short down the curve 
-    /// param amountIn is base if long, trade if short
-    /// param pricelimit is slippage tolerance
+    /// @param amountIn is base if long, trade if short
+    /// @param priceLimit is slippage tolerance
     function takerOpen(
         bool isLong, 
         int256 amountIn,
@@ -1322,7 +1322,7 @@ contract BoundedDerivativesPool {
         }
 
         else{
-            // just shift pool state 
+            // just shift pool state
             (poolamountIn, poolamountOut) = pool.trade(
                 address(this), 
                 false, 
@@ -1330,7 +1330,7 @@ contract BoundedDerivativesPool {
                 priceLimit, 
                 data
             ); 
-            console.log('shorting,', poolamountIn, poolamountOut,poolamountIn.mulWadDown(maxPrice) - poolamountOut);
+            console.log('shorting,', poolamountIn, poolamountOut, poolamountIn.mulWadDown(maxPrice) - poolamountOut);
             uint256 cached_poolamountOut = poolamountOut; 
             // poolamountIn is the number of short tokens minted, poolamountIn * maxprice - poolamountOut is the collateral escrowed
             poolamountOut = poolamountIn.mulWadDown(maxPrice) - poolamountOut;
@@ -1367,7 +1367,7 @@ contract BoundedDerivativesPool {
         // Sell down
         if(isLong){
             (poolamountIn, poolamountOut) = pool.trade(
-                msg.sender, 
+                msg.sender,
                 false, 
                 amountIn, //this should be trade tokens
                 priceLimit, 
@@ -1399,7 +1399,7 @@ contract BoundedDerivativesPool {
 
             if (noCallBack) burnAndPush(msg.sender, poolamountIn,poolamountOut, false);
             else {
-                burnAndPush(abi.decode(data, (address)), poolamountIn,poolamountOut,false ); 
+                burnAndPush(abi.decode(data, (address)), poolamountIn, poolamountOut,false ); 
                 poolamountOut = cached_poolamountIn; 
             }
 

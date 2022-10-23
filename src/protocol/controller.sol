@@ -59,6 +59,7 @@ contract Controller {
 
   uint256 constant TWITTER_UNRATED_GROUP_ID = 16106950158033643226105886729341667676405340206102109927577753383156646348711;
   bytes32 constant private signal = bytes32("twitter-unrated");
+  uint256 constant MIN_DURATION = 1 days;
   
   // Bond Curve Name
   string constant baseName = "Bond";
@@ -180,7 +181,8 @@ contract Controller {
     require(recipient != address(0), "address0"); 
     require(instrumentData.Instrument_address != address(0), "address0");
     require(address(vaults[vaultId]) != address(0), "address0");
-    require(instrumentData.principal >= config.WAD, "numERR"); 
+    require(instrumentData.principal >= config.WAD, "numERR");
+    require(instrumentData.duration >= MIN_DURATION, "duration threshold not met"); 
 
     Vault vault = vaults[vaultId]; 
     uint256 marketId = marketManager.marketCount();
@@ -198,13 +200,12 @@ contract Controller {
                                   marketManager.getParameters(marketId).sigma); 
 
     marketManager.newMarket(marketId, 
-                            instrumentData.principal, 
-                            instrumentData.expectedYield,   
+                            instrumentData.principal,  
                             pool, 
                             longZCB,
                             shortZCB,
                             instrumentData.description,
-                            block.timestamp);
+                            instrumentData.duration);
 
     // add vault proposal 
     instrumentData.marketId = marketId;
@@ -219,7 +220,7 @@ contract Controller {
 
   /// @notice Resolve function 1
   /// @dev Prepare market/instrument for closing, called separately before resolveMarket
-  function beforeResolve(uint256 marketId) external 
+  function beforeResolve(uint256 marketId) onlyValidator(marketId) external 
   //onlyKeepers 
   {
     vaults[id_parent[marketId]].beforeResolve(marketId);
@@ -227,17 +228,20 @@ contract Controller {
  
   /// Resolve function 2
   /// @notice main function called at maturity OR premature resolve of instrument(from early default)  
-  /// @dev Validators can call this function as they are incentivized to redeem
+  /// @dev validators call this function from market manager
   /// any funds left for the instrument, irrespective of whether it is in profit or inloss. 
   function resolveMarket(
     uint256 marketId
-    ) external onlyValidator(marketId){
+    ) external onlyValidator(marketId) {
+    require(marketManager.resolveCondition(marketId), "resolve condition not met");
     (bool atLoss, uint256 extra_gain, uint256 principal_loss, bool premature) 
-          = vaults[id_parent[marketId]].resolveInstrument(marketId); 
+          = vaults[id_parent[marketId]].resolveInstrument(marketId);
 
     marketManager.update_redemption_price(marketId, atLoss, extra_gain, principal_loss, premature); 
-
-    cleanUpDust(marketId); 
+    if (atLoss && principal_loss > 0) {
+      marketManager.burnValidatorStake(marketId, principal_loss, approvalDatas[marketId].approved_principal);
+    }
+    cleanUpDust(marketId);
   }
 
   /// @notice When market resolves, should collect remaining liquidity and/or dust from  
@@ -259,7 +263,7 @@ contract Controller {
 
     if (block.timestamp >= data.maturityDate) {
         // this.resolveMarket(marketId);
-        this.beforeResolve(marketId); 
+        this.beforeResolve(marketId);
         return true;
     }
     return false;
@@ -315,7 +319,7 @@ contract Controller {
     if (vault.getInstrumentType(marketId) == 0) storeCredit(marketId, pool); 
 
     // For market to go to a post assessment stage there always needs to be a lower bound set  
-    marketManager.approveMarket(marketId); 
+    marketManager.approveMarket(marketId);
 
     // pull from pool to vault, which will be used to fund the instrument
     pool.flush(address(vault), marketManager.loggedCollaterals(marketId)); 

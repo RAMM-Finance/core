@@ -19,7 +19,7 @@ contract FullCycleTest is Test {
     Cash collateral;
     VaultFactory vaultFactory;
     ReputationNFT repToken;
-    SyntheticZCBPoolFactory poolFactory; 
+    SyntheticZCBPoolFactory poolFactory;
     
     address deployer = 0xb4c79daB8f259C7Aee6E5b2Aa729821864227e84;
     uint256 unit = 10**18; 
@@ -233,7 +233,7 @@ contract FullCycleTest is Test {
         doApproveCol(address(marketmanager), gatdang); 
         instrument.setValidator( gatdang);  
         vm.prank(gatdang); 
-        vars.valamountIn = marketmanager.validatorBuy(vars.marketId); 
+        vars.valamountIn = marketmanager.validatorApprove(vars.marketId); 
         assertApproxEqAbs(vars.cbalnow + vars.valamountIn - cBal(address(marketmanager.getPool(vars.marketId))), 
             vars.valamountIn + vars.amountIn,10); 
 
@@ -348,7 +348,7 @@ contract FullCycleTest is Test {
         doApproveCol(address(marketmanager), gatdang); 
         instrument.setValidator( gatdang);  
         vm.prank(gatdang); 
-        marketmanager.validatorBuy(vars.marketId); 
+        marketmanager.validatorApprove(vars.marketId); 
     }
 
     function doDeny(testVars2 memory vars) public {
