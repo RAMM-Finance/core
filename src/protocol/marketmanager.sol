@@ -336,13 +336,11 @@ contract MarketManager is Owned
   /// 4: post assessment(accepted or denied), amortized liquidity 
   function getCurrentMarketPhase(uint256 marketId) public view returns(uint256){
     if (onlyReputable(marketId)){
-      console.log("?"); 
       assert(!marketCondition(marketId) && !isMarketApproved(marketId) && duringMarketAssessment(marketId) ); 
       return 1; 
     }
 
     else if (duringMarketAssessment(marketId) && !onlyReputable(marketId)){
-      console.log("??");
       assert(!isMarketApproved(marketId)); 
       if (marketCondition(marketId)) return 3; 
       return 2; 
@@ -358,7 +356,6 @@ contract MarketManager is Owned
   /// sqrt for now
   function getTraderBudget(uint256 marketId, address trader) public view returns(uint256){
     uint256 repscore = rep.getReputationScore(trader); 
-
     if (repscore==0) return 0; 
 
     return restriction_data[marketId].base_budget + (repscore*config.WAD).sqrt();
@@ -659,7 +656,6 @@ contract MarketManager is Owned
     uint256 bondAmount, 
     uint256 collateral_amount,
     uint256 budget) public pure returns(uint256){
-
     uint256 avg_price = collateral_amount.divWadDown(bondAmount); 
     uint256 b = avg_price.mulWadDown(config.WAD - avg_price);
     uint256 ratio = bondAmount.divWadDown(budget); 
@@ -759,9 +755,10 @@ contract MarketManager is Owned
       //Need to log assessment trades for updating reputation scores or returning collateral when market denied 
       _logTrades(_marketId, msg.sender, amountIn, 0, true, true);
 
-      // Get implied probability estimates by summing up all this managers bought for this market 
+      // Get implied probability estimates by summing up all this manager bought for this market 
       assessment_probs[_marketId][msg.sender] = calcImpliedProbability(
-          getZCB(_marketId).balanceOf(msg.sender), 
+          getZCB(_marketId).balanceOf(msg.sender) 
+            + leveragePosition[_marketId][msg.sender].amount, 
           longTrades[_marketId][msg.sender], 
           getTraderBudget(_marketId, msg.sender) 
       ); 
@@ -969,7 +966,6 @@ contract MarketManager is Owned
         redemption_prices[marketId] = 0; 
       }
       else {
-        console.log('loss',loss, total_supply); 
         redemption_prices[marketId] = config.WAD - loss.divWadDown(total_supply);
       }
     }
@@ -999,7 +995,6 @@ contract MarketManager is Owned
 
     if (!isValidator(marketId, msg.sender)) {
       bool increment = redemption_price >= config.WAD? true: false;
-      console.log('redemption_price', redemption_price); 
       controller.updateReputation(marketId, msg.sender, increment);
     }
 
@@ -1039,11 +1034,16 @@ contract MarketManager is Owned
   function getMaxLeverage(address manager) public view returns(uint256){
     return (rep.getReputationScore(manager) * config.WAD).sqrt(); //TODO experiment 
   }
-  // mapping(uint256=> mapping(address=>uint256 )) leverageMap; //marketId-> address->leverage 
-  mapping(uint256=>mapping(address=> LeveredBond)) leveragePosition; 
+
+  mapping(uint256=>mapping(address=> LeveredBond)) public leveragePosition; 
   struct LeveredBond{
-    uint128 debt; 
+    uint128 debt; //how much collateral borrowed from vault 
     uint128 amount; // how much bonds were bought with the given leverage
+  }
+
+  function getLeveragePosition(uint256 marketId, address manager) public view returns(uint256, uint256){
+    return (uint256(leveragePosition[marketId][manager].debt), 
+      uint256(leveragePosition[marketId][manager].amount));
   }
 
   /// @notice for managers that are a) meet certain reputation threshold and b) choose to be more
@@ -1052,7 +1052,7 @@ contract MarketManager is Owned
   /// is _amountIn/_leverage 
   /// @dev the marketmanager should take custody of the quantity bought with leverage
   /// and instead return notes of the levered position 
-  /// TODO do + instead of creating new positions 
+  /// TODO do + instead of creating new positions and implied prob cumulative 
   function buyBondLevered(
     uint256 _marketId, 
     uint256 _amountIn, 
@@ -1071,7 +1071,7 @@ contract MarketManager is Owned
     controller.pullLeverage(_marketId, _amountIn - amountPulled); 
 
     // Buy with leverage, zcb transferred here
-    bondPool.BaseToken().approve(address(bondPool), _amountIn); 
+    bondPool.BaseToken().approve(address(this), _amountIn); 
     (amountIn, amountOut) = bondPool.takerOpen(true, int256(_amountIn), _priceLimit, abi.encode(address(this))); 
 
     //Need to log assessment trades for updating reputation scores or returning collateral when market denied 
@@ -1079,8 +1079,8 @@ contract MarketManager is Owned
 
     // Get implied probability estimates by summing up all this managers bought for this market 
     assessment_probs[_marketId][msg.sender] = calcImpliedProbability(
-        getZCB(_marketId).balanceOf(msg.sender), 
-        longTrades[_marketId][msg.sender], 
+        amountOut, 
+        amountIn, 
         getTraderBudget(_marketId, msg.sender) 
     ); 
 
@@ -1157,8 +1157,7 @@ contract MarketManager is Owned
     }    
 
     // Before redeem_transfer is called all funds for this instrument should be back in the vault
-    controller.redeem_transfer(collateral_amount - position.debt, msg.sender, marketId);
+    controller.redeem_transfer(collateral_amount - uint256(position.debt), msg.sender, marketId);
   }
-
 }
 
