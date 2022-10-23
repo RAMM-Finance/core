@@ -215,9 +215,10 @@ contract Vault is ERC4626, Auth{
       instrument_data[fetchInstrument(marketId)].trusted = true;
 
       //Write to storage 
-      instrument_data[Instruments[marketId]].principal = data.approved_principal; 
-      instrument_data[Instruments[marketId]].expectedYield = data.approved_yield;
-      instrument_data[Instruments[marketId]].faceValue = data.approved_principal + data.approved_yield; 
+      InstrumentData storage instrumentData = instrument_data[Instruments[marketId]]; 
+      instrumentData.principal = data.approved_principal; 
+      instrumentData.expectedYield = data.approved_yield;
+      instrumentData.faceValue = data.approved_principal + data.approved_yield; 
 
       depositIntoInstrument(marketId, data.approved_principal);
     
@@ -285,6 +286,7 @@ contract Vault is ERC4626, Auth{
         require(data.marketId > 0, "must be valid instrument");
 
         num_proposals[msg.sender] ++; 
+
         instrument_data[Instrument(data.Instrument_address)] = (
           InstrumentData(
             false, 
@@ -358,7 +360,7 @@ contract Vault is ERC4626, Auth{
         uint256 bal = UNDERLYING.balanceOf(address(this)); 
         uint256 instrument_balance = _instrument.getMaturityBalance(); 
 
-        InstrumentData storage data = instrument_data[_instrument];
+        InstrumentData memory data = instrument_data[_instrument];
 
         bool prematureResolve = resolveBeforeMaturity[marketId]; 
         bool atLoss; 
@@ -369,18 +371,16 @@ contract Vault is ERC4626, Auth{
         // the event the instrument has paid out all its yield + principal 
         if (!prematureResolve){
             atLoss = instrument_balance < data.faceValue;
-
             total_loss = atLoss ? data.faceValue - instrument_balance : 0;
             extra_gain = !atLoss ? instrument_balance - data.faceValue : 0;
+            console.log(data.faceValue);  
         }
 
         // If resolved before predetermined maturity date, loss is defined by 
         // the event the instrument has balance less then principal 
         else {
             atLoss = instrument_balance < data.principal; 
-
             total_loss = atLoss? data.principal - instrument_balance :0; 
-            extra_gain = 0; 
         }
 
         withdrawFromInstrument(_instrument, instrument_balance);

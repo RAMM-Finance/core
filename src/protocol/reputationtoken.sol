@@ -19,7 +19,7 @@ contract ReputationNFT is ERC721 {
 
   struct ReputationData {
     uint256 n; // number of markets participated in => regular uint256
-    uint256 score; // averaged reputation score => 60.18
+    uint256 score; 
   }
 
   struct TraderData { // for each market
@@ -93,10 +93,21 @@ contract ReputationNFT is ERC721 {
     return _reputation[_ownerToId[owner]].score;
   }
 
-  /**
-   @notice add scores and stores topX 
-   @param score: 60.18 format
-   */
+
+  function updateScore(address to, int256 score) external onlyController{
+    require(_ownerToId[to] != uint256(0), "No Id found");
+
+    ReputationData storage data = _reputation[_ownerToId[to]];
+    if (score > 0) data.score = data.score + uint256(score);
+    else{
+        if (data.score <= uint256(-score)) data.score = 0; 
+        else data.score = data.score -uint256(-score); 
+      } 
+
+    storeTopX(data.score, to); 
+  }
+
+
   function addScore(address to, uint256 score) external onlyController
    {
     require(_ownerToId[to] != uint256(0), "No Id found");
@@ -118,10 +129,6 @@ contract ReputationNFT is ERC721 {
     storeTopX(data.score, to); 
   }
 
-  /**
-   @notice calculates average of scores added.
-   @param score: 60.18 format
-   */
   function addAverageScore(address to, uint256 score) external onlyController
 
    {
