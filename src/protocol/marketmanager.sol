@@ -703,7 +703,7 @@ contract MarketManager is Owned
   /// @notice general limitorder claim + liquidity provision funnels used post-assessment, 
   /// which will be recorded if necessary 
   /// param type: 1 if open long, 2 if close long, 3 if open short, 4 if close short
-  /// type 5: partially claim 
+  /// type 5: partially claim , TODO do all possible trading functions 
   function claimFunnel(
     uint256 marketId, 
     uint16 point, 

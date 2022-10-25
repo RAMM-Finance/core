@@ -24,7 +24,7 @@ contract CoveredCallOTC is Instrument{
     uint256 public immutable maturityTime; 
 
     address public oracle ;
-    uint256 profit; 
+    uint256 public profit; 
     uint256 public constant timeThreshold = 10; 
     bool utilizerClaimed; 
 
@@ -42,9 +42,9 @@ contract CoveredCallOTC is Instrument{
         address _oracle,  // oracle for price of collateral 
         uint256 duration
         ) Instrument(_vault, _utilizer){
-
+        require(_longCollateral == _shortCollateral.mulWadDown(_pricePerContract), "incorrect setting"); 
         utilizer = _utilizer; 
-        underlyingAsset = _underlyingAsset; 
+        underlyingAsset = address(underlying); // already specified 
         strikePrice = _strikePrice; 
         pricePerContract = _pricePerContract; 
         shortCollateral = _shortCollateral; 
@@ -62,10 +62,10 @@ contract CoveredCallOTC is Instrument{
     function instrumentApprovalCondition() public override view returns(bool){
         return underlying.balanceOf(address(this)) >= longCollateral;
     }
-
+    uint256 public testqueriedPrice=1e18; 
     /// @notice queries oracle for the latest price of the underlying 
     function queryPrice() public view returns(uint256 price){
-        return 1e18; 
+        return testqueriedPrice; 
     }
 
     /// @notice for a given queriedPrice(usually the spot chainlink price at maturity)
@@ -97,7 +97,7 @@ contract CoveredCallOTC is Instrument{
         require(maturityTime < block.timestamp, "not matured"); 
         require(profit> 0, "0profit"); 
 
-        ERC20(underlying).transfer(msg.sender, profit); 
+        underlying.transfer(msg.sender, profit); 
 
         profit = 0; 
 

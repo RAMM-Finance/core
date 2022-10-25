@@ -137,7 +137,7 @@ abstract contract Instrument {
             uint256 _loss,
             uint256 _debtPayment
         ){
-            require(readyForWithdrawal()); 
+            require(readyForWithdrawal(), "not ready to withdraw"); 
 
             // Lock additional drawdowns or usage of instrument balance 
             lockLiquidityFlow();    
