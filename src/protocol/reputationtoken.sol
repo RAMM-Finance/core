@@ -93,6 +93,13 @@ contract ReputationNFT is ERC721 {
     return _reputation[_ownerToId[owner]].score;
   }
 
+  function setReputationScore(address owner, uint256 score) external returns (uint256) 
+  //onlyOwner
+  {
+    require(_ownerToId[owner] != uint256(0), "No Id found");
+    return _reputation[_ownerToId[owner]].score = score;
+  }
+
 
   function updateScore(address to, int256 score) external onlyController{
     require(_ownerToId[to] != uint256(0), "No Id found");
