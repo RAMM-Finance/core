@@ -108,7 +108,7 @@ contract ReputationNFT is ERC721 {
     if (score > 0) data.score = data.score + uint256(score);
     else{
         if (data.score <= uint256(-score)) data.score = 0; 
-        else data.score = data.score -uint256(-score); 
+        else data.score = data.score - uint256(-score);
       } 
 
     storeTopX(data.score, to); 
@@ -176,12 +176,11 @@ contract ReputationNFT is ERC721 {
   /// @notice gets the x's ranked score from all reputation scores 
   /// @dev returns 0 if topX is greater then avaiable nonzero rep scores-> everyone is allowed
   /// during reputation constraint periods 
-  function getMinRepScore(uint256 topX, uint256 marketId) public view returns(uint256){
+  function getMinRepScore(uint256 topX) public view returns(uint256) {
     if (getAvailableTopX() < topX) {
       return 0; 
     }
-    return topReputations[topX].score; 
-
+    return topReputations[topX].score;
   }
 
   function getAvailableTopX() public view returns(uint256){
@@ -202,9 +201,9 @@ contract ReputationNFT is ERC721 {
     uint256 i = 0;
 
     for(i; i < topReputations.length; i++) {
-        if(topReputations[i].score < score) {
-            break;
-        }
+      if(topReputations[i].score < score) {
+        break;
+      }
     }
     // shifting the array of position (getting rid of the last element) 
     for(uint j = topReputations.length - 1; j > i; j--) {
@@ -221,14 +220,9 @@ contract ReputationNFT is ERC721 {
 
   }
 
-
- 
-
   function testStore() public view {
     for (uint i=0; i<10; i++){
       console.log('score', topReputations[i].score); 
     }
-  }
-
-  
+  }  
 }

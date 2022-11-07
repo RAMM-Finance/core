@@ -20,7 +20,6 @@ contract FullCycleTest is Test {
     MarketManager marketmanager;
     Cash collateral;
     VaultFactory vaultFactory;
-    ReputationNFT repToken;
     SyntheticZCBPoolFactory poolFactory; 
     Cash collateral2; 
     CoveredCallOTC otc; 
@@ -53,7 +52,7 @@ contract FullCycleTest is Test {
     uint256 alpha = precision*4/10; 
     uint256 omega = precision*2/10;
     uint256 delta = precision*2/10; 
-    uint256 r = 10;
+    uint256 r = 0;
     uint256 s = precision*2;
     uint256 steak = precision;
     uint256 amount1; 
@@ -66,37 +65,7 @@ contract FullCycleTest is Test {
     uint256 shortCollateral = principal; 
     uint256 longCollateral = shortCollateral.mulWadDown(pricePerContract); 
 
-    function setUp() public {
-
-        controller = new Controller(deployer, address(0)); // zero addr for interep
-        vaultFactory = new VaultFactory(address(controller));
-        repToken = new ReputationNFT(address(controller));
-        collateral = new Cash("n","n",18);
-        collateral2 = new Cash("nn", "nn", 18); 
-        bytes32  data;
-        marketmanager = new MarketManager(
-            deployer,
-            address(repToken),
-            address(controller), 
-            address(0),data, uint64(0)
-        );
-        poolFactory = new SyntheticZCBPoolFactory(address(controller)); 
-
-        controller.setMarketManager(address(marketmanager));
-        controller.setVaultFactory(address(vaultFactory));
-        controller.setReputationNFT(address(repToken));
-        controller.setPoolFactory(address(poolFactory)); 
-
-        controller.createVault(
-            address(collateral),
-            false,
-            0,
-            type(uint256).max,
-            type(uint256).max,
-            MarketManager.MarketParameters(N, sigma, alpha, omega, delta, r, s, steak)
-        ); //vaultId = 1; 
-        vault_ad = controller.getVaultfromId(1); 
-
+    function setUsers() public {
         jonna = address(0xbabe);
         vm.label(jonna, "jonna"); // manager1
         jott = address(0xbabe2); 
@@ -114,6 +83,15 @@ contract FullCycleTest is Test {
         toku = address(0xbabe8);
         vm.label(toku, "toku"); 
 
+        controller._incrementScore(jonna, precision);
+        controller._incrementScore(jott, precision);
+        controller._incrementScore(gatdang, precision);
+        controller._incrementScore(sybal, precision);
+        controller._incrementScore(chris, precision);
+        controller._incrementScore(miku, precision);
+        controller._incrementScore(goku, precision);
+        controller._incrementScore(toku, precision);
+
         vm.prank(jonna); 
         collateral.faucet(100000*precision);
         vm.prank(jott); 
@@ -129,14 +107,7 @@ contract FullCycleTest is Test {
         vm.prank(goku);
         collateral.faucet(100000*precision); 
         vm.prank(toku);
-        collateral.faucet(100000*precision); 
-
-        repToken.mint(jott); 
-        repToken.mint(jonna);
-        repToken.mint(gatdang); 
-        repToken.mint(chris); 
-        repToken.mint(miku); 
-        repToken.mint(sybal); 
+        collateral.faucet(100000*precision);
 
         vm.prank(toku); 
         controller.testVerifyAddress(); 
@@ -151,7 +122,38 @@ contract FullCycleTest is Test {
         vm.prank(miku); 
         controller.testVerifyAddress(); 
         vm.prank(sybal); 
-        controller.testVerifyAddress(); 
+        controller.testVerifyAddress();
+    }
+
+    function setUp() public {
+
+        controller = new Controller(deployer, address(0)); // zero addr for interep
+        vaultFactory = new VaultFactory(address(controller));
+        collateral = new Cash("n","n",18);
+        collateral2 = new Cash("nn", "nn", 18); 
+        bytes32  data;
+        marketmanager = new MarketManager(
+            deployer,
+            address(controller), 
+            address(0),data, uint64(0)
+        );
+        poolFactory = new SyntheticZCBPoolFactory(address(controller)); 
+
+        controller.setMarketManager(address(marketmanager));
+        controller.setVaultFactory(address(vaultFactory));
+        controller.setPoolFactory(address(poolFactory)); 
+
+        controller.createVault(
+            address(collateral),
+            false,
+            0,
+            type(uint256).max,
+            type(uint256).max,
+            MarketManager.MarketParameters(N, sigma, alpha, omega, delta, r, s, steak)
+        ); //vaultId = 1; 
+        vault_ad = controller.getVaultfromId(1); 
+
+        setUsers();
 
         instrument = new CreditLine(
             vault_ad, 
@@ -170,7 +172,6 @@ contract FullCycleTest is Test {
             address(0), 
             10); 
         otc.setUtilizer(toku); 
-            
 
         initiateCreditMarket(); 
         initiateOptionsOTCMarket(); 
@@ -191,9 +192,9 @@ contract FullCycleTest is Test {
         data.instrument_type = Vault.InstrumentType.CreditLine;
         data.maturityDate = 10; 
 
-        controller.initiateMarket(jott, data, 1); 
-
+        controller.initiateMarket(jott, data, 1);
     }
+
     function initiateOptionsOTCMarket() public{
         Vault.InstrumentData memory data;
         data.trusted = false; 
@@ -401,20 +402,20 @@ contract FullCycleTest is Test {
         doApproveCol(vars.vault_ad, gatdang); 
         doInvest(vars.vault_ad, gatdang, precision * 1000);
         doApproveCol(address(marketmanager), gatdang); 
-        instrument.setValidator( gatdang);  
-        vm.prank(gatdang); 
+        instrument.setValidator(gatdang);  
+        vm.prank(gatdang);
         marketmanager.validatorApprove(vars.marketId); 
     }
 
-    function doApproveOTC(testVars2 memory vars) public{
-        // validators invest and approve  
-        doApproveCol(vars.vault_ad, gatdang); 
-        doInvest(vars.vault_ad, gatdang, precision * 1000);
-        doApproveCol(address(marketmanager), gatdang); 
-        otc.setValidator( gatdang);  
-        vm.prank(gatdang); 
-        marketmanager.validatorBuy(vars.marketId); 
-    }
+    // function doApproveOTC(testVars2 memory vars) public{
+    //     // validators invest and approve  
+    //     doApproveCol(vars.vault_ad, gatdang); 
+    //     doInvest(vars.vault_ad, gatdang, precision * 1000);
+    //     doApproveCol(address(marketmanager), gatdang); 
+    //     otc.setValidator( gatdang);  
+    //     vm.prank(gatdang); 
+    //     marketmanager.validatorApprove(vars.marketId); 
+    // }
 
     function doDeny(testVars2 memory vars) public {
 
@@ -673,12 +674,12 @@ contract FullCycleTest is Test {
 
         closeMarket(vars); 
 
-        uint scoreBefore1 = repToken.getReputationScore( jonna); 
-        uint scoreBefore2 = repToken.getReputationScore( sybal); 
-        uint scoreBefore3 = repToken.getReputationScore( miku); 
-        uint scoreBefore4 = repToken.getReputationScore( chris); 
-        uint scoreBefore5 = repToken.getReputationScore( gatdang); 
-        // uint scoreBefore4 = repToken.getReputationScore( jonna); 
+        uint scoreBefore1 = controller.trader_scores( jonna); 
+        uint scoreBefore2 = controller.trader_scores( sybal); 
+        uint scoreBefore3 = controller.trader_scores( miku); 
+        uint scoreBefore4 = controller.trader_scores( chris); 
+        uint scoreBefore5 = controller.trader_scores( gatdang); 
+        // uint scoreBefore4 = controller.trader_scores( jonna); 
 
         // Now let managers redeem, reputation score dif
         vm.prank(jonna); 
@@ -693,23 +694,23 @@ contract FullCycleTest is Test {
         marketmanager.redeem(vars.marketId);
 
         if (increase){
-        assert(repToken.getReputationScore(jonna)> scoreBefore1);  
-        assert(repToken.getReputationScore(sybal)> scoreBefore2);  
-        assert(repToken.getReputationScore(miku)> scoreBefore3);  
-        assert(repToken.getReputationScore(chris)== scoreBefore4);  
+        assert(controller.trader_scores(jonna)> scoreBefore1);  
+        assert(controller.trader_scores(sybal)> scoreBefore2);  
+        assert(controller.trader_scores(miku)> scoreBefore3);  
+        assert(controller.trader_scores(chris)== scoreBefore4);  
 
         }
         else{
-        assert(repToken.getReputationScore(jonna)< scoreBefore1);  
-        assert(repToken.getReputationScore(sybal)< scoreBefore2);  
-        assert(repToken.getReputationScore(miku)< scoreBefore3);  
-        assert(repToken.getReputationScore(chris)== scoreBefore4);  
+        assert(controller.trader_scores(jonna)< scoreBefore1);  
+        assert(controller.trader_scores(sybal)< scoreBefore2);  
+        assert(controller.trader_scores(miku)< scoreBefore3);  
+        assert(controller.trader_scores(chris)== scoreBefore4);  
         }
   
 
-        console.log('before after', scoreBefore1,repToken.getReputationScore(jonna) ); 
-        console.log('before after', scoreBefore2,repToken.getReputationScore(sybal) ); 
-        console.log('before after', scoreBefore3,repToken.getReputationScore(miku) ); 
+        console.log('before after', scoreBefore1,controller.trader_scores(jonna) ); 
+        console.log('before after', scoreBefore2,controller.trader_scores(sybal) ); 
+        console.log('before after', scoreBefore3,controller.trader_scores(miku) ); 
         console.log(marketmanager.getMaxLeverage( jonna)); 
     }
 
@@ -734,7 +735,7 @@ contract FullCycleTest is Test {
 
         bytes memory data; 
 
-        repToken.setReputationScore(miku, precision*5); 
+        controller.setTraderScore(miku, precision*5); 
         uint bal = collateral.balanceOf(miku); 
         doApproveCol(address(marketmanager), miku); 
         vm.prank(miku);
@@ -788,16 +789,16 @@ contract FullCycleTest is Test {
         doApproveCol(vars.vault_ad, gatdang); 
         doInvest(vars.vault_ad, gatdang, precision * 1000);
 
-        bytes memory data; 
+        bytes memory data;
 
-        repToken.setReputationScore(miku, precision*5); 
+        controller.setTraderScore(miku, precision*5); 
         uint bal = collateral.balanceOf(miku); 
         doApproveCol(address(marketmanager), miku); 
         vm.prank(miku);
         marketmanager.buyBondLevered(vars.marketId, vars.amount1, vars.curPrice + precision/10, precision *leverage); 
         (uint debt, uint amount) = marketmanager.getLeveragePosition(vars.marketId, miku); 
 
-        assertApproxEqAbs(debt , vars.amount1 - (bal - collateral.balanceOf(miku) ),10 ); 
+        assertApproxEqAbs(debt , vars.amount1 - (bal - collateral.balanceOf(miku)),10 ); 
         assertApproxEqAbs(marketmanager.loggedCollaterals(vars.marketId), vars.amount1, 10); 
 
         //redeem 

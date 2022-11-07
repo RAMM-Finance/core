@@ -84,7 +84,7 @@ abstract contract Instrument {
     /// @dev May mutate the state of the Instrument by accruing interest.
     function balanceOfUnderlying(address user) public view returns (uint256){
         return underlying.balanceOf(user); 
-        }
+    }
 
 
     /**
@@ -203,9 +203,6 @@ abstract contract Instrument {
     /// requirement need to check if this address has the specific amount of collateral
     /// @dev called to be checked at the approve phase from controller  
     function instrumentApprovalCondition() public virtual view returns(bool); 
-
-
-
 }
 
 
@@ -360,8 +357,8 @@ contract CreditLine is Instrument {
             require(ERC20(collateral).balanceOf(address(this)) >= collateral_balance, "Insufficient collateral"); 
         }
 
-        // check if validator(s) are set 
-        if (validators.length == 0) {revert("No validators"); }
+        // // check if validator(s) are set 
+        // if (validators.length == 0) {revert("No validators"); }
 
         // Check if proxy has been given ownership
         if (collateral_type == CollateralType.ownership && proxy.numContracts() == 0) revert("Ownership "); 
@@ -499,9 +496,6 @@ contract CreditLine is Instrument {
         bool fullyRepayed = (principalOwed == 0 && interestOwed == 0)? true : false; 
         return fullyRepayed; 
     }
-
-
-
 
     function setGracePeriod() external {}
 
@@ -691,7 +685,7 @@ contract MockBorrowerContract{
         console.log('hello', a); 
     }
 
-    function autoDelegate(address proxyad) public{
+    function autoDelegate(address proxyad) public {
         Proxy(proxyad).delegateOwnership(address(this), this.changeOwner.selector); 
     }
     fallback () external {
