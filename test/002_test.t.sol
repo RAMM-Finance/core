@@ -274,33 +274,33 @@ contract ValdiatorTests is Test {
         assertEq(mm.approvalCondition(1), true);
     }
 
-    function testResolveBeforeMaturity() public {
-        initiateCreditMarket();
-        address[] memory vals = mm.viewValidators(1);
-        // test retrieve stake
-        meetMarketCondition();
+    // function testResolveBeforeMaturity() public {
+    //     initiateCreditMarket();
+    //     address[] memory vals = mm.viewValidators(1);
+    //     // test retrieve stake
+    //     meetMarketCondition();
 
-        doApprove(address(v), vals[0]);
-        doApprove(address(v), vals[1]);
-        doApprove(address(v), vals[2]);
+    //     doApprove(address(v), vals[0]);
+    //     doApprove(address(v), vals[1]);
+    //     doApprove(address(v), vals[2]);
 
-        (bool assess, bool onlyrep, bool resolved, bool alive, bool atloss, uint256 budget) = mm.restriction_data(1);
-        assertEq(!assess, true);
-        assertEq(alive, true);
+    //     (bool assess, bool onlyrep, bool resolved, bool alive, bool atloss, uint256 budget) = mm.restriction_data(1);
+    //     assertEq(!assess, true);
+    //     assertEq(alive, true);
 
-        // can't unlock before resolve
-        vm.prank(vals[0]);
-        vm.expectRevert("market still alive");
-        mm.unlockValidatorStake(1);
+    //     // can't unlock before resolve
+    //     vm.prank(vals[0]);
+    //     vm.expectRevert("market still alive");
+    //     mm.unlockValidatorStake(1);
 
-        // validator unlock
-        for (uint256 i=0; i<vals.length; i++) {
-            vm.prank(vals[i]);
-            mm.validatorResolve(1);
-        }
+    //     // validator unlock
+    //     for (uint256 i=0; i<vals.length; i++) {
+    //         vm.prank(vals[i]);
+    //         mm.validatorResolve(1);
+    //     }
 
-        assertEq(mm.resolveCondition(1), true);
-    }
+    //     assertEq(mm.resolveCondition(1), true);
+    // }
 
     function testUpdateValidatorStake() public {
         initiateCreditMarket();

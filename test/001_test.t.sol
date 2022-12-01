@@ -10,7 +10,8 @@ import {CreditLine, MockBorrowerContract} from "src/vaults/instrument.sol";
 import {SyntheticZCBPoolFactory} from "src/bonds/synthetic.sol"; 
 import {LinearCurve} from "src/bonds/GBC.sol"; 
 import {FixedPointMath} from "src/bonds/libraries.sol"; 
-import {CoveredCallOTC} from "src/vaults/dov.sol"; 
+import {CoveredCallOTC} from "src/vaults/dov.sol";
+import {ERC20} from "solmate/src/tokens/ERC20.sol";
 
 contract FullCycleTest is Test {
     using FixedPointMath for uint256; 
@@ -93,21 +94,21 @@ contract FullCycleTest is Test {
         controller._incrementScore(toku, precision);
 
         vm.prank(jonna); 
-        collateral.faucet(100000*precision);
+        collateral.faucet(10000000*precision);
         vm.prank(jott); 
-        collateral.faucet(100000*precision);
+        collateral.faucet(10000000*precision);
         vm.prank(gatdang); 
-        collateral.faucet(100000*precision); 
+        collateral.faucet(10000000*precision); 
         vm.prank(sybal); 
-        collateral.faucet(100000*precision); 
+        collateral.faucet(10000000*precision); 
         vm.prank(chris); 
-        collateral.faucet(100000*precision); 
+        collateral.faucet(10000000*precision); 
         vm.prank(miku); 
-        collateral.faucet(100000*precision); 
+        collateral.faucet(10000000*precision); 
         vm.prank(goku);
-        collateral.faucet(100000*precision); 
+        collateral.faucet(10000000*precision); 
         vm.prank(toku);
-        collateral.faucet(100000*precision);
+        collateral.faucet(10000000*precision);
 
         vm.prank(toku); 
         controller.testVerifyAddress(); 
@@ -193,6 +194,11 @@ contract FullCycleTest is Test {
         data.maturityDate = 10; 
 
         controller.initiateMarket(jott, data, 1);
+        uint256[] memory words = new uint256[](N);
+        for (uint256 i=0; i< words.length; i++) {
+            words[i] = uint256(keccak256(abi.encodePacked(i)));
+        }
+        marketmanager.fulfillRandomWords(1, words);
     }
 
     function initiateOptionsOTCMarket() public{
@@ -208,8 +214,12 @@ contract FullCycleTest is Test {
         data.Instrument_address = address(otc);
         data.instrument_type = Vault.InstrumentType.CoveredCall;
         data.maturityDate = 10; 
-        controller.initiateMarket(toku, data, 1); 
-
+        controller.initiateMarket(toku, data, 1);
+        uint256[] memory words = new uint256[](N);
+        for (uint256 i=0; i< words.length; i++) {
+            words[i] = uint256(keccak256(abi.encodePacked(i)));
+        }
+        marketmanager.fulfillRandomWords(1, words);
     }
 
     function doApproveCol(address _who, address _by) public{
@@ -219,6 +229,15 @@ contract FullCycleTest is Test {
     function doInvest(address vault, address _by, uint256 amount) public{
         vm.prank(_by); 
         Vault(vault).deposit(amount, _by); 
+    }
+    function doApproveVault(address vault, address _from, address _to) public {
+        vm.prank(_from);
+        ERC20(vault).approve(_to, type(uint256).max);
+    }
+
+    function doMint(address vault, address _by, uint256 shares) public {
+        vm.prank(_by);
+        Vault(vault).mint(shares, _by);
     }
     function cBal(address _who) public returns(uint256) {
         return collateral.balanceOf(_who); 
@@ -275,18 +294,19 @@ contract FullCycleTest is Test {
 
         // let validator invest to vault and approve 
         vars.cbalnow = cBal(address(marketmanager.getPool(vars.marketId))); 
-        doApproveCol(vars.vault_ad, gatdang); 
-        doInvest(vars.vault_ad, gatdang, precision * 1000);
-        doApproveCol(address(marketmanager), gatdang); 
-        instrument.setValidator( gatdang);  
-        vm.prank(gatdang); 
-        vars.valamountIn = marketmanager.validatorApprove(vars.marketId); 
+        doApprove(vars.marketId, vars.vault_ad);
+        // doApproveCol(vars.vault_ad, gatdang); 
+        // doInvest(vars.vault_ad, gatdang, precision * 1000);
+        // doApproveCol(address(marketmanager), gatdang); 
+        // instrument.setValidator(gatdang);  
+        // vm.prank(gatdang);
+        // vars.valamountIn = marketmanager.validatorApprove(vars.marketId); 
         assertApproxEqAbs(vars.cbalnow + vars.valamountIn - cBal(address(marketmanager.getPool(vars.marketId))), 
             vars.valamountIn + vars.amountIn,10); 
 
-       //how much bond are issued? 
-        assertEq(marketmanager.getZCB(vars.marketId).balanceOf(jonna) +
-        marketmanager.getZCB(vars.marketId).balanceOf(gatdang), marketmanager.getZCB(vars.marketId).totalSupply()); 
+       //how much bond are issued? , TODO, chooses validators randomly
+        // assertEq(marketmanager.getZCB(vars.marketId).balanceOf(jonna) +
+        // marketmanager.getZCB(vars.marketId).balanceOf(gatdang), marketmanager.getZCB(vars.marketId).totalSupply()); 
 
     }
 
@@ -397,14 +417,18 @@ contract FullCycleTest is Test {
         console.log('collat', marketmanager.loggedCollaterals(vars.marketId), marketmanager.marketCondition(vars.marketId));
     }
 
-    function doApprove(testVars2 memory vars) public{
-        // validators invest and approve  
-        doApproveCol(vars.vault_ad, gatdang); 
-        doInvest(vars.vault_ad, gatdang, precision * 1000);
-        doApproveCol(address(marketmanager), gatdang); 
-        instrument.setValidator(gatdang);  
-        vm.prank(gatdang);
-        marketmanager.validatorApprove(vars.marketId); 
+    function doApprove(uint256 marketId, address vault) public{
+        // validators invest and approve 
+        address[] memory vals = marketmanager.viewValidators(marketId);
+        uint256 initialStake = marketmanager.getInitialStake(marketId);
+        for (uint i=0; i < vals.length; i++) {
+            doApproveCol(vault, vals[i]);
+            doApproveVault(vault, vals[i], address(marketmanager));
+            doApproveCol(address(marketmanager), vals[i]);
+            doMint(vault, vals[i], initialStake);
+            vm.prank(vals[i]);
+            marketmanager.validatorApprove(marketId);
+        }
     }
 
     // function doApproveOTC(testVars2 memory vars) public{
@@ -421,8 +445,11 @@ contract FullCycleTest is Test {
 
         vars.vaultBal = collateral.balanceOf(controller.getVaultAd(vars.marketId));  
         vars.cbalbefore = marketmanager.getPool(vars.marketId).cBal(); 
-        vm.prank(gatdang); 
-        controller.denyMarket(vars.marketId); 
+        address[] memory vals = marketmanager.viewValidators(vars.marketId);
+        vm.prank(vals[0]);
+        marketmanager.denyMarket(vars.marketId);
+        // vm.prank(gatdang);
+        // controller.denyMarket(vars.marketId); 
         assertEq(marketmanager.getPool(vars.marketId).cBal(), 0); 
         assertApproxEqAbs(collateral.balanceOf(controller.getVaultAd(vars.marketId)) - vars.vaultBal, vars.cbalbefore, 10); 
         assert(!marketmanager.marketActive(vars.marketId)); 
@@ -432,6 +459,11 @@ contract FullCycleTest is Test {
         vm.prank(gatdang); 
         controller.beforeResolve(vars.marketId); 
         vm.roll(block.number+1);
+        address[] memory vals = marketmanager.viewValidators(vars.marketId);
+        for (uint256 i=0; i < vals.length; i++) {
+            vm.prank(vals[i]);
+            marketmanager.validatorResolve(vars.marketId);
+        }
         controller.resolveMarket(vars.marketId); 
         assertEq(collateral.balanceOf(address(instrument)),0); 
     }
@@ -465,7 +497,7 @@ contract FullCycleTest is Test {
         somelongsomeshort(vars, true);
 
         // validators invest and approve  
-        doApprove(vars); 
+        doApprove(vars.marketId, vars.vault_ad); 
         
         // did correct amount go to vault? the short collateral should stay in pool 
         assertApproxEqAbs(vars.s_amountIn, marketmanager.shortTrades(vars.marketId, chris), 10); 
@@ -506,7 +538,7 @@ contract FullCycleTest is Test {
         assertApproxEqAbs(
             vars.vaultBalBeforeRedeem - collateral.balanceOf(controller.getVaultAd(vars.marketId)) , 
             vars.sumofcollateral, 10
-            ); 
+            );
     }
 
     function testLPsCanShortBeforeApproval() public{
@@ -536,7 +568,7 @@ contract FullCycleTest is Test {
 
         somelongsomeshort(vars, true); 
 
-        doApprove(vars); 
+        doApprove(vars.marketId, vars.vault_ad); 
 
         //set bids at current price 
          bytes memory data = abi.encode(uint16(uint16(marketmanager.getPool(vars.marketId).pool().getCurPrice()/1e16) -1),
@@ -580,7 +612,7 @@ contract FullCycleTest is Test {
 
         somelongsomeshort(vars, true); 
 
-        doApprove(vars); 
+        doApprove(vars.marketId, vars.vault_ad); 
 
         setMaturityInstrumentResolveCondition(true, 0); 
         //setMaturityInstrumentResolveCondition(false, precision*2); 
@@ -617,22 +649,28 @@ contract FullCycleTest is Test {
             zcbbal), 10);     
 
         //shorter 
-        balbefore = collateral.balanceOf(chris); 
-        zcbbal = marketmanager.getShortZCB(vars.marketId).balanceOf(chris); //shorter  
-        vm.prank(chris); 
-        marketmanager.redeemShortZCB(vars.marketId); 
-        assertEq(marketmanager.getShortZCB(vars.marketId).balanceOf(chris) , 0); 
-        assertApproxEqAbs(collateral.balanceOf(chris) - balbefore , (precision-marketmanager.get_redemption_price(vars.marketId)).mulWadDown(
-            zcbbal), 10);  
+        // balbefore = collateral.balanceOf(chris); 
+        // zcbbal = marketmanager.getShortZCB(vars.marketId).balanceOf(chris); //shorter  
+        // vm.prank(chris); 
+        // marketmanager.redeemShortZCB(vars.marketId); 
+        // assertEq(marketmanager.getShortZCB(vars.marketId).balanceOf(chris) , 0); 
+        // assertApproxEqAbs(collateral.balanceOf(chris) - balbefore , (precision-marketmanager.get_redemption_price(vars.marketId)).mulWadDown(
+        //     zcbbal), 10);  
          
         //validator 
-        balbefore = collateral.balanceOf(gatdang); 
-        zcbbal = marketmanager.getZCB(vars.marketId).balanceOf(gatdang); //shorter  
-        vm.prank(gatdang); 
-        marketmanager.redeem(vars.marketId); 
-        assertEq(marketmanager.getZCB(vars.marketId).balanceOf(gatdang) , 0); 
-        assertApproxEqAbs(collateral.balanceOf(gatdang) - balbefore , marketmanager.get_redemption_price(vars.marketId).mulWadDown(
-            zcbbal), 10);  
+        // balbefore = collateral.balanceOf(gatdang); 
+        // zcbbal = marketmanager.getZCB(vars.marketId).balanceOf(gatdang); //shorter
+        address[] memory vals = marketmanager.viewValidators(vars.marketId);
+        console.log(vals[0]);
+        
+        for (uint256 i=0; i< vals.length;i++) {
+            vm.prank(vals[i]);
+            marketmanager.redeem(vars.marketId); 
+        }
+ 
+        // assertEq(marketmanager.getZCB(vars.marketId).balanceOf(gatdang) , 0); 
+        // assertApproxEqAbs(collateral.balanceOf(gatdang) - balbefore , marketmanager.get_redemption_price(vars.marketId).mulWadDown(
+        //     zcbbal), 10);  
 
         //invariant 1: longsupply * redemption + shortsupply * 1-redemption = difference in vault balance 
         assertApproxEqAbs( longsupply.mulWadDown(marketmanager.get_redemption_price(vars.marketId)) +
@@ -663,7 +701,7 @@ contract FullCycleTest is Test {
     function testReputationIncreaseAndLeverageUp() public {
         testVars2 memory vars; 
         somelongsomeshort(vars, true); 
-        doApprove(vars); 
+        doApprove(vars.marketId, vars.vault_ad); 
         bool increase = false; 
         uint loss = 100*precision; 
 
@@ -748,7 +786,7 @@ contract FullCycleTest is Test {
         //redeem 
         vars.dontAssert = true; 
         somelongsomeshort(vars, true); 
-        doApprove(vars); 
+        doApprove(vars.marketId, vars.vault_ad); 
         if(increase) setMaturityInstrumentResolveCondition(true, 0); 
         else setMaturityInstrumentResolveCondition(false,loss); 
         closeMarket(vars); 
@@ -825,7 +863,7 @@ contract FullCycleTest is Test {
         somelongsomeshort(vars, true); 
         vm.prank(toku);
         collateral.transfer(address(otc),longCollateral ); 
-        doApprove(vars); 
+        doApprove(vars.marketId, vars.vault_ad); 
         assertApproxEqAbs(collateral.balanceOf(address(otc)), shortCollateral + longCollateral,10); 
 
         // Warp to maturity 
@@ -851,6 +889,13 @@ contract FullCycleTest is Test {
             otc.claim(); 
 
             vm.roll(block.number+1);
+
+            address[] memory vals = marketmanager.viewValidators(vars.marketId);
+            for (uint256 i=0; i < vals.length; i++) {
+                vm.prank(vals[i]);
+                marketmanager.validatorResolve(vars.marketId);
+            }
+
             controller.resolveMarket(vars.marketId); 
 
             assert(marketmanager.get_redemption_price(vars.marketId)< precision);
