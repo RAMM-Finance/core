@@ -1,9 +1,6 @@
 pragma solidity ^0.8.4;
 import {MarketManager} from "./marketmanager.sol";
 import {ReputationNFT} from "./reputationtoken.sol";
-import {OwnedERC20} from "../turbo/OwnedShareToken.sol";
-import {LinearBondingCurve} from "../bonds/LinearBondingCurve.sol";
-import {BondingCurve} from "../bonds/bondingcurve.sol";
 import {Vault} from "../vaults/vault.sol";
 import {Instrument} from "../vaults/instrument.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
@@ -11,8 +8,7 @@ import {FixedPointMathLib} from "solmate/src/utils/FixedPointMathLib.sol";
 import {VaultFactory} from "./factories.sol"; 
 import "forge-std/console.sol";
 import "@interep/contracts/IInterep.sol";
-import {config} from "./helpers.sol"; 
-import {ShortBondingCurve} from "../bonds/LinearShortZCB.sol";
+import {config} from "../utils/helpers.sol"; 
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@interep/contracts/IInterep.sol";
 import {SyntheticZCBPoolFactory, SyntheticZCBPool} from "../bonds/synthetic.sol"; 
@@ -124,12 +120,6 @@ contract Controller {
     verified[msg.sender] = true;
   }
 
-  // function mintRepNFT(
-  //   address NFT_address,
-  //   address trader
-  //   ) external  {
-  //   ReputationNFT(NFT_address).mint(msg.sender);
-  // }
 
   /// @notice called only when redeeming, transfer funds from vault 
   function redeem_transfer(
@@ -198,7 +188,6 @@ contract Controller {
     pool.calculateInitCurveParams(instrumentData.principal,
         instrumentData.expectedYield, marketManager.getParameters(marketId).sigma); 
 
-    console.log("a");
     marketManager.newMarket(marketId, 
                             instrumentData.principal,  
                             pool, 

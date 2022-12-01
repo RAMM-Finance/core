@@ -8,7 +8,7 @@ import {VaultFactory} from "src/protocol/factories.sol";
 import {CreditLine, MockBorrowerContract} from "src/vaults/instrument.sol";
 import {Vault} from "src/vaults/vault.sol";
 import {SyntheticZCBPoolFactory} from "src/bonds/synthetic.sol";
-import {Cash} from "src/libraries/Cash.sol";
+import {Cash} from "src/utils/Cash.sol";
 import {ERC4626} from "src/vaults/mixins/ERC4626.sol";
 import {FixedPointMathLib} from "solmate/src/utils/FixedPointMathLib.sol";
 

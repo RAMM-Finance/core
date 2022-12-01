@@ -5,7 +5,7 @@ import "forge-std/console.sol";
 import "src/protocol/controller.sol";
 import {MarketManager} from "src/protocol/marketmanager.sol";
 import {ReputationNFT} from "src/protocol/reputationtoken.sol";
-import {Cash} from "src/libraries/Cash.sol";
+import {Cash} from "src/utils/Cash.sol";
 import {CreditLine, MockBorrowerContract} from "src/vaults/instrument.sol";
 import {SyntheticZCBPoolFactory} from "src/bonds/synthetic.sol"; 
 import {LinearCurve} from "src/bonds/GBC.sol"; 

@@ -1,22 +1,18 @@
 pragma solidity ^0.8.4;
 
-import "./owned.sol";
 import "./reputationtoken.sol"; 
-import {BondingCurve} from "../bonds/bondingcurve.sol";
 import {Controller} from "./controller.sol";
-// import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {ERC20} from "solmate/src/tokens/ERC20.sol";
 import "forge-std/console.sol";
 import {SafeTransferLib} from "solmate/src/utils/SafeTransferLib.sol";
-import {LinearShortZCB, ShortBondingCurve} from "../bonds/LinearShortZCB.sol"; 
 import {FixedPointMathLib} from "solmate/src/utils/FixedPointMathLib.sol";
 import {VRFConsumerBaseV2} from "../chainlink/VRFConsumerBaseV2.sol";
 import {VRFCoordinatorV2Interface} from "../chainlink/VRFCoordinatorV2Interface.sol";
-import {config} from "./helpers.sol";
+import {config} from "../utils/helpers.sol";
 import {SyntheticZCBPool} from "../bonds/synthetic.sol"; 
 import {ERC4626} from "../vaults/mixins/ERC4626.sol";
 
-contract MarketManager is Owned
+contract MarketManager 
  // VRFConsumerBaseV2 
  {
   using FixedPointMathLib for uint256;
@@ -34,20 +30,17 @@ contract MarketManager is Owned
   // ReputationNFT repToken;
   Controller controller;
   CoreMarketData[] public markets;
+  address public owner; 
 
   mapping(uint256 => uint256) requestToMarketId; // chainlink request id to marketId
   mapping(uint256 => ValidatorData) validator_data; //marketId-> total amount of zcb validators can buy 
-  mapping(uint256=> mapping(address=> uint256)) sale_data; //marketId-> total amount of zcb bought
   mapping(uint256=>uint256) private redemption_prices; //redemption price for each market, set when market resolves 
   mapping(uint256=>mapping(address=>uint256)) private assessment_prices; 
   mapping(uint256=>mapping(address=>bool)) private assessment_trader;
   mapping(uint256=>mapping(address=>uint256) ) public assessment_probs; 
   mapping(uint256=> MarketPhaseData) public restriction_data; // market ID => restriction data
-  mapping(uint256=> uint256) collateral_pot; // marketID => total collateral recieved
   mapping(uint256=> MarketParameters) public parameters; //marketId-> params
   mapping(uint256=> mapping(address=>bool)) private redeemed; 
-  mapping(uint256=>mapping(address=>bool)) isShortZCB; //marketId-> address-> isshortZCB
-  mapping(uint256=>mapping(address=>uint256) )assessment_shorts; // short collateral during assessment
   mapping(uint256=> mapping(address=>uint256)) public longTrades; 
   mapping(uint256=> mapping(address=>uint256)) public shortTrades;
   mapping(uint256=> uint256) public loggedCollaterals;
@@ -136,10 +129,8 @@ contract MarketManager is Owned
     bytes32 _keyHash, // 0x4b09e658ed251bcafeebbc69400383d49f344ace09b9576fe248bb02c003fe9f
     uint64 _subscriptionId // 1713, 
   ) 
-    Owned(_creator_address) 
     //VRFConsumerBaseV2(0x7a1BaC17Ccc5b313516C5E16fb24f7659aA5ebed) 
   {
-    // repToken = ReputationNFT(reputationNFTaddress);
     controller = Controller(_controllerAddress);
     keyHash = bytes32(0x4b09e658ed251bcafeebbc69400383d49f344ace09b9576fe248bb02c003fe9f);
     subscriptionId = 1713;
@@ -149,6 +140,8 @@ contract MarketManager is Owned
     markets.push(
       makeEmptyMarketData()
     );
+
+    owner = msg.sender; 
   }
 
   function makeEmptyMarketData() public pure returns (CoreMarketData memory) {
@@ -287,21 +280,12 @@ contract MarketManager is Owned
     restriction_data[marketId].duringAssessment = false; 
   }
 
-  /// @notice gets the top percentile reputation score threshold 
-  // function calcMinRepScore(uint256 marketId) internal view returns(uint256){
-  //   //return repToken.getMinRepScore(parameters[marketId].r); 
-  //   return controller.calculateMinScore(parameters[marketId].r);
-  // }
-
   function getPhaseData(
     uint256 marketId
   ) public view returns (MarketPhaseData memory)  {
     return restriction_data[marketId];
   }
   
-  // function getMinRepScore(uint256 marketId) public view returns(uint256){
-  //   return restriction_data[marketId].min_rep_score;
-  // }
   
   /// @dev verification of trader initializes reputation score at 0, to gain reputation need to participate in markets.
   function isVerified(address trader) public view returns(bool){
@@ -589,37 +573,37 @@ contract MarketManager is Owned
   /// @dev get val_cap, the total amount of zcb for sale and each validators should buy 
   /// val_cap/num validators zcb 
   /// They also need to hold the corresponding vault, so they are incentivized to assess at a systemic level and avoid highly 
-  /// correlated instruments 
-  /// triggers controller.approveMarket
+  /// correlated instruments triggers controller.approveMarket
   function validatorApprove(
     uint256 marketId
   ) external returns(uint256) {
     require(isValidator(marketId, msg.sender), "not a validator for the market");
     require(restriction_data[marketId].duringAssessment, "already approved");
     require(marketCondition(marketId), "market condition not met");
-    require(!validator_data[marketId].staked[msg.sender], "caller already staked for this market");
+
+    ValidatorData storage valdata = validator_data[marketId]; 
+    require(!valdata.staked[msg.sender], "caller already staked for this market");
 
     // staking logic
-    require(ERC20(controller.getVaultAd(marketId)).balanceOf(msg.sender) >= validator_data[marketId].initialStake, "not enough tokens to stake");
+    require(ERC20(controller.getVaultAd(marketId)).balanceOf(msg.sender) >= valdata.initialStake, "not enough tokens to stake");
     
-    ERC20(controller.getVaultAd(marketId)).safeTransferFrom(msg.sender, address(this), validator_data[marketId].initialStake);
+    ERC20(controller.getVaultAd(marketId)).safeTransferFrom(msg.sender, address(this), valdata.initialStake);
 
-    validator_data[marketId].totalStaked += validator_data[marketId].initialStake;
-    validator_data[marketId].staked[msg.sender] = true;
+    valdata.totalStaked += valdata.initialStake;
+    valdata.staked[msg.sender] = true;
     
     // discount longZCB logic
-    
     SyntheticZCBPool bondPool = markets[marketId].bondPool; 
 
-    uint256 val_cap =  validator_data[marketId].val_cap; 
+    uint256 val_cap =  valdata.val_cap; 
     uint256 zcb_for_sale = val_cap/parameters[marketId].N; 
-    uint256 collateral_required = zcb_for_sale.mulWadDown(validator_data[marketId].avg_price); 
+    uint256 collateral_required = zcb_for_sale.mulWadDown(valdata.avg_price); 
 
-    require(validator_data[marketId].sales[msg.sender] <= zcb_for_sale, "already approved");
+    require(valdata.sales[msg.sender] <= zcb_for_sale, "already approved");
 
-    validator_data[marketId].sales[msg.sender] += zcb_for_sale;
-    validator_data[marketId].totalSales += (zcb_for_sale +1);  //since division rounds down 
-    validator_data[marketId].numApproved += 1; 
+    valdata.sales[msg.sender] += zcb_for_sale;
+    valdata.totalSales += (zcb_for_sale +1);  //since division rounds down 
+    valdata.numApproved += 1; 
     loggedCollaterals[marketId] += collateral_required; 
 
     bondPool.BaseToken().transferFrom(msg.sender, address(bondPool), collateral_required); 
@@ -630,6 +614,7 @@ contract MarketManager is Owned
       controller.approveMarket(marketId);
       approveMarket(marketId); // For market to go to a post assessment stage there always needs to be a lower bound set  
     }
+
     return collateral_required;
   }
 

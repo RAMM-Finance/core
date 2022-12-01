@@ -1,7 +1,6 @@
 pragma solidity ^0.8.9;
 import {BoundedDerivativesPool, LinearCurve} from "./GBC.sol"; 
 import {FixedPointMathLib} from "solmate/src/utils/FixedPointMathLib.sol";
-import {config} from "../protocol/helpers.sol"; 
 import {ERC20} from "./libraries.sol"; 
 import "forge-std/console.sol";
 
@@ -65,7 +64,7 @@ contract SyntheticZCBPool is BoundedDerivativesPool{
 		uint256 I, 
 		uint256 sigma) external {
 		require(msg.sender == controller, "unauthorized"); 
-		uint256 precision = config.WAD; 
+		uint256 precision = 1e18; 
 
 		b_initial = (2*P).divWadDown(P+I) - precision; 
 		a_initial = (precision-b_initial).divWadDown(P+I); 
