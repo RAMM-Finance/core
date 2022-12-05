@@ -1,5 +1,5 @@
 ## Docs in PDF 
-https://github.com/Debita-Protocol/docs/blob/main/riskAMMv2.pdf
+https://github.com/Debita-Protocol/docs/blob/main/riskAMMv2_.pdf
 
 ## Brief Developer Docs 
 
