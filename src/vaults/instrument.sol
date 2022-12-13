@@ -180,7 +180,6 @@ abstract contract Instrument {
     function transfer_liq_from(address from, address to, uint256 amount) internal notLocked {
         if (vault.decimal_mismatch()) amount = vault.decSharesToAssets(amount); 
         underlying.transferFrom(from, to, amount);
-
     }
 
     /// @notice called before resolve, to avoid calculating redemption price based on manipulations 
@@ -194,6 +193,8 @@ abstract contract Instrument {
     function getMaturityBalance() public view returns(uint256){
         return maturity_balance; 
     }
+
+    function isLiquid(uint256 amount) public virtual view returns(bool){}
 
 
     /// @notice Before supplying liquidity from the vault to this instrument,

@@ -3,7 +3,6 @@ import {MarketManager} from "./marketmanager.sol";
 import {ReputationNFT} from "./reputationtoken.sol";
 import {Vault} from "../vaults/vault.sol";
 import {Instrument} from "../vaults/instrument.sol";
-import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {FixedPointMathLib} from "solmate/src/utils/FixedPointMathLib.sol";
 import {VaultFactory} from "./factories.sol"; 
 import "forge-std/console.sol";
@@ -171,8 +170,6 @@ contract Controller {
     require(recipient != address(0), "address0"); 
     require(instrumentData.Instrument_address != address(0), "address0");
     require(address(vaults[vaultId]) != address(0), "address0");
-    require(instrumentData.principal >= config.WAD, "numERR");
-    require(instrumentData.duration >= MIN_DURATION, "duration threshold not met"); 
 
     Vault vault = vaults[vaultId]; 
     uint256 marketId = marketManager.marketCount();
@@ -185,23 +182,25 @@ contract Controller {
     // Create new pool and bonds and store initial price and liquidity for the pool
     (address longZCB, address shortZCB, SyntheticZCBPool pool) 
               = poolFactory.newPool(address(vaults[vaultId].UNDERLYING()), address(marketManager)); 
-    pool.calculateInitCurveParams(instrumentData.principal,
-        instrumentData.expectedYield, marketManager.getParameters(marketId).sigma); 
 
-    marketManager.newMarket(marketId, 
-                            instrumentData.principal,  
-                            pool, 
-                            longZCB,
-                            shortZCB,
-                            instrumentData.description,
-                            instrumentData.duration);
+    if (instrumentData.isPool){
+      pool.calculateInitCurveParamsPool(instrumentData.poolData.saleAmount, 
+        instrumentData.poolData.initPrice, instrumentData.poolData.inceptionPrice, marketManager.getParameters(marketId).sigma); 
+
+      marketManager.newMarket(marketId, instrumentData.poolData.saleAmount, pool, longZCB, shortZCB, instrumentData.description, 
+        instrumentData.duration, true); 
+    }
+    else{
+      pool.calculateInitCurveParams(instrumentData.principal,
+          instrumentData.expectedYield, marketManager.getParameters(marketId).sigma); 
+
+      marketManager.newMarket(marketId, instrumentData.principal, pool, longZCB, shortZCB, instrumentData.description,
+                              instrumentData.duration, false);
+    }
 
     // add vault proposal 
     instrumentData.marketId = marketId;
     vault.addProposal(instrumentData);
-
-    // // Prepare list of those with high reputation 
-    // repNFT.storeTopReputation(marketManager.getParameters(marketId).r,  marketId); 
 
     emit MarketInitiated(marketId, recipient);
     ad_to_id[recipient] = marketId; //only for testing purposes, one utilizer should be able to create multiple markets
@@ -276,7 +275,6 @@ contract Controller {
     } else {
       _decrementScore(trader, change);
     }
-    // repNFT.updateScore(trader, scoreToUpdate); 
   }
 
   /// @notice function that closes the instrument/market before maturity, maybe to realize gains/cut losses fast
@@ -304,25 +302,39 @@ contract Controller {
   ) external onlyManager {
     Vault vault = vaults[id_parent[marketId]]; 
     SyntheticZCBPool pool = marketManager.getPool(marketId); 
-
+    
     require(marketManager.getCurrentMarketPhase(marketId) == 3,"!marketCondition");
     require(vault.instrumentApprovalCondition(marketId), "!instrumentCondition");
 
-    if (vault.getInstrumentType(marketId) == 0) storeCredit(marketId, pool); 
+    bool isPool = marketManager.isInstrumentPool(marketId); 
+    uint256 managerCollateral = marketManager.loggedCollaterals(marketId); 
 
+    if (isPool) poolApproval(marketId, managerCollateral, vault.fetchInstrumentData( marketId).poolData.leverageFactor); 
+
+    else {
+      if (vault.getInstrumentType(marketId) == 0) creditApproval(marketId, pool); 
+
+      else generalApproval(marketId); 
+    }
     // pull from pool to vault, which will be used to fund the instrument
-    pool.flush(address(vault), marketManager.loggedCollaterals(marketId)); 
+    pool.flush(address(vault), managerCollateral); 
 
     // Trust and deposit to the instrument contract
-    vault.trustInstrument(marketId, approvalDatas[marketId]);
+    vault.trustInstrument(marketId, approvalDatas[marketId], isPool);
 
     // Since funds are transfered from pool to vault, set default liquidity in pool to 0 
     pool.resetLiq(); 
   }
 
+  function poolApproval(uint256 marketId, uint256 managerCollateral, uint256 leverageFactor) internal{
+    require(leverageFactor > 0, "0 LEV_FACTOR"); 
+
+    approvalDatas[marketId] = ApprovalData(managerCollateral.mulWadDown(leverageFactor), 0 ); 
+  }
+
   /// @notice receives necessary market information. Only applicable for creditlines 
   /// required for market approval such as max principal, quoted interest rate
-  function storeCredit(uint256 marketId, SyntheticZCBPool pool) internal{
+  function creditApproval(uint256 marketId, SyntheticZCBPool pool) internal{
     (uint256 proposed_principal, uint256 proposed_yield) 
           = vaults[id_parent[marketId]].viewPrincipalAndYield(marketId); 
 
@@ -338,15 +350,14 @@ contract Controller {
     approvalDatas[marketId] = ApprovalData(max_principal, quoted_interest); 
   }
 
-  /**
-   @notice called by market manager denyMarket,
-   1/N validator can deny whole market.
-   */
+  function generalApproval(uint256 marketId) internal {
+    (uint256 proposed_principal, uint256 proposed_yield) = vaults[id_parent[marketId]].viewPrincipalAndYield(marketId); 
+    approvalDatas[marketId] = ApprovalData(proposed_principal, proposed_yield); 
+  }
+
   function denyMarket(
       uint256 marketId
-  ) external  
-    onlyManager
-  {
+  ) external  onlyManager{
     vaults[id_parent[marketId]].denyInstrument(marketId);
     cleanUpDust(marketId);
   }
@@ -365,11 +376,7 @@ contract Controller {
     uint256 n = (traders.length - (k+1))*config.WAD;
     uint256 N = traders.length*config.WAD;
     uint256 p = uint256(n).divWadDown(N)*10**2;
-    console.log("p: ", p);
-    // console.log("n: ", n);
-    // console.log("N: ", N);
-    // console.log("k: ", k);
-    // console.log("length: ", traders.length);
+
     if (p >= percentile) {
       return true;
     } else {

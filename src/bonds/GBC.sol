@@ -133,6 +133,12 @@ contract GranularBondingCurve{
         uint8 feeProtocol;
         // whether the pool is locked
         bool unlocked;
+
+        // Whether liquidity provision is amortized 
+        bool amortized; 
+
+        // Where to modify liquidity 
+        uint16 modifyLiqPoint; 
     }
 
     // the top level state of the swap, the results of which are recorded in storage at the end
@@ -239,12 +245,6 @@ contract GranularBondingCurve{
                 : invRoundUp(state.liquidity + step.liqDir); 
             vars.b = yInt(state.curPrice, moveUp); 
             vars.s = xMax(state.curPrice, vars.b, vars.a); 
-            {console.log('________'); 
-            console.log('CURPRICE', state.curPrice); 
-            console.log('trading; liquidity, amountleft', state.liquidity); 
-            console.log(uint256(-state.amountSpecifiedRemaining));
-            console.log('nextpricelimit/pointnext', step.priceNextLimit, step.pointNext);           
-            console.log('a', vars.a); }
 
             //If moveup, amountIn is in cash, amountOut is token and vice versa 
             (state.curPrice, step.amountIn, step.amountOut, step.feeAmount) = swapStep(
@@ -254,6 +254,13 @@ contract GranularBondingCurve{
                 fee, 
                 vars               
                 ); 
+
+            {console.log('________'); 
+            console.log('CURPRICE', state.curPrice); 
+            console.log('trading; liquidity, amountleft', state.liquidity); 
+            console.log(uint256(-state.amountSpecifiedRemaining));
+            console.log('nextpricelimit/pointnext', step.priceNextLimit, step.pointNext);           
+            console.log('a', vars.a); }
             console.log('amountinandout', step.amountIn, step.amountOut); 
             console.log('s,b', vars.s, vars.b); 
 
@@ -270,6 +277,7 @@ contract GranularBondingCurve{
 
             // If next limit reached, cross price range and change slope(liquidity)
             if (state.curPrice == step.priceNextLimit){
+
                 // If crossing UP, asks are all filled so need to set askLiquidity to 0 and increment numCross
                 // Else if crossing DOWN, bids are all filled 
                 if (step.liqDir!=0) ticks.deleteOneTimeLiquidity(state.point, moveUp); 
@@ -280,7 +288,11 @@ contract GranularBondingCurve{
                     feeGrowthGlobalTrade
                     ); 
 
+                if (!slot0Start.amortized && step.pointNext == slot0Start.modifyLiqPoint)
+                    liquidityNet = liquidityNet += dynamicLiq[step.pointNext]; 
+
                 if (!moveUp) liquidityNet = -liquidityNet; 
+
 
                 state.liquidity = addDelta(state.liquidity,liquidityNet);
 
@@ -719,7 +731,16 @@ contract GranularBondingCurve{
         }
     }
 
- 
+    mapping(uint16=> int128) dynamicLiq; 
+    function setDynamicLiquidity(uint16 point, int128 liq) external {
+        dynamicLiq[point] = liq; 
+    }
+    function setModifyLiqPoint(uint16 point) external{
+        slot0.modifyLiqPoint = point;  
+    }
+    function amortizeLiq() external _lock_{
+        slot0.amortized = true; 
+    }
 
     function getMaxLiquidity() public view returns(uint256){
         // ticks.corrs

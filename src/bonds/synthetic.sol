@@ -44,6 +44,7 @@ contract SyntheticZCBPool is BoundedDerivativesPool{
 
     address public immutable entry; 
     address public immutable controller; 
+    uint256 public constant precision = 1e18; 
 	constructor(address base, 
         address trade, 
         address s_trade, 
@@ -64,8 +65,6 @@ contract SyntheticZCBPool is BoundedDerivativesPool{
 		uint256 I, 
 		uint256 sigma) external {
 		require(msg.sender == controller, "unauthorized"); 
-		uint256 precision = 1e18; 
-
 		b_initial = (2*P).divWadDown(P+I) - precision; 
 		a_initial = (precision-b_initial).divWadDown(P+I); 
 
@@ -75,6 +74,28 @@ contract SyntheticZCBPool is BoundedDerivativesPool{
 		// Set initial liquidity and price 
 		pool.setLiquidity(uint128(precision.divWadDown(a_initial))); 
 		pool.setPriceAndPoint(b); 
+	}
+
+	/// @notice calculates initparams for pool based instruments 
+	/// param endPrice is the inception Price of longZCB, or its price when there is no discount
+	function calculateInitCurveParamsPool(
+		uint256 saleAmount, 
+		uint256 initPrice, 
+		uint256 endPrice, 
+		uint256 sigma
+		) external{
+		require(msg.sender == controller, "unauthorized"); 
+		uint256 dif = endPrice - initPrice; 
+
+		uint256 a = ((dif).mulWadDown(dif) + (2*b).mulWadDown(dif)).divWadDown(saleAmount); 
+		(discount_cap, ) = LinearCurve.amountOutGivenIn(saleAmount.mulWadDown(sigma),0, a, initPrice,true ); 
+		b = initPrice; 
+
+		// set initial liquidity and price 
+		pool.setLiquidity(uint128(precision.divWadDown(a))); 
+		pool.setPriceAndPoint(initPrice); 
+		pool.setDynamicLiquidity(pool.priceToPoint(endPrice), type(int128).max); 
+		pool.setModifyLiqPoint(pool.priceToPoint(endPrice)); 
 	}
 
 	/// @notice computes area between the curve and max price for given storage parameters
@@ -94,6 +115,7 @@ contract SyntheticZCBPool is BoundedDerivativesPool{
 		discountedReserves += amount;  
 	}
 
+
 	function trustedBurn(
 		address trader, 
 		uint256 amount, 
@@ -111,10 +133,14 @@ contract SyntheticZCBPool is BoundedDerivativesPool{
 		else BaseToken.transfer(flushTo, amount); 
 	}
 
+	/// @notice resets AMM liquidity to 0 and make it ready to be liq provisioned 
+	/// by anyone 
 	function resetLiq() external{
 		require(msg.sender == controller, "entryERR"); 
 		pool.setLiquidity(0); 
+		pool.amortizeLiq(); 
 	}
+
 	function cBal() external view returns(uint256){
 		return BaseToken.balanceOf(address(this)); 
 	}
