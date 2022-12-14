@@ -53,13 +53,13 @@ contract GranularBondingCurve{
 
     address public immutable owner; 
     uint24 public immutable  fee;
-    Slot0 public slot0; 
+    Slot0 public slot0; // global state?
     address public immutable  factory;
     address public immutable  tradeToken;
     address public immutable  baseToken;
-    int24 public immutable  tickSpacing;
+    int24 public immutable  tickSpacing; // only ticks/price points divisible by tickSpacing can be initialized.
 
-    uint128 public liquidity; 
+    uint128 public liquidity;
 
     mapping(uint16 => Tick.Info) public  ticks;
 
@@ -67,7 +67,7 @@ contract GranularBondingCurve{
 
     // mapping(uint16=> PricePoint) Points; 
 
-    uint256 public  constant priceDelta = 1e16; //difference in price for two adjacent ticks
+    uint256 public  constant priceDelta = 1e16; //difference in price for two adjacent ticks => 0.01 base token.
     uint256 public constant ROUNDLIMIT = 1e4; 
     uint256 public constant PRECISION = 1e18; 
     address public entry; 
@@ -90,7 +90,8 @@ contract GranularBondingCurve{
     function positionIsFilled(
         address recipient, 
         uint16 point, 
-        bool isAsk) 
+        bool isAsk
+    ) 
         public view returns(bool){
         Position.Info storage position = positions.get(recipient, point, point+1);
 
@@ -187,7 +188,7 @@ contract GranularBondingCurve{
         uint256 b; 
     }
 
-    /// param +amountSpecified is in base if moveUp, else is in trade
+    /// param +amountSpecified is in base if moveUp, else is in trade (+ if input asset, - if output asset)
     /// -amountSpecified is in trade if moveUp, else is in base 
     /// returns amountIn if moveUp, cash, else token
     /// returns amountOut if moveUp, token, else cash 

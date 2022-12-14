@@ -4,7 +4,7 @@ pragma solidity ^0.8.4;
 
 import "./vault.sol";
 import {ERC20} from "./tokens/ERC20.sol";
-import "@openzeppelin/contracts/utils/math/Math.sol";
+import "openzeppelin-contracts/utils/math/Math.sol";
 import {FixedPointMathLib} from "./utils/FixedPointMathLib.sol";
 import "forge-std/console.sol";
 
