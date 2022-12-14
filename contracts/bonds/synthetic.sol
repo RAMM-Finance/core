@@ -1,6 +1,6 @@
 pragma solidity ^0.8.9;
 import {BoundedDerivativesPool, LinearCurve} from "./GBC.sol"; 
-import {FixedPointMathLib} from "solmate/src/utils/FixedPointMathLib.sol";
+import {FixedPointMathLib} from "solmate/utils/FixedPointMathLib.sol";
 import {ERC20} from "./libraries.sol"; 
 import "forge-std/console.sol";
 

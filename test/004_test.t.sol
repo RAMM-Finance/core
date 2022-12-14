@@ -2,15 +2,15 @@ pragma solidity ^0.8.4;
 
 import "forge-std/Test.sol";
 import "forge-std/console2.sol";
-import {Controller} from "src/protocol/controller.sol";
-import {MarketManager} from "src/protocol/marketmanager.sol";
-import {VaultFactory} from "src/protocol/factories.sol";
-import {CreditLine, MockBorrowerContract} from "src/vaults/instrument.sol";
-import {Vault} from "src/vaults/vault.sol";
-import {SyntheticZCBPoolFactory} from "src/bonds/synthetic.sol";
-import {Cash} from "src/utils/Cash.sol";
-import {ERC4626} from "src/vaults/mixins/ERC4626.sol";
-import {FixedPointMathLib} from "solmate/src/utils/FixedPointMathLib.sol";
+import {Controller} from "contracts/protocol/controller.sol";
+import {MarketManager} from "contracts/protocol/marketmanager.sol";
+import {VaultFactory} from "contracts/protocol/factories.sol";
+import {CreditLine, MockBorrowerContract} from "contracts/vaults/instrument.sol";
+import {Vault} from "contracts/vaults/vault.sol";
+import {SyntheticZCBPoolFactory} from "contracts/bonds/synthetic.sol";
+import {Cash} from "contracts/utils/Cash.sol";
+import {ERC4626} from "contracts/vaults/mixins/ERC4626.sol";
+import {FixedPointMathLib} from "solmate/utils/FixedPointMathLib.sol";
 
 contract Manangertest is Test {
     using stdStorage for StdStorage;

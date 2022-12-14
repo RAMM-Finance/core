@@ -2,7 +2,7 @@ pragma solidity ^0.8.4;
 
 import "forge-std/Test.sol";
 import "forge-std/console.sol";
-import {Controller} from "src/protocol/controller.sol";
+import {Controller} from "contracts/protocol/controller.sol";
 
 contract ReputationSystemTests is Test {
     Controller controller;

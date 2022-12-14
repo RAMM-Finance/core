@@ -2,10 +2,10 @@ pragma solidity ^0.8.4;
 
 import "./reputationtoken.sol"; 
 import {Controller} from "./controller.sol";
-import {ERC20} from "solmate/src/tokens/ERC20.sol";
+import {ERC20} from "solmate/tokens/ERC20.sol";
 import "forge-std/console.sol";
-import {SafeTransferLib} from "solmate/src/utils/SafeTransferLib.sol";
-import {FixedPointMathLib} from "solmate/src/utils/FixedPointMathLib.sol";
+import {SafeTransferLib} from "solmate/utils/SafeTransferLib.sol";
+import {FixedPointMathLib} from "solmate/utils/FixedPointMathLib.sol";
 import {VRFConsumerBaseV2} from "../chainlink/VRFConsumerBaseV2.sol";
 import {VRFCoordinatorV2Interface} from "../chainlink/VRFCoordinatorV2Interface.sol";
 import {config} from "../utils/helpers.sol";

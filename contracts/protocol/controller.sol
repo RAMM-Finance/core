@@ -3,14 +3,14 @@ import {MarketManager} from "./marketmanager.sol";
 import {ReputationNFT} from "./reputationtoken.sol";
 import {Vault} from "../vaults/vault.sol";
 import {Instrument} from "../vaults/instrument.sol";
-import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
-import {FixedPointMathLib} from "solmate/src/utils/FixedPointMathLib.sol";
+import {Strings} from "openzeppelin-contracts/utils/Strings.sol";
+import {FixedPointMathLib} from "solmate/utils/FixedPointMathLib.sol";
 import {VaultFactory} from "./factories.sol"; 
 import "forge-std/console.sol";
-import "@interep/contracts/IInterep.sol";
+// import "@interep/contracts/IInterep.sol";
 import {config} from "../utils/helpers.sol"; 
-import "@openzeppelin/contracts/utils/math/SafeMath.sol";
-import "@interep/contracts/IInterep.sol";
+import "openzeppelin-contracts/utils/math/SafeMath.sol";
+// import "@interep/contracts/IInterep.sol";
 import {SyntheticZCBPoolFactory, SyntheticZCBPool} from "../bonds/synthetic.sol"; 
 
 
@@ -46,7 +46,7 @@ contract Controller {
 
   address creator_address;
 
-  IInterep interep;
+  // IInterep interep;
   // TrustedMarketFactoryV3 marketFactory;
   MarketManager marketManager;
   // ReputationNFT repNFT; 
@@ -56,13 +56,6 @@ contract Controller {
   uint256 constant TWITTER_UNRATED_GROUP_ID = 16106950158033643226105886729341667676405340206102109927577753383156646348711;
   bytes32 constant private signal = bytes32("twitter-unrated");
   uint256 constant MIN_DURATION = 1 days;
-  
-  // Bond Curve Name
-  string constant baseName = "Bond";
-  string constant baseSymbol = "B";
-  string constant s_baseName = "sBond";
-  string constant s_baseSymbol = "sB";
-  uint256 nonce = 0;
 
   /* ========== MODIFIERS ========== */
   modifier onlyValidator(uint256 marketId) {
@@ -81,10 +74,9 @@ contract Controller {
 
   constructor (
       address _creator_address,
-      address _interep_address
+      address _interep_address //TODO
   ) {
       creator_address = _creator_address;
-      interep = IInterep(_interep_address);
   }
 
   /*----Setup Functions----*/
@@ -106,15 +98,15 @@ contract Controller {
     poolFactory = SyntheticZCBPoolFactory(_poolFactory); 
   }
 
-  function verifyAddress(
-      uint256 nullifier_hash, 
-      uint256 external_nullifier,
-      uint256[8] calldata proof
-  ) external  {
-      require(!verified[msg.sender], "address already verified");
-      interep.verifyProof(TWITTER_UNRATED_GROUP_ID, signal, nullifier_hash, external_nullifier, proof);
-      verified[msg.sender] = true;
-  }
+  // function verifyAddress(
+  //     uint256 nullifier_hash, 
+  //     uint256 external_nullifier,
+  //     uint256[8] calldata proof
+  // ) external  {
+  //     require(!verified[msg.sender], "address already verified");
+  //     interep.verifyProof(TWITTER_UNRATED_GROUP_ID, signal, nullifier_hash, external_nullifier, proof);
+  //     verified[msg.sender] = true;
+  // }
 
   function testVerifyAddress() external {
     verified[msg.sender] = true;
