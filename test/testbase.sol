@@ -1,16 +1,16 @@
 import "forge-std/Test.sol";
 import "forge-std/console.sol";
-import "src/protocol/controller.sol";
-import {MarketManager} from "src/protocol/marketmanager.sol";
-import {ReputationNFT} from "src/protocol/reputationtoken.sol";
-import {Cash} from "src/utils/Cash.sol";
-import {CreditLine, MockBorrowerContract} from "src/vaults/instrument.sol";
-import {SyntheticZCBPoolFactory} from "src/bonds/synthetic.sol"; 
-import {LinearCurve} from "src/bonds/GBC.sol"; 
-import {FixedPointMath} from "src/bonds/libraries.sol"; 
-import {CoveredCallOTC} from "src/vaults/dov.sol";
-import {ERC20} from "solmate/src/tokens/ERC20.sol";
-import {SimpleNFTPool} from "src/vaults/nftLending.sol"; 
+import "../contracts/protocol/controller.sol";
+import {MarketManager} from "../contracts/protocol/marketmanager.sol";
+import {ReputationNFT} from "../contracts/protocol/reputationtoken.sol";
+import {Cash} from "../contracts/utils/Cash.sol";
+import {CreditLine, MockBorrowerContract} from "../contracts/vaults/instrument.sol";
+import {SyntheticZCBPoolFactory} from "../contracts/bonds/synthetic.sol"; 
+import {LinearCurve} from "../contracts/bonds/GBC.sol"; 
+import {FixedPointMath} from "../contracts/bonds/libraries.sol"; 
+import {CoveredCallOTC} from "../contracts/vaults/dov.sol";
+import {ERC20} from "solmate/tokens/ERC20.sol";
+import {SimpleNFTPool} from "../contracts/vaults/nftLending.sol"; 
 
 contract TestBase is Test {
     using FixedPointMath for uint256; 
