@@ -176,7 +176,6 @@ contract Controller {
     id_parent[marketId] = vaultId;
     vault_to_marketIds[vaultId].push(marketId);
     market_data[marketId] = MarketData(instrumentData.Instrument_address, recipient);
-
     marketManager.setParameters(vault.get_vault_params(), vault.utilizationRate(), marketId); //TODO non-default 
 
     // Create new pool and bonds and store initial price and liquidity for the pool
@@ -186,9 +185,11 @@ contract Controller {
     if (instrumentData.isPool){
       pool.calculateInitCurveParamsPool(instrumentData.poolData.saleAmount, 
         instrumentData.poolData.initPrice, instrumentData.poolData.inceptionPrice, marketManager.getParameters(marketId).sigma); 
+      console.log("?");
 
       marketManager.newMarket(marketId, instrumentData.poolData.saleAmount, pool, longZCB, shortZCB, instrumentData.description, 
         instrumentData.duration, true); 
+      console.log("??");
     }
     else{
       pool.calculateInitCurveParams(instrumentData.principal,

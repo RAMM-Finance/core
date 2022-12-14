@@ -404,7 +404,7 @@ contract MarketManager
     if (!isVerified(trader)) 
       revert("not verified");
 
-    if (getTraderBudget(marketId, trader) <= uint256(amount) + markets[marketId].longZCB.balanceOf(trader))
+    if (getTraderBudget(marketId, trader) <= uint256(amount))
       revert("budget limit");
 
     if (controller.trader_scores(trader) == 0)
@@ -775,7 +775,9 @@ contract MarketManager
   function calcImpliedProbability(
     uint256 bondAmount, 
     uint256 collateral_amount,
-    uint256 budget) public pure returns(uint256){
+    uint256 budget
+    ) public view returns(uint256){
+    console.log('bond', bondAmount, collateral_amount, budget); 
     uint256 avg_price = collateral_amount.divWadDown(bondAmount); 
     uint256 b = avg_price.mulWadDown(config.WAD - avg_price);
     uint256 ratio = bondAmount.divWadDown(budget); 
@@ -977,14 +979,13 @@ contract MarketManager
     if (duringMarketAssessment(_marketId)){
 
       (amountIn, amountOut) = bondPool.takerOpen(true, _amountIn, _priceLimit, abi.encode(msg.sender)); 
-
+      console.log('amountin', amountIn, amountOut); 
       //Need to log assessment trades for updating reputation scores or returning collateral when market denied 
       _logTrades(_marketId, msg.sender, amountIn, 0, true, true);
 
       // Get implied probability estimates by summing up all this manager bought for this market 
       assessment_probs[_marketId][msg.sender] = calcImpliedProbability(
-          getZCB(_marketId).balanceOf(msg.sender) 
-            + leveragePosition[_marketId][msg.sender].amount, 
+          getZCB(_marketId).balanceOf(msg.sender) + leveragePosition[_marketId][msg.sender].amount, 
           longTrades[_marketId][msg.sender], 
           getTraderBudget(_marketId, msg.sender) 
       ); 

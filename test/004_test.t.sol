@@ -12,7 +12,7 @@ import {Cash} from "src/utils/Cash.sol";
 import {ERC4626} from "src/vaults/mixins/ERC4626.sol";
 import {FixedPointMathLib} from "solmate/src/utils/FixedPointMathLib.sol";
 
-contract Manangertest is Test {
+contract AMMTest is Test {
     using stdStorage for StdStorage;
     using FixedPointMathLib for uint256;
     Controller c;

@@ -71,7 +71,11 @@ contract SimpleNFTPool is Instrument{
         acceptedList.push(key); 
     }
 
-    function instrumentApprovalCondition() public override view returns(bool){}
+    function instrumentApprovalCondition() public override view returns(bool){
+        return true; 
+    }
+
+
     
 
 }  

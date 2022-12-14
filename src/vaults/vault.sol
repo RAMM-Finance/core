@@ -52,6 +52,7 @@ contract Vault is ERC4626, Auth{
     enum InstrumentType {
         CreditLine,
         CoveredCall,
+        Pool, 
         Other
     }
 
