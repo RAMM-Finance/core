@@ -198,7 +198,7 @@ contract FullCycleTest is Test {
         for (uint256 i=0; i< words.length; i++) {
             words[i] = uint256(keccak256(abi.encodePacked(i)));
         }
-        marketmanager.fulfillRandomWords(1, words);
+        controller.fulfillRandomWords(1, words);
     }
 
     function initiateOptionsOTCMarket() public{
@@ -219,7 +219,7 @@ contract FullCycleTest is Test {
         for (uint256 i=0; i< words.length; i++) {
             words[i] = uint256(keccak256(abi.encodePacked(i)));
         }
-        marketmanager.fulfillRandomWords(1, words);
+        controller.fulfillRandomWords(1, words);
     }
 
     function doApproveCol(address _who, address _by) public{
@@ -243,15 +243,15 @@ contract FullCycleTest is Test {
         return collateral.balanceOf(_who); 
     }
 
-    function testFailApproval() public{
-        address proxy =  instrument.getProxy(); 
-        borrowerContract.changeOwner(proxy); 
-        assertEq(borrowerContract.owner(), proxy); 
-        uint256 marketId = controller.getMarketId(jott); 
+    // function testFailApproval() public{
+    //     address proxy =  instrument.getProxy(); 
+    //     borrowerContract.changeOwner(proxy); 
+    //     assertEq(borrowerContract.owner(), proxy); 
+    //     uint256 marketId = controller.getMarketId(jott); 
 
-        controller.approveMarket(marketId);
+    //     c.approveMarket(marketId);
 
-    }
+    // }
 
     struct testVars1{
         uint256 marketId;
@@ -300,7 +300,7 @@ contract FullCycleTest is Test {
         // doApproveCol(address(marketmanager), gatdang); 
         // instrument.setValidator(gatdang);  
         // vm.prank(gatdang);
-        // vars.valamountIn = marketmanager.validatorApprove(vars.marketId); 
+        // vars.valamountIn = controller.validatorApprove(vars.marketId); 
         assertApproxEqAbs(vars.cbalnow + vars.valamountIn - cBal(address(marketmanager.getPool(vars.marketId))), 
             vars.valamountIn + vars.amountIn,10); 
 
@@ -417,17 +417,18 @@ contract FullCycleTest is Test {
         console.log('collat', marketmanager.loggedCollaterals(vars.marketId), marketmanager.marketCondition(vars.marketId));
     }
 
-    function doApprove(uint256 marketId, address vault) public{
+    function doApprove(uint256 marketId, address vault) public{ //TODO: update
         // validators invest and approve 
-        address[] memory vals = marketmanager.viewValidators(marketId);
-        uint256 initialStake = marketmanager.getInitialStake(marketId);
+        address[] memory vals = controller.viewValidators(marketId);
+        console.log("val.length", vals.length);
+        uint256 initialStake = controller.getInitialStake(marketId);
         for (uint i=0; i < vals.length; i++) {
             doApproveCol(vault, vals[i]);
-            doApproveVault(vault, vals[i], address(marketmanager));
+            doApproveVault(vault, vals[i], address(controller));
             doApproveCol(address(marketmanager), vals[i]);
             doMint(vault, vals[i], initialStake);
             vm.prank(vals[i]);
-            marketmanager.validatorApprove(marketId);
+            controller.validatorApprove(marketId);
         }
     }
 
@@ -438,16 +439,16 @@ contract FullCycleTest is Test {
     //     doApproveCol(address(marketmanager), gatdang); 
     //     otc.setValidator( gatdang);  
     //     vm.prank(gatdang); 
-    //     marketmanager.validatorApprove(vars.marketId); 
+    //     controller.validatorApprove(vars.marketId); 
     // }
 
     function doDeny(testVars2 memory vars) public {
 
         vars.vaultBal = collateral.balanceOf(controller.getVaultAd(vars.marketId));  
         vars.cbalbefore = marketmanager.getPool(vars.marketId).cBal(); 
-        address[] memory vals = marketmanager.viewValidators(vars.marketId);
+        address[] memory vals = controller.viewValidators(vars.marketId);
         vm.prank(vals[0]);
-        marketmanager.denyMarket(vars.marketId);
+        controller.denyMarket(vars.marketId);
         // vm.prank(gatdang);
         // controller.denyMarket(vars.marketId); 
         assertEq(marketmanager.getPool(vars.marketId).cBal(), 0); 
@@ -456,14 +457,14 @@ contract FullCycleTest is Test {
     }
 
     function closeMarket(testVars2 memory vars) public {
-        vm.prank(gatdang); 
+        address[] memory vals = controller.viewValidators(vars.marketId);
+        for (uint i=0; i < vals.length; i++) {
+            vm.prank(vals[i]);
+            controller.validatorResolve(vars.marketId);
+        }
+        vm.prank(vals[0]); 
         controller.beforeResolve(vars.marketId); 
         vm.roll(block.number+1);
-        address[] memory vals = marketmanager.viewValidators(vars.marketId);
-        for (uint256 i=0; i < vals.length; i++) {
-            vm.prank(vals[i]);
-            marketmanager.validatorResolve(vars.marketId);
-        }
         controller.resolveMarket(vars.marketId); 
         assertEq(collateral.balanceOf(address(instrument)),0); 
     }
@@ -660,7 +661,7 @@ contract FullCycleTest is Test {
         //validator 
         // balbefore = collateral.balanceOf(gatdang); 
         // zcbbal = marketmanager.getZCB(vars.marketId).balanceOf(gatdang); //shorter
-        address[] memory vals = marketmanager.viewValidators(vars.marketId);
+        address[] memory vals = controller.viewValidators(vars.marketId);
         console.log(vals[0]);
         
         for (uint256 i=0; i< vals.length;i++) {

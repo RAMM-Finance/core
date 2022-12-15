@@ -149,7 +149,7 @@ contract TestBase is Test {
         for (uint256 i=0; i< words.length; i++) {
             words[i] = uint256(keccak256(abi.encodePacked(i)));
         }
-        marketmanager.fulfillRandomWords(1, words);
+        controller.fulfillRandomWords(1, words);
     }
 
     function initiateOptionsOTCMarket() public{
@@ -170,7 +170,7 @@ contract TestBase is Test {
         for (uint256 i=0; i< words.length; i++) {
             words[i] = uint256(keccak256(abi.encodePacked(i)));
         }
-        marketmanager.fulfillRandomWords(1, words);
+        controller.fulfillRandomWords(1, words);
     }
 
     function initiateSimpleNFTLendingPool() public {
@@ -204,7 +204,7 @@ contract TestBase is Test {
         for (uint256 i=0; i< words.length; i++) {
             words[i] = uint256(keccak256(abi.encodePacked(i)));
         }
-        marketmanager.fulfillRandomWords(1, words);
+        controller.fulfillRandomWords(1, words);
 
     }
 
@@ -228,17 +228,18 @@ contract TestBase is Test {
     function cBal(address _who) public returns(uint256) {
         return collateral.balanceOf(_who); 
     }
-    function doApprove(uint256 marketId, address vault) public{
+    function doApprove(uint256 marketId, address vault) public{ //TODO: update
         // validators invest and approve 
-        address[] memory vals = marketmanager.viewValidators(marketId);
-        uint256 initialStake = marketmanager.getInitialStake(marketId);
+        address[] memory vals = controller.viewValidators(marketId);
+        console.log("val.length", vals.length);
+        uint256 initialStake = controller.getInitialStake(marketId);
         for (uint i=0; i < vals.length; i++) {
             doApproveCol(vault, vals[i]);
-            doApproveVault(vault, vals[i], address(marketmanager));
+            doApproveVault(vault, vals[i], address(controller));
             doApproveCol(address(marketmanager), vals[i]);
             doMint(vault, vals[i], initialStake);
             vm.prank(vals[i]);
-            marketmanager.validatorApprove(marketId);
+            controller.validatorApprove(marketId);
         }
     }
    

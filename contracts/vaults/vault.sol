@@ -354,7 +354,7 @@ contract Vault is ERC4626, Auth{
         require(isTrusted( _instrument), "Not trusted"); 
 
         // Should revert if can't be resolved 
-        _instrument.prepareWithdraw(); 
+        _instrument.prepareWithdraw();
 
         // Record profit/loss used for calculation of redemption price 
         harvest(address(_instrument));

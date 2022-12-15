@@ -64,11 +64,11 @@ abstract contract Instrument {
         Utilizer = _Utilizer;
     }
 
-    function setValidator(address _validator) external {
-        require(msg.sender == vault.owner(), "Not owner"); 
-        validators.push(_validator); 
-        isValidator[_validator] = true;     
-    }
+    // function setValidator(address _validator) external {
+    //     require(msg.sender == vault.owner(), "Not owner"); 
+    //     validators.push(_validator); 
+    //     isValidator[_validator] = true;     
+    // }
 
 
     /// @notice Withdraws a specific amount of underlying tokens from the Instrument.

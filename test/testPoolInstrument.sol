@@ -219,15 +219,15 @@ contract PoolInstrumentTest is TestBase {
 
     // function doApprove(uint256 marketId, address vault) public{
     //     // validators invest and approve 
-    //     address[] memory vals = marketmanager.viewValidators(marketId);
-    //     uint256 initialStake = marketmanager.getInitialStake(marketId);
+    //     address[] memory vals = controller.viewValidators(marketId);
+    //     uint256 initialStake = controller.getInitialStake(marketId);
     //     for (uint i=0; i < vals.length; i++) {
     //         doApproveCol(vault, vals[i]);
     //         doApproveVault(vault, vals[i], address(marketmanager));
     //         doApproveCol(address(marketmanager), vals[i]);
     //         doMint(vault, vals[i], initialStake);
     //         vm.prank(vals[i]);
-    //         marketmanager.validatorApprove(marketId);
+    //         controller.validatorApprove(marketId);
     //     }
     // }
 
@@ -238,14 +238,14 @@ contract PoolInstrumentTest is TestBase {
     // //     doApproveCol(address(marketmanager), gatdang); 
     // //     otc.setValidator( gatdang);  
     // //     vm.prank(gatdang); 
-    // //     marketmanager.validatorApprove(vars.marketId); 
+    // //     controller.validatorApprove(vars.marketId); 
     // // }
 
     // function doDeny(testVars2 memory vars) public {
 
     //     vars.vaultBal = collateral.balanceOf(controller.getVaultAd(vars.marketId));  
     //     vars.cbalbefore = marketmanager.getPool(vars.marketId).cBal(); 
-    //     address[] memory vals = marketmanager.viewValidators(vars.marketId);
+    //     address[] memory vals = controller.viewValidators(vars.marketId);
     //     vm.prank(vals[0]);
     //     marketmanager.denyMarket(vars.marketId);
     //     // vm.prank(gatdang);
@@ -259,7 +259,7 @@ contract PoolInstrumentTest is TestBase {
     //     vm.prank(gatdang); 
     //     controller.beforeResolve(vars.marketId); 
     //     vm.roll(block.number+1);
-    //     address[] memory vals = marketmanager.viewValidators(vars.marketId);
+    //     address[] memory vals = controller.viewValidators(vars.marketId);
     //     for (uint256 i=0; i < vals.length; i++) {
     //         vm.prank(vals[i]);
     //         marketmanager.validatorResolve(vars.marketId);
@@ -460,7 +460,7 @@ contract PoolInstrumentTest is TestBase {
     //     //validator 
     //     // balbefore = collateral.balanceOf(gatdang); 
     //     // zcbbal = marketmanager.getZCB(vars.marketId).balanceOf(gatdang); //shorter
-    //     address[] memory vals = marketmanager.viewValidators(vars.marketId);
+    //     address[] memory vals = controller.viewValidators(vars.marketId);
     //     console.log(vals[0]);
         
     //     for (uint256 i=0; i< vals.length;i++) {
@@ -690,7 +690,7 @@ contract PoolInstrumentTest is TestBase {
 
     //         vm.roll(block.number+1);
 
-    //         address[] memory vals = marketmanager.viewValidators(vars.marketId);
+    //         address[] memory vals = controller.viewValidators(vars.marketId);
     //         for (uint256 i=0; i < vals.length; i++) {
     //             vm.prank(vals[i]);
     //             marketmanager.validatorResolve(vars.marketId);
