@@ -177,12 +177,12 @@ contract TestBase is Test {
         Vault.InstrumentData memory data; 
         Vault.PoolData memory poolData; 
 
-        poolData.saleAmount = principal; 
+        poolData.saleAmount = principal/4; 
         poolData.initPrice = 7e17; 
         poolData.promisedReturn = 3000000000; 
         poolData.inceptionTime = block.timestamp; 
         poolData.inceptionPrice = 8e17; 
-        poolData.leverageFactor = 3; 
+        poolData.leverageFactor = 3e18; 
 
         data.isPool = true; 
         data.trusted = false; 
@@ -213,6 +213,7 @@ contract TestBase is Test {
         collateral.approve(_who, type(uint256).max); 
     }
     function doInvest(address vault, address _by, uint256 amount) public{
+        doApproveCol(vault, _by ); 
         vm.prank(_by); 
         Vault(vault).deposit(amount, _by); 
     }

@@ -241,12 +241,18 @@ contract GranularBondingCurve{
             // Need liquidity for both move up and move down for path independence within a 
             // given point range. Either one of them should be 0 
             step.liqDir = ticks.oneTimeLiquidity(state.point);
+            console.log('inv', uint256(state.liquidity), PRECISION.divWadDown(state.liquidity)); 
             vars.a = exactInput 
                 ? inv(state.liquidity + step.liqDir)
                 : invRoundUp(state.liquidity + step.liqDir); 
+                console.log('??');
             vars.b = yInt(state.curPrice, moveUp); 
-            vars.s = xMax(state.curPrice, vars.b, vars.a); 
+                            console.log('??');
 
+            vars.s = xMax(state.curPrice, vars.b, vars.a); 
+                            console.log('??');
+
+            console.log('params', vars.a, vars.b, vars.s); 
             //If moveup, amountIn is in cash, amountOut is token and vice versa 
             (state.curPrice, step.amountIn, step.amountOut, step.feeAmount) = swapStep(
                 state.curPrice, 
@@ -291,6 +297,7 @@ contract GranularBondingCurve{
 
                 if (!slot0Start.amortized && step.pointNext == slot0Start.modifyLiqPoint)
                     liquidityNet = liquidityNet += dynamicLiq[step.pointNext]; 
+                    console.log('dynamicLiq', uint256(int256(dynamicLiq[step.pointNext])), uint256(int256(liquidityNet))); 
 
                 if (!moveUp) liquidityNet = -liquidityNet; 
 
@@ -776,6 +783,7 @@ contract GranularBondingCurve{
     }
 
     function xMax(uint256 curPrice, uint256 b, uint256 a) public pure returns(uint256){
+        if(a==0) return type(uint256).max; 
         return (curPrice-b).divWadDown(a); 
     }
     function xMaxRoundUp(uint256 curPrice, uint256 b, uint256 a) public pure returns(uint256){
@@ -830,8 +838,9 @@ contract GranularBondingCurve{
 library LinearCurve{
     uint256 public constant PRECISION = 1e18; 
     using FixedPointMath for uint256; 
+
     /// @dev tokens returned = [((a*s + b)^2 + 2*a*p)^(1/2) - (a*s + b)] / a
-    /// @param amount: amount cash in
+    /// @param amount: amount of base in
     /// returns amountDelta wanted token returned 
     function amountOutGivenIn( 
         uint256 amount,
@@ -843,20 +852,30 @@ library LinearCurve{
         pure 
         returns(uint256 amountDelta, uint256 resultPrice) {
         
-        if (up){
-            uint256 x = ((a.mulWadDown(s) + b) ** 2)/PRECISION; 
-            uint256 y = 2*( a.mulWadDown(amount)); 
-            uint256 x_y_sqrt = ((x+y)*PRECISION).sqrt();
-            uint256 z = (a.mulWadDown(s) + b); 
-            amountDelta = (x_y_sqrt-z).divWadDown(a);
-            resultPrice = a.mulWadDown(amountDelta + s) + b; 
+        // If liquidity is not infinite 
+        if(a > 0){
+            if (up){
+                uint256 x = ((a.mulWadDown(s) + b) ** 2)/PRECISION; 
+                uint256 y = 2*( a.mulWadDown(amount)); 
+                uint256 x_y_sqrt = ((x+y)*PRECISION).sqrt();
+                uint256 z = (a.mulWadDown(s) + b); 
+                amountDelta = (x_y_sqrt-z).divWadDown(a);
+                resultPrice = a.mulWadDown(amountDelta + s) + b; 
+            }
+
+            else{
+                uint256 z = b + a.mulWadDown(s) - a.mulWadDown(amount)/2;  
+                amountDelta = amount.mulWadDown(z); 
+                resultPrice = a.mulWadDown(s-amount) + b; 
+            }
         }
 
+        // When a = 0, infinite liquidity and constant price
         else{
-            uint256 z = b + a.mulWadDown(s) - a.mulWadDown(amount)/2;  
-            amountDelta = amount.mulWadDown(z); 
-            resultPrice = a.mulWadDown(s-amount) + b; 
+            amountDelta = amount.divWadDown(b); 
+            resultPrice = b; 
         }
+
     }
 
     /// @notice calculates area under the curve from s to s+amount
@@ -882,6 +901,10 @@ library LinearCurve{
         returns(uint256 area){
         // you want area to be big for a given amount 
         area = ( a.mulWadUp(amount) / 2 ).mulWadUp(2 * s + amount) + b.mulWadUp(amount); 
+    }
+
+    function min(uint256 a, uint256 b) internal pure returns (uint256) {
+        return a <= b ? a : b;
     }
 }
 

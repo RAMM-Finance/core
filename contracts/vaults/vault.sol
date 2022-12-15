@@ -79,6 +79,8 @@ contract Vault is ERC4626, Auth{
 
       PoolData poolData; 
     }
+
+    /// @notice probably should have default parameters for each vault
     struct PoolData{
       uint256 saleAmount; 
       uint256 initPrice; // init price of longZCB in the amm 
@@ -86,6 +88,7 @@ contract Vault is ERC4626, Auth{
       uint256 inceptionTime;
       uint256 inceptionPrice; // init price of longZCB after assessment 
       uint256 leverageFactor; //leverageFactor * manager collateral = capital from vault to instrument
+      uint256 managementFee; // sum of discounts for high reputation managers/validators 
     }
 
     struct ResolveVar{
@@ -292,10 +295,10 @@ contract Vault is ERC4626, Auth{
       return instrument_data[Instruments[marketId]];
     }
 
-    function fetchPoolTrancheData(uint256 marketId) public view returns(uint256, uint256, uint256, uint256){
+    function fetchPoolTrancheData(uint256 marketId) public view returns(uint256, uint256, uint256, uint256, uint256){
       InstrumentData memory data = instrument_data[Instruments[marketId]]; 
       return (data.poolData.promisedReturn, data.poolData.inceptionTime, 
-            data.poolData.inceptionPrice, data.poolData.leverageFactor); 
+            data.poolData.inceptionPrice, data.poolData.leverageFactor, data.poolData.managementFee); 
     }
 
     /**

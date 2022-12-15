@@ -176,13 +176,12 @@ contract Controller {
               = poolFactory.newPool(address(vaults[vaultId].UNDERLYING()), address(marketManager)); 
 
     if (instrumentData.isPool){
-      pool.calculateInitCurveParamsPool(instrumentData.poolData.saleAmount, 
-        instrumentData.poolData.initPrice, instrumentData.poolData.inceptionPrice, marketManager.getParameters(marketId).sigma); 
-      console.log("?");
+      instrumentData.poolData.managementFee = pool.calculateInitCurveParamsPool(
+        instrumentData.poolData.saleAmount, instrumentData.poolData.initPrice, 
+        instrumentData.poolData.inceptionPrice, marketManager.getParameters(marketId).sigma); 
 
       marketManager.newMarket(marketId, instrumentData.poolData.saleAmount, pool, longZCB, shortZCB, instrumentData.description, 
         instrumentData.duration, true); 
-      console.log("??");
     }
     else{
       pool.calculateInitCurveParams(instrumentData.principal,
@@ -303,7 +302,10 @@ contract Controller {
     bool isPool = marketManager.isInstrumentPool(marketId); 
     uint256 managerCollateral = marketManager.loggedCollaterals(marketId); 
 
-    if (isPool) poolApproval(marketId, managerCollateral, vault.fetchInstrumentData( marketId).poolData.leverageFactor); 
+    if (isPool) {
+      poolApproval(marketId, marketManager.getZCB( marketId).totalSupply(), 
+        vault.fetchInstrumentData( marketId).poolData); 
+    }
 
     else {
       if (vault.getInstrumentType(marketId) == 0) creditApproval(marketId, pool); 
@@ -320,10 +322,10 @@ contract Controller {
     pool.resetLiq(); 
   }
 
-  function poolApproval(uint256 marketId, uint256 managerCollateral, uint256 leverageFactor) internal{
-    require(leverageFactor > 0, "0 LEV_FACTOR"); 
-
-    approvalDatas[marketId] = ApprovalData(managerCollateral.mulWadDown(leverageFactor), 0 ); 
+  function poolApproval(uint256 marketId, uint256 juniorSupply, Vault.PoolData memory data ) internal{
+    require(data.leverageFactor > 0, "0 LEV_FACTOR"); 
+    approvalDatas[marketId] = ApprovalData(juniorSupply
+      .mulWadDown(config.WAD + data.leverageFactor).mulWadDown(data.inceptionPrice), 0 ); 
   }
 
   /// @notice receives necessary market information. Only applicable for creditlines 

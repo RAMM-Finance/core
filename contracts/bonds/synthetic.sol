@@ -4,6 +4,16 @@ import {FixedPointMathLib} from "solmate/utils/FixedPointMathLib.sol";
 import {ERC20} from "./libraries.sol"; 
 import "forge-std/console.sol";
 
+contract ZCBFactory{
+    function newBond(
+        string memory name, 
+        string memory description 
+        ) internal returns(address) {
+        ERC20 bondToken = new ERC20(name,description, 18);
+        return address(bondToken); 
+    }
+
+}
 contract SyntheticZCBPoolFactory{
     address public immutable controller;
     constructor(address _controller){
@@ -35,12 +45,11 @@ contract SyntheticZCBPoolFactory{
 contract SyntheticZCBPool is BoundedDerivativesPool{
     using FixedPointMathLib for uint256;
 
-    uint256  public a_initial;
-    uint256  public b_initial; // b without discount cap 
-    uint256  public b;
-    uint256  public discount_cap; 
-    uint256 discountedReserves; 
-
+    uint256 public a_initial;
+    uint256 public b_initial; // b without discount cap 
+    uint256 public b;
+    uint256 public discount_cap; 
+    uint256 public discountedReserves; 
 
     address public immutable entry; 
     address public immutable controller; 
@@ -83,7 +92,7 @@ contract SyntheticZCBPool is BoundedDerivativesPool{
         uint256 initPrice, 
         uint256 endPrice, 
         uint256 sigma
-        ) external{
+        ) external returns(uint256 managementFee){
         require(msg.sender == controller, "unauthorized"); 
 
         uint256 saleAmountQty = (2*saleAmount).divWadDown(initPrice +endPrice); 
@@ -92,6 +101,10 @@ contract SyntheticZCBPool is BoundedDerivativesPool{
         //Set discount cap as saleAmount * sigma 
         (discount_cap, ) = LinearCurve.amountOutGivenIn(saleAmount.mulWadDown(sigma),0, a, initPrice,true ); 
         b = initPrice; 
+
+        // How much total discounts are validators and managers getting
+        managementFee = discount_cap.mulWadDown(endPrice) 
+            - saleAmount.mulWadDown(sigma) + saleAmountQty.mulWadDown(endPrice) - saleAmount ; 
 
         // set initial liquidity and price 
         pool.setLiquidity(uint128(precision.divWadDown(a))); 
