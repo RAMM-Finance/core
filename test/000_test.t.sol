@@ -110,12 +110,12 @@ contract ReputationSystemTests is Test {
         assertEq(controller.calculateMinScore(0), 0);
     }
 
-    function testSelectTraders() public {
-        addUsers();
-        address[] memory vals = controller.filterTraders(40*1e18, address(0));
-        console.log("length: ", vals.length);
+    // function testSelectTraders() public {
+    //     addUsers();
+    //     address[] memory vals = controller.filterTraders(40*1e18, address(0));
+    //     console.log("length: ", vals.length);
 
-        vals = controller.filterTraders(90*1e18, address(0));
-        console.log("length: ", vals.length);
-    }
+    //     vals = controller.filterTraders(90*1e18, address(0));
+    //     console.log("length: ", vals.length);
+    // }
 }

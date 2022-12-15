@@ -33,8 +33,8 @@ contract MarketManager
   CoreMarketData[] public markets;
   address public owner; 
 
-  mapping(uint256 => uint256) requestToMarketId; // chainlink request id to marketId
-  mapping(uint256 => ValidatorData) validator_data; //marketId-> total amount of zcb validators can buy 
+  // mapping(uint256 => uint256) requestToMarketId; // chainlink request id to marketId
+  // mapping(uint256 => ValidatorData) validator_data;
   mapping(uint256=>uint256) private redemption_prices; //redemption price for each market, set when market resolves 
   mapping(uint256=>mapping(address=>uint256)) private assessment_prices; 
   mapping(uint256=>mapping(address=>bool)) private assessment_trader;
@@ -66,22 +66,22 @@ contract MarketManager
     uint256 base_budget;
   }
 
-  struct ValidatorData{
-    mapping(address => uint256) sales; // amount of zcb bought per validator
-    mapping(address => bool) staked; // true if address has staked vt (approved)
-    mapping(address => bool) resolved; // true if address has voted to resolve the market
-    address[] validators;
-    uint256 val_cap;// total zcb validators can buy at a discount
-    uint256 avg_price; //price the validators can buy zcb at a discount 
-    bool requested; // true if already requested random numbers from array.
-    uint256 totalSales; // total amount of zcb bought;
-    uint256 totalStaked; // total amount of vault token staked.
-    uint256 numApproved;
-    uint256 initialStake; // amount staked
-    uint256 finalStake; // amount of stake recoverable post resolve
-    uint256 unlockTimestamp; // creation timestamp + duration.
-    uint256 numResolved; // number of validators calling resolve on early resolution.
-  }
+  // struct ValidatorData{
+  //   mapping(address => uint256) sales; // amount of zcb bought per validator
+  //   mapping(address => bool) staked; // true if address has staked vt (approved)
+  //   mapping(address => bool) resolved; // true if address has voted to resolve the market
+  //   address[] validators;
+  //   uint256 val_cap;// total zcb validators can buy at a discount
+  //   uint256 avg_price; //price the validators can buy zcb at a discount 
+  //   bool requested; // true if already requested random numbers from array.
+  //   uint256 totalSales; // total amount of zcb bought;
+  //   uint256 totalStaked; // total amount of vault token staked.
+  //   uint256 numApproved;
+  //   uint256 initialStake; // amount staked
+  //   uint256 finalStake; // amount of stake recoverable post resolve
+  //   uint256 unlockTimestamp; // creation timestamp + duration.
+  //   uint256 numResolved; // number of validators calling resolve on early resolution.
+  // }
 
   /// @param N: upper bound on number of validators chosen.
   /// @param sigma: validators' stake
@@ -172,12 +172,11 @@ contract MarketManager
   /// @notice parameters have to be set prior 
   function newMarket(
     uint256 marketId,
-    uint256 principal,
     SyntheticZCBPool bondPool,  
     address _longZCB, 
     address _shortZCB, 
     string calldata _description, 
-    uint256 _duration, 
+    // uint256 _duration, 
     bool isPool
     ) external onlyController {
     uint256 creationTimestamp = block.timestamp;
@@ -195,7 +194,7 @@ contract MarketManager
     uint256 base_budget = 1000 * config.WAD; //TODO 
     setMarketPhase(marketId, true, true, base_budget);
 
-    _validatorSetup(marketId, principal, creationTimestamp, _duration, isPool);
+   // _validatorSetup(marketId, principal, creationTimestamp, _duration, isPool);
   }
 
 
@@ -212,6 +211,14 @@ contract MarketManager
     ) public onlyControllerOwnerInternal{
     parameters[marketId] = param; 
     parameters[marketId].s = param.s.mulWadDown(config.WAD - utilizationRate); // experiment
+  }
+
+  /**
+   @dev in the event that the number of traders in X percentile is less than the specified number of validators
+   parameter N is changed to reflect this
+   */
+  function setN(uint256 marketId, uint256 _N) public onlyController {
+    parameters[marketId].N = _N;
   }
 
   /// @notice sets market phase data
@@ -254,22 +261,20 @@ contract MarketManager
   /// @notice called by validator only
   function denyMarket(
     uint256 marketId
-  ) public {
-    require(isValidator(marketId, msg.sender), "!val");
+  ) external onlyController {
     //TODO should validators be able to deny even though they've approved.
     require(marketActive(marketId), "!Active"); 
     require(restriction_data[marketId].duringAssessment, "!assessment");
     MarketPhaseData storage data = restriction_data[marketId]; 
-    data.duringAssessment = false;
     data.alive = false;
-    controller.denyMarket(marketId);
+    data.resolved = true;
   }
 
   /// @notice main approval function called by controller
   /// @dev if market is alive and market is not during assessment, it is approved. 
-  function approveMarket(uint256 marketId) internal {
+  function approveMarket(uint256 marketId) onlyController external {
     require(restriction_data[marketId].alive, "phaseERR");
-    restriction_data[marketId].duringAssessment = false; 
+    restriction_data[marketId].duringAssessment = false;    
   }
 
   function getPhaseData(
@@ -306,6 +311,10 @@ contract MarketManager
 
   function marketActive(uint256 marketId) public view returns(bool){
     return restriction_data[marketId].alive; 
+  }
+
+  function marketResolved(uint256 marketId) public view returns (bool) {
+    return restriction_data[marketId].resolved;
   }
 
   /// @notice returns true if amount bought is greater than the insurance threshold
@@ -392,6 +401,10 @@ contract MarketManager
     return redemption_prices[marketId]; 
   }
 
+  function getBondPool(uint256 marketId) public view returns(SyntheticZCBPool){
+    return markets[marketId].bondPool; 
+  }
+
   /// @notice whether new longZCB can be issued 
   function _canIssue(
     address trader,
@@ -421,6 +434,9 @@ contract MarketManager
     //If after assessment there is a set buy threshold, people can't buy above this threshold
     require(marketActive(marketId), "!Active");
 
+    // TODO: check if this is correct
+    // require(controller.getVault(marketId).fetchInstrumentData(marketId).maturityDate > block.timestamp, "market maturity reached");
+
     bool _duringMarketAssessment = duringMarketAssessment(marketId);
     bool _onlyReputable =  onlyReputable(marketId);
 
@@ -446,6 +462,9 @@ contract MarketManager
   ) internal view returns(bool) {
     require(marketActive(marketId), "!Active");
 
+    //TODO: check if this is correct
+    // require(controller.getVault(marketId).fetchInstrumentData(marketId).maturityDate > block.timestamp, "market maturity reached");
+
     if(duringMarketAssessment(marketId)) {
       // restrict attacking via disapproving the utilizer by just shorting a bunch
      // if(amount>= hedgeAmount) return false; 
@@ -463,311 +482,22 @@ contract MarketManager
 
   // VALIDATOR FUNCTIONS
 
-  function godfxn1(uint256 marketId, uint256 r, uint256 N) public {
-    parameters[marketId].r = r;
-    parameters[marketId].N = N;
-  }
-
-  function viewValidators(uint256 marketId) view public returns (address[] memory) {
-    return validator_data[marketId].validators;
-  }
-
-  function getNumApproved(uint256 marketId) view public returns (uint256) {
-    return validator_data[marketId].numApproved;
-  }
-
-  function getNumResolved(uint256 marketId) view public returns (uint256) {
-    return validator_data[marketId].numResolved;
-  }
-
-  function getTotalStaked(uint256 marketId) view public returns (uint256) {
-    return validator_data[marketId].totalStaked;
-  }
-
-  function getInitialStake(uint256 marketId) view public returns (uint256) {
-    return validator_data[marketId].initialStake;
-  }
-
-  function getFinalStake(uint256 marketId) view public returns (uint256) {
-    return validator_data[marketId].finalStake;
-  }
-
   /**
-   @notice randomly choose validators for market approval, async operation => fulfillRandomness is the callback function.
-   @dev for now called on market initialization
+   @notice called when the validator votes to approve the market => stakes vt + recieves discounted ZCB
+   the staked amount goes to the controller while the discounted ZCB goes to the market manager.
    */
-  function _getValidators(uint256 marketId) public {
-    // retrieve traders that meet requirement.
-    (address instrument, address utilizer) = controller.market_data(marketId);
-    address[] memory selected = controller.filterTraders(parameters[marketId].r, utilizer);
-
-    if (selected.length <= parameters[marketId].N) {
-      validator_data[marketId].validators = selected;
-      return;
-    }
-
-    validator_data[marketId].requested = true;
-
-    uint256 _requestId = 1;
-    // uint256 _requestId = COORDINATOR.requestRandomWords(
-    //   keyHash,
-    //   subscriptionId,
-    //   requestConfirmations,
-    //   callbackGasLimit,
-    //   uint32(parameters[marketId].N)
-    // );
-
-    requestToMarketId[_requestId] = marketId;
-  }
-
-  /**
-   @notice chainlink callback function, sets validators.
-   @dev 
-   */
-  function fulfillRandomWords(uint256 requestId, uint256[] memory randomWords) 
-  public 
-  //override 
-  {
-    uint256 marketId = requestToMarketId[requestId];
-    assert(randomWords.length == parameters[marketId].N);
-
-    (address instrument, address utilizer) = controller.market_data(marketId);
-
-    address[] memory temp = controller.filterTraders(parameters[marketId].r, utilizer);
-    uint256 _N = parameters[marketId].N;
-    uint256 length = temp.length;
-    
-    // get validators
-    for (uint8 i=0; i<_N; i++) {
-      uint256 j = _weightedRetrieve(temp, length, randomWords[i]);
-      validator_data[marketId].validators.push(temp[j]);
-      temp[j] = temp[length - 1];
-      length--;
-    }
-  }
-
-  function _weightedRetrieve(address[] memory group, uint256 length, uint256 randomWord) view internal returns (uint256) {
-    uint256 sum_weights;
-
-    for (uint8 i=0; i<length; i++) {
-      sum_weights += controller.trader_scores(group[i]);//repToken.getReputationScore(group[i]);
-    }
-
-    uint256 tmp = randomWord % sum_weights;
-
-    for (uint8 i=0; i<length; i++) {
-      uint256 wt = controller.trader_scores(group[i]);
-      if (tmp < wt) {
-        return i;
-      }
-      unchecked {
-        tmp -= wt;
-      }
-      
-    }
-    console.log("should never be here");
-  }
-
-  function numValidatorLeftToApproval(uint256 marketId) public view returns(uint256){
-    return validator_data[marketId].validators.length - validator_data[marketId].numApproved;
-  }
-
-
-  /// @notice allows validators to buy at a discount + automatically stake a percentage of the principal
-  /// They can only buy a fixed amount of ZCB, usually a at lot larger amount 
-  /// @dev get val_cap, the total amount of zcb for sale and each validators should buy 
-  /// val_cap/num validators zcb 
-  /// They also need to hold the corresponding vault, so they are incentivized to assess at a systemic level and avoid highly 
-  /// correlated instruments triggers controller.approveMarket
   function validatorApprove(
-    uint256 marketId
-  ) external returns(uint256) {
-    require(isValidator(marketId, msg.sender), "!val");
-    require(restriction_data[marketId].duringAssessment, "approved");
-    require(marketCondition(marketId), "!condition");
-
-    ValidatorData storage valdata = validator_data[marketId]; 
-    require(!valdata.staked[msg.sender], "staked");
-
-    // staking logic
-    require(ERC20(controller.getVaultAd(marketId)).balanceOf(msg.sender) >= valdata.initialStake, "not enough tokens to stake");
-    
-    ERC20(controller.getVaultAd(marketId)).safeTransferFrom(msg.sender, address(this), valdata.initialStake);
-
-    valdata.totalStaked += valdata.initialStake;
-    valdata.staked[msg.sender] = true;
-    
-    // discount longZCB logic
-    SyntheticZCBPool bondPool = markets[marketId].bondPool; 
-
-    uint256 val_cap =  valdata.val_cap; 
-    uint256 zcb_for_sale = val_cap/parameters[marketId].N; 
-    uint256 collateral_required = zcb_for_sale.mulWadDown(valdata.avg_price); 
-
-    require(valdata.sales[msg.sender] <= zcb_for_sale, "already approved");
-
-    valdata.sales[msg.sender] += zcb_for_sale;
-    valdata.totalSales += (zcb_for_sale +1);  //since division rounds down 
-    valdata.numApproved += 1; 
-    loggedCollaterals[marketId] += collateral_required; 
-
-    bondPool.BaseToken().transferFrom(msg.sender, address(bondPool), collateral_required); 
-    bondPool.trustedDiscountedMint(msg.sender, zcb_for_sale); 
-
-    // Last validator pays more gas, is fair because earlier validators are more uncertain 
-    if (approvalCondition(marketId)) {
-      controller.approveMarket(marketId);
-      approveMarket(marketId); // For market to go to a post assessment stage there always needs to be a lower bound set  
-    }
-
-    return collateral_required;
+    uint256 marketId, 
+    uint256 collateral_required,
+    uint256 zcb_for_sale,
+    address validator
+  ) external onlyController {
+    loggedCollaterals[marketId] += collateral_required;
+    SyntheticZCBPool bondPool = getBondPool(marketId); 
+    bondPool.BaseToken().transferFrom(validator, address(bondPool), collateral_required); 
+    bondPool.trustedDiscountedMint(validator, zcb_for_sale);
   }
 
-  /**
-   @notice conditions for approval => validator zcb stake fulfilled + validators have all approved
-   */
-  function approvalCondition(uint256 marketId ) public view returns(bool){
-    return (validator_data[marketId].totalSales >= validator_data[marketId].val_cap 
-    && validator_data[marketId].validators.length == validator_data[marketId].numApproved);
-  }
-
-  /**
-   @notice condition for resolving market, met when all the validators chosen for the market
-   have voted to resolve.
-   */
-  function resolveCondition(
-    uint256 marketId
-  ) public view returns (bool) {
-    return (validator_data[marketId].numResolved == validator_data[marketId].validators.length);
-  }
-
-  /**
-   @notice updates the validator stake, burned in proportion to loss.
-   @dev called by controller, resolveMarket
-   */
-  function updateValidatorStake(uint256 marketId, uint256 principal, uint256 principal_loss) 
-    external
-    onlyController
-  {
-    if (principal_loss == 0) {
-      validator_data[marketId].finalStake = validator_data[marketId].initialStake;
-      return;
-    }
-
-    uint256 totalStaked = validator_data[marketId].totalStaked;
-    uint256 newTotal = totalStaked/2 + (principal - principal_loss).divWadDown(principal).mulWadDown(totalStaked/2);
-
-    ERC4626(controller.getVaultAd(marketId)).burn(totalStaked - newTotal);
-    validator_data[marketId].totalStaked = newTotal;
-
-    validator_data[marketId].finalStake = newTotal/validator_data[marketId].validators.length;
-  }
-
-  /**
-   @notice called by validators to approve resolving the market, after approval.
-   */
-  function validatorResolve(
-    uint256 marketId
-  ) external {
-    require(isValidator(marketId, msg.sender), "!val");
-    require(marketActive(marketId), "!active");
-    require(!duringMarketAssessment(marketId), "assessment");
-    require(!validator_data[marketId].resolved[msg.sender], "double");
-
-    validator_data[marketId].resolved[msg.sender] = true;
-    validator_data[marketId].numResolved ++;
-  }
-
-  /**
-   @notice called by validators when the market is denied or resolved
-   stake is burned in proportion to loss
-   */
-  function unlockValidatorStake(uint256 marketId) external {
-    require(isValidator(marketId, msg.sender), "!val");
-    require(validator_data[marketId].staked[msg.sender], "!stake");
-    require(!restriction_data[marketId].alive, "!alive");
-
-
-    if (!restriction_data[marketId].resolved) {
-      ERC20(controller.getVaultAd(marketId)).safeTransfer(msg.sender, validator_data[marketId].initialStake);
-      validator_data[marketId].totalStaked -= validator_data[marketId].initialStake;
-    } else {
-      ERC20(controller.getVaultAd(marketId)).safeTransfer(msg.sender, validator_data[marketId].finalStake);
-      validator_data[marketId].totalStaked -= validator_data[marketId].finalStake;
-    }
-    
-    validator_data[marketId].staked[msg.sender] = false;
-  }
-
-  /// @notice sets the validator cap + valdiator amount 
-  /// param prinicipal is saleAmount for pool based instruments 
-  /// @dev called by controller to setup the validator scheme
-  function _validatorSetup(
-    uint256 marketId,
-    uint256 principal,
-    uint256 creationTimestamp,
-    uint256 duration, 
-    bool isPool
-  ) internal {
-    require(principal != 0, "0 principal"); 
-    _setValidatorCap(marketId, principal, isPool);
-    _setValidatorStake(marketId, principal); 
-    validator_data[marketId].unlockTimestamp = creationTimestamp + duration;
-    _getValidators(marketId); 
-  }
-
-  /// @notice called when market initialized, calculates the average price and quantities of zcb
-  /// validators will buy at a discount when approving
-  /// valcap = sigma * princpal.
-  function _setValidatorCap(
-    uint256 marketId,
-    uint256 principal, 
-    bool isPool
-  ) internal {
-    SyntheticZCBPool bondingPool = markets[marketId].bondPool; 
-    require(config.isInWad(parameters[marketId].sigma) && config.isInWad(principal), "paramERR");
-    ValidatorData storage valdata = validator_data[marketId]; 
-
-    uint256 valColCap = (parameters[marketId].sigma.mulWadDown(principal)); 
-
-    // Get how much ZCB validators need to buy in total, which needs to be filled for the market to be approved 
-    uint256 discount_cap = bondingPool.discount_cap();
-    uint256 avgPrice = valColCap.divWadDown(discount_cap);
-
-    valdata.val_cap = discount_cap;
-    valdata.avg_price = avgPrice; 
-  }
-
-  /**
-   @notice sets the amount of vt staked by a single validator for a specific market
-   @dev steak should be between 1-0 wad.
-   */
-  function _setValidatorStake(uint256 marketId, uint256 principal) internal {
-    //get vault
-    ERC4626 vault = ERC4626(controller.vaults(controller.id_parent(marketId)));
-    uint256 shares = vault.convertToShares(principal);
-
-    validator_data[marketId].initialStake = parameters[marketId].steak.mulWadDown(shares);
-  }
-
-  /**
-   @notice returns true if user is validator for corresponding market
-   */
-  function isValidator(uint256 marketId, address user) view public returns(bool){
-    address[] storage _validators = validator_data[marketId].validators;
-    for (uint i = 0; i < _validators.length; i++) {
-      if (_validators[i] == user) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  function getValidatorRequiredCollateral(uint256 marketId) public view returns(uint256){
-    uint256 val_cap =  validator_data[marketId].val_cap; 
-    uint256 zcb_for_sale = val_cap/parameters[marketId].N; 
-    return zcb_for_sale.mulWadDown(validator_data[marketId].avg_price); 
-  }
 
   /// @notice calculates implied probability of the trader, used to
   /// update the reputation score by brier scoring mechanism 
@@ -1113,12 +843,15 @@ contract MarketManager
   }
 
 
-  /// @notice called by traders when market is denied or resolve before maturity 
+  /// @notice called by traders when market is denied before approval TODO
+  /// ??? if the market is denied, this function is called and everything is redeemed 
+  /// validator will need to call this on denial + isLong = true to redeem their collateral.
   function redeemDeniedMarket(
     uint256 marketId, 
     bool isLong
   ) external _lock_ {
-    require(!restriction_data[marketId].alive, "Assessment"); // TODO
+    require(!restriction_data[marketId].alive, "Market Still During Assessment"); // TODO
+    require(restriction_data[marketId].duringAssessment, "Market has been approved");
     SyntheticZCBPool bondPool = markets[marketId].bondPool; 
 
     uint256 collateral_amount;
@@ -1142,9 +875,8 @@ contract MarketManager
       require(balance >= 0, "Empty");
 
       // TODO this means if trader's loss will be refunded if loss was realized before denied market
-      if (isValidator(marketId, msg.sender)) {
-        collateral_amount = validator_data[marketId].sales[msg.sender].mulWadDown(validator_data[marketId].avg_price);
-        delete validator_data[marketId].sales[msg.sender];
+      if (controller.isValidator(marketId, msg.sender) && controller.hasApproved(marketId, msg.sender)) {
+        collateral_amount = controller.deniedValidator(marketId, msg.sender);
       }
       else{
         collateral_amount = longTrades[marketId][msg.sender]; 
@@ -1213,13 +945,13 @@ contract MarketManager
 
     SyntheticZCBPool bondPool = markets[marketId].bondPool; 
 
-    if (isValidator(marketId, msg.sender)) delete validator_data[marketId].sales[msg.sender]; 
+    if (controller.isValidator(marketId, msg.sender)) controller.redeemValidator(marketId, msg.sender);
 
     uint256 zcb_redeem_amount = markets[marketId].longZCB.balanceOf(msg.sender); 
     uint256 redemption_price = get_redemption_price(marketId); 
     collateral_redeem_amount = redemption_price.mulWadDown(zcb_redeem_amount); 
 
-    if (!isValidator(marketId, msg.sender)) {
+    if (!controller.isValidator(marketId, msg.sender)) { // TODO should validators get reputation if they do ok.
       bool increment = redemption_price >= config.WAD? true: false;
       controller.updateReputation(marketId, msg.sender, increment);
     }
@@ -1334,7 +1066,7 @@ contract MarketManager
     require(!redeemed[marketId][msg.sender], "Redeemed");
     redeemed[marketId][msg.sender] = true; 
 
-    if (isValidator(marketId, msg.sender)) delete validator_data[marketId].sales[msg.sender]; 
+    if (controller.isValidator(marketId, msg.sender)) controller.redeemValidator(marketId, msg.sender); 
 
     LeveredBond memory position = leveragePosition[marketId][msg.sender]; 
     require(position.amount>0, "ERR"); 
@@ -1344,7 +1076,7 @@ contract MarketManager
     uint256 collateral_redeem_amount = collateral_back >= uint256(position.debt)  
         ? collateral_back - uint256(position.debt) : 0; 
 
-    if (!isValidator(marketId, msg.sender)) {
+    if (!controller.isValidator(marketId, msg.sender)) {
       bool increment = redemption_price >= config.WAD? true: false;
       controller.updateReputation(marketId, msg.sender, increment);
     }
@@ -1365,9 +1097,8 @@ contract MarketManager
     leveragePosition[marketId][msg.sender].amount = 0; 
 
     // TODO this means if trader's loss will be refunded if loss was realized before denied market
-    if (isValidator(marketId, msg.sender)) {
-      collateral_amount = validator_data[marketId].sales[msg.sender].mulWadDown(validator_data[marketId].avg_price);
-      delete validator_data[marketId].sales[msg.sender];
+    if (controller.isValidator(marketId, msg.sender)) {
+      collateral_amount = controller.deniedValidator(marketId, msg.sender);
     }
     else{
       collateral_amount = longTrades[marketId][msg.sender]; 

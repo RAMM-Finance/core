@@ -11,6 +11,7 @@ import {SyntheticZCBPoolFactory} from "contracts/bonds/synthetic.sol";
 import {Cash} from "contracts/utils/Cash.sol";
 import {ERC4626} from "contracts/vaults/mixins/ERC4626.sol";
 import {FixedPointMathLib} from "solmate/utils/FixedPointMathLib.sol";
+import {ERC20} from "solmate/tokens/ERC20.sol";
 
 contract AMMTest is Test {
     using stdStorage for StdStorage;
@@ -127,7 +128,7 @@ contract AMMTest is Test {
         words[0] = 19238489189248918234;
         words[1] = 172837;
         words[2] = 18928;
-        mm.fulfillRandomWords(1, words);
+        c.fulfillRandomWords(1, words);
 
         (bool assess, bool onlyrep, bool resolved, bool alive, bool atloss, uint256 budget) = mm.restriction_data(1);
 
@@ -138,31 +139,31 @@ contract AMMTest is Test {
     }
 
     function testFilterTraders() public {
-        address [] memory stuff = c.filterTraders(10, jott);
+        address [] memory stuff = c._filterTraders(10, jott);
         
-        c.filterTraders(90*W, jeong);
+        c._filterTraders(90*W, jeong);
 
-        c.filterTraders(50*W, jeong);
+        c._filterTraders(50*W, jeong);
     }
 
     function testChooseValidators() public {
         initiateCreditMarket();
-        emit log_array(mm.viewValidators(1));
-        assertEq(mm.viewValidators(1).length, N);
+        emit log_array(c.viewValidators(1));
+        assertEq(c.viewValidators(1).length, N);
     }
 
     function testDenyBeforeMarketApproval1() public  {
         initiateCreditMarket();
-        address[] memory vals = mm.viewValidators(1);
+        address[] memory vals = c.viewValidators(1);
 
         // when not validator
-        vm.prank(deployer);
-        vm.expectRevert("not a validator for the market");
-        mm.denyMarket(1);
+        vm.prank(zeke);
+        vm.expectRevert("not validator for market");
+        c.denyMarket(1);
 
         // when validator
         vm.prank(vals[0]);
-        mm.denyMarket(1);
+        c.denyMarket(1);
 
         // market manager checks
         (bool assess, bool onlyrep, bool resolved, bool alive, bool atloss, uint256 budget) = mm.restriction_data(1);
@@ -172,19 +173,28 @@ contract AMMTest is Test {
         assertEq(address(v.Instruments(1)), address(0));
     }
 
+    function valApprove(address v, address val) public {
+        doApproveCol(address(v), val);
+        doInvest(address(v), val, 1000*precision);
+        doApproveVT(address(v), address(c), val);
+        doApproveCol(address(mm), val);
+        vm.prank(val);
+        c.validatorApprove(1);
+    }
+
     function testDenyBeforeMarketApproval2() public {
         initiateCreditMarket();
-        address[] memory vals = mm.viewValidators(1);
+        address[] memory vals = c.viewValidators(1);
         // test retrieve stake
         meetMarketCondition();
 
-        doApprove(address(v), vals[0]);
+        valApprove(address(v), vals[0]);
 
         vm.prank(vals[1]);
-        mm.denyMarket(1);
+        c.denyMarket(1);
 
         vm.prank(vals[0]);
-        mm.unlockValidatorStake(1);
+        c.unlockValidatorStake(1);
     }
 
     struct testVars1{
@@ -226,57 +236,9 @@ contract AMMTest is Test {
     }
 
 
-    function testApprove() public {
-        initiateCreditMarket();
-
-        address[] memory vals = mm.viewValidators(1);
-
-        vm.prank(vals[0]);
-        vm.expectRevert(bytes("market condition not met"));
-        mm.validatorApprove(1);
-
-        // meets market condition
-        meetMarketCondition();
-
-        address validator = vals[0];
-        
-        assertEq(mm.getInitialStake(1), ERC4626(v).convertToShares(principal)*steak/precision);
-
-        // test 1
-        vm.prank(deployer);
-        vm.expectRevert("not a validator for the market");
-        mm.validatorApprove(1);
-
-        // test 2
-        vm.prank(validator);
-        vm.expectRevert("not enough tokens to stake");
-        mm.validatorApprove(1);
-
-        // test 3
-        doApproveCol(address(v), validator);
-        doInvest(address(v), validator, 1000*precision);
-        doApproveVT(address(v), address(mm), validator);
-        doApproveCol(address(mm), validator);
-        vm.prank(validator);
-        mm.validatorApprove(1);
-
-        assertEq(mm.getTotalStaked(1), mm.getInitialStake(1));
-        assertEq(1, mm.getNumApproved(1));
-        // TODO check sale ZCB amounts
-
-        vm.prank(validator);
-        vm.expectRevert("caller already staked for this market");
-        mm.validatorApprove(1);
-
-        doApprove(address(v), vals[1]);
-        doApprove(address(v), vals[2]);
-
-        assertEq(mm.approvalCondition(1), true);
-    }
-
     // function testResolveBeforeMaturity() public {
     //     initiateCreditMarket();
-    //     address[] memory vals = mm.viewValidators(1);
+    //     address[] memory vals = c.viewValidators(1);
     //     // test retrieve stake
     //     meetMarketCondition();
 
@@ -296,45 +258,73 @@ contract AMMTest is Test {
     //     // validator unlock
     //     for (uint256 i=0; i<vals.length; i++) {
     //         vm.prank(vals[i]);
-    //         mm.validatorResolve(1);
+    //         c.validatorResolve(1);
     //     }
 
-    //     assertEq(mm.resolveCondition(1), true);
+    //     assertEq(c.resolveCondition(1), true);
     // }
 
-    function testUpdateValidatorStake() public {
-        initiateCreditMarket();
-        address[] memory vals = mm.viewValidators(1);
-        emit log_array(vals);
-        // test retrieve stake
-        meetMarketCondition();
+    // function testUpdateValidatorStake() public {
+    //     initiateCreditMarket();
+    //     address[] memory vals = c.viewValidators(1);
+    //     emit log_array(vals);
+    //     // test retrieve stake
+    //     meetMarketCondition();
         
-        (bool assess, bool onlyrep, bool resolved, bool alive, bool atloss, uint256 budget) = mm.restriction_data(1);
+    //     (bool assess, bool onlyrep, bool resolved, bool alive, bool atloss, uint256 budget) = mm.restriction_data(1);
 
-        assertEq(assess, true);
+    //     assertEq(assess, true);
 
-        doApprove(address(v), vals[0]);
-        doApprove(address(v), vals[1]);
-        doApprove(address(v), vals[2]);
+    //     doApprove(address(v), vals[0]);
+    //     doApprove(address(v), vals[1]);
+    //     doApprove(address(v), vals[2]);
 
-        // uint256 total = mm.getTotalStaked(1);
-        // console.log("total: ", total);
-        // mm.updateValidatorStake(1, principal, principal);
-        // assertEq(mm.getFinalStake(1), mm.getInitialStake(1)/2);
+    //     vm.prank(vals[0]);
+    //     c.validatorResolve(1);
+    //     vm.prank(vals[1]);
+    //     c.validatorResolve(1);
+    //     vm.prank(vals[2]);
+    //     c.validatorResolve(1);
 
-        uint256 total = mm.getTotalStaked(1);
-        mm.updateValidatorStake(1, principal, principal/2);
-        uint256 newtotal = total/2 + ( principal - principal/2 ).divWadDown(principal).mulWadDown(total/2);
-        assertEq(newtotal, mm.getTotalStaked(1));
+    //     assertEq(c.resolveCondition(1), true);
+        
+    //     c.beforeResolve(1);
+
+    //     vm.prank(vals[0]);
+    //     c.afterResolve(1);
+
+    //     // test update stake
+    //     uint256 p = Vault(c.getVaultfromId(1)).fetchInstrumentData(1).principal;
+
+    //     uint256 total = c.getTotalStaked(1);
+    //     c._updateValidatorStake(1, principal, principal/2);
+    //     uint256 newtotal = total/2 + ( principal - principal/2 ).divWadDown(principal).mulWadDown(total/2);
+    //     assertEq(newtotal, c.getTotalStaked(1));
+    // }
+
+    function doApprove(uint256 marketId, address vault) public{ //TODO: update
+        // validators invest and approve 
+        address[] memory vals = c.viewValidators(marketId);
+        console.log("val.length", vals.length);
+        uint256 initialStake = c.getInitialStake(marketId);
+        for (uint i=0; i < vals.length; i++) {
+            doApproveCol(vault, vals[i]);
+            doApproveVault(vault, vals[i], address(c));
+            doApproveCol(address(mm), vals[i]);
+            doMint(vault, vals[i], initialStake);
+            vm.prank(vals[i]);
+            c.validatorApprove(marketId);
+        }
     }
 
-    function doApprove(address v, address val) public {
-        doApproveCol(address(v), val);
-        doInvest(address(v), val, 1000*precision);
-        doApproveVT(address(v), address(mm), val);
-        doApproveCol(address(mm), val);
-        vm.prank(val);
-        mm.validatorApprove(1);
+    function doApproveVault(address vault, address _from, address _to) public {
+        vm.prank(_from);
+        ERC20(vault).approve(_to, type(uint256).max);
+    }
+
+    function doMint(address vault, address _by, uint256 shares) public {
+        vm.prank(_by);
+        Vault(vault).mint(shares, _by);
     }
 
     function addressSetup() public {
