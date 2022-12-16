@@ -232,7 +232,6 @@ contract AMMTest is Test {
         (vars.amountIn, vars.amountOut) = mm.buyBond(vars.marketId, int256(vars.amountToBuy), vars.curPrice + precision/10 , data); 
         assertApproxEqAbs(vars.amountIn, vars.amountToBuy, 10); 
         assertEq(mm.loggedCollaterals(vars.marketId),vars.amountIn);
-        assert(mm.marketCondition(vars.marketId));
     }
 
 

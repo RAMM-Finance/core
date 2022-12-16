@@ -20,12 +20,12 @@ contract MarketManager
   using SafeTransferLib for ERC20;
 
   // Chainlink state variables
-  VRFCoordinatorV2Interface COORDINATOR;
-  uint64 private immutable subscriptionId;
-  bytes32 private keyHash;
-  uint32 private callbackGasLimit = 100000;
-  uint16 private requestConfirmations = 3;
-  uint256 total_validator_bought; // should be a mapping no?
+  // VRFCoordinatorV2Interface COORDINATOR;
+  // uint64 private immutable subscriptionId;
+  // bytes32 private keyHash;
+  // uint32 private callbackGasLimit = 100000;
+  // uint16 private requestConfirmations = 3;
+  // uint256 total_validator_bought; // should be a mapping no?
   bool private _mutex;
 
   // ReputationNFT repToken;
@@ -35,7 +35,7 @@ contract MarketManager
 
   // mapping(uint256 => uint256) requestToMarketId; // chainlink request id to marketId
   // mapping(uint256 => ValidatorData) validator_data;
-  mapping(uint256=>uint256) private redemption_prices; //redemption price for each market, set when market resolves 
+  mapping(uint256=>uint256) public redemption_prices; //redemption price for each market, set when market resolves 
   mapping(uint256=>mapping(address=>uint256)) private assessment_prices; 
   mapping(uint256=>mapping(address=>bool)) private assessment_trader;
   mapping(uint256=>mapping(address=>uint256) ) public assessment_probs; 
@@ -66,23 +66,6 @@ contract MarketManager
     uint256 base_budget;
   }
 
-  // struct ValidatorData{
-  //   mapping(address => uint256) sales; // amount of zcb bought per validator
-  //   mapping(address => bool) staked; // true if address has staked vt (approved)
-  //   mapping(address => bool) resolved; // true if address has voted to resolve the market
-  //   address[] validators;
-  //   uint256 val_cap;// total zcb validators can buy at a discount
-  //   uint256 avg_price; //price the validators can buy zcb at a discount 
-  //   bool requested; // true if already requested random numbers from array.
-  //   uint256 totalSales; // total amount of zcb bought;
-  //   uint256 totalStaked; // total amount of vault token staked.
-  //   uint256 numApproved;
-  //   uint256 initialStake; // amount staked
-  //   uint256 finalStake; // amount of stake recoverable post resolve
-  //   uint256 unlockTimestamp; // creation timestamp + duration.
-  //   uint256 numResolved; // number of validators calling resolve on early resolution.
-  // }
-
   /// @param N: upper bound on number of validators chosen.
   /// @param sigma: validators' stake
   /// @param alpha: minimum managers' stake
@@ -111,10 +94,6 @@ contract MarketManager
     _;
   }
 
-  modifier onlyControllerOwnerInternal(){
-    require(address(controller) == msg.sender || msg.sender == owner || msg.sender == address(this), "!controller"); 
-    _;
-  }
 
   modifier _lock_() {
     require(!_mutex, "ERR_REENTRY");
@@ -133,9 +112,9 @@ contract MarketManager
     //VRFConsumerBaseV2(0x7a1BaC17Ccc5b313516C5E16fb24f7659aA5ebed) 
   {
     controller = Controller(_controllerAddress);
-    keyHash = bytes32(0x4b09e658ed251bcafeebbc69400383d49f344ace09b9576fe248bb02c003fe9f);
-    subscriptionId = 1713;
-    COORDINATOR = VRFCoordinatorV2Interface(0x7a1BaC17Ccc5b313516C5E16fb24f7659aA5ebed);
+    // keyHash = bytes32(0x4b09e658ed251bcafeebbc69400383d49f344ace09b9576fe248bb02c003fe9f);
+    // subscriptionId = 1713;
+    // COORDINATOR = VRFCoordinatorV2Interface(0x7a1BaC17Ccc5b313516C5E16fb24f7659aA5ebed);
     
     // push empty market
     markets.push(
@@ -208,7 +187,7 @@ contract MarketManager
     MarketParameters memory param,
     uint256 utilizationRate,
     uint256 marketId 
-    ) public onlyControllerOwnerInternal{
+    ) public onlyController{
     parameters[marketId] = param; 
     parameters[marketId].s = param.s.mulWadDown(config.WAD - utilizationRate); // experiment
   }
@@ -229,7 +208,7 @@ contract MarketManager
     bool duringAssessment,
     bool _onlyReputable,
     uint256 base_budget
-    ) public onlyControllerOwnerInternal{
+    ) public onlyController{
     MarketPhaseData storage data = restriction_data[marketId]; 
     data.onlyReputable = _onlyReputable; 
     data.duringAssessment = duringAssessment;
@@ -242,8 +221,7 @@ contract MarketManager
   function setReputationPhase(
     uint256 marketId,
     bool _onlyReputable
-  ) public onlyControllerOwnerInternal {
-    require(restriction_data[marketId].alive, "!alive");
+  ) public onlyController {
     restriction_data[marketId].onlyReputable = _onlyReputable;
   }
 
@@ -252,10 +230,13 @@ contract MarketManager
   function deactivateMarket(
     uint256 marketId, 
     bool atLoss, 
-    bool resolve) public onlyControllerOwnerInternal{
+    bool resolve, 
+    uint256 rp) public onlyController{
     restriction_data[marketId].resolved = resolve; 
     restriction_data[marketId].atLoss = atLoss; 
     restriction_data[marketId].alive = false;
+    redemption_prices[marketId] = rp; 
+
   } 
 
   /// @notice called by validator only
@@ -263,7 +244,6 @@ contract MarketManager
     uint256 marketId
   ) external onlyController {
     //TODO should validators be able to deny even though they've approved.
-    require(marketActive(marketId), "!Active"); 
     require(restriction_data[marketId].duringAssessment, "!assessment");
     MarketPhaseData storage data = restriction_data[marketId]; 
     data.alive = false;
@@ -273,7 +253,6 @@ contract MarketManager
   /// @notice main approval function called by controller
   /// @dev if market is alive and market is not during assessment, it is approved. 
   function approveMarket(uint256 marketId) onlyController external {
-    require(restriction_data[marketId].alive, "phaseERR");
     restriction_data[marketId].duringAssessment = false;    
   }
 
@@ -282,52 +261,14 @@ contract MarketManager
   ) public view returns (MarketPhaseData memory)  {
     return restriction_data[marketId];
   }
+
   
-  function isInstrumentPool(uint256 marketId) external view returns(bool){
-    return markets[marketId].isPool; 
-  }
-  
-  /// @dev verification of trader initializes reputation score at 0, to gain reputation need to participate in markets.
-  function isVerified(address trader) public view returns(bool){
-    return (controller.isVerified(trader) || trader == owner);
-  }
-
-  function isReputable(address trader, uint256 marketId) public view returns(bool){
-    // return (restriction_data[marketId].min_rep_score <= controller.trader_scores(trader) || trader == owner); 
-    return (controller.isReputable(trader, parameters[marketId].r)) || trader == owner;
-  }
-
-  function duringMarketAssessment(uint256 marketId) public view returns(bool){
-    return restriction_data[marketId].duringAssessment; 
-  }
-
-  function onlyReputable(uint256 marketId) public view returns(bool){
-    return restriction_data[marketId].onlyReputable; 
-  }
 
   function isMarketApproved(uint256 marketId) public view returns(bool){
     return(!restriction_data[marketId].duringAssessment && restriction_data[marketId].alive);  
   }
 
-  function marketActive(uint256 marketId) public view returns(bool){
-    return restriction_data[marketId].alive; 
-  }
 
-  function marketResolved(uint256 marketId) public view returns (bool) {
-    return restriction_data[marketId].resolved;
-  }
-
-  /// @notice returns true if amount bought is greater than the insurance threshold
-  function marketCondition(uint256 marketId) public view returns(bool){
-    if (markets[marketId].isPool){
-      return (loggedCollaterals[marketId] >=
-         controller.getVault(marketId).fetchInstrumentData(marketId).poolData.saleAmount); 
-    }
-    else{
-      uint256 principal = controller.getVault(marketId).fetchInstrumentData(marketId).principal;
-      return (loggedCollaterals[marketId] >= principal.mulWadDown(parameters[marketId].alpha));
-    }
-  }
 
   /// @notice returns whether current market is in phase 
   /// 1: onlyReputable, which also means market is in assessment
@@ -335,19 +276,19 @@ contract MarketManager
   /// 3: in assessment but canbeapproved 
   /// 4: post assessment(accepted or denied), amortized liquidity 
   function getCurrentMarketPhase(uint256 marketId) public view returns(uint256){
-    if (onlyReputable(marketId)){
-      assert(!marketCondition(marketId) && !isMarketApproved(marketId) && duringMarketAssessment(marketId) ); 
+    if (restriction_data[marketId].onlyReputable){
+      assert(!controller.marketCondition(marketId) && !isMarketApproved(marketId) && restriction_data[marketId].duringAssessment ); 
       return 1; 
     }
 
-    else if (duringMarketAssessment(marketId) && !onlyReputable(marketId)){
+    else if (restriction_data[marketId].duringAssessment && !restriction_data[marketId].onlyReputable){
       assert(!isMarketApproved(marketId)); 
-      if (marketCondition(marketId)) return 3; 
+      if (controller.marketCondition(marketId)) return 3; 
       return 2; 
     }
 
     else if (isMarketApproved( marketId)){
-      assert (!duringMarketAssessment(marketId) && marketCondition(marketId)); 
+      assert (!restriction_data[marketId].duringAssessment && controller.marketCondition(marketId)); 
       return 4; 
     }
   }
@@ -362,24 +303,7 @@ contract MarketManager
 
     return restriction_data[marketId].base_budget + (repscore*config.WAD).sqrt();
   }
-  
-  /// @notice computes the price for ZCB one needs to short at to completely
-  /// hedge for the case of maximal loss, function of principal and interest
-  function getHedgePrice(uint256 marketId) public view returns(uint256){
-    uint256 principal = controller.getVault(marketId).fetchInstrumentData(marketId).principal; 
-    uint256 yield = controller.getVault(marketId).fetchInstrumentData(marketId).expectedYield; 
-    uint256 den = principal.mulWadDown(config.WAD - parameters[marketId].alpha); 
-    return config.WAD - yield.divWadDown(den); 
-  }
-
-  /// @notice computes maximum amount of quantity that trader can short while being hedged
-  /// such that when he loses his loss will be offset by his gains  
-  function getHedgeQuantity(address trader, uint256 marketId) public view returns(uint256){
-    uint num = controller.getVault(marketId).fetchInstrumentData(marketId)
-              .principal.mulWadDown(config.WAD - parameters[marketId].alpha); 
-    return num.mulDivDown(controller.getVault(marketId).balanceOf(trader), 
-              controller.getVault(marketId).totalSupply()); 
-  }
+ 
 
   function getParameters(uint256 marketId) public view returns(MarketParameters memory){
     return parameters[marketId]; 
@@ -397,13 +321,6 @@ contract MarketManager
     return markets[marketId].shortZCB;
   }
   
-  function get_redemption_price(uint256 marketId) public view returns(uint256){
-    return redemption_prices[marketId]; 
-  }
-
-  function getBondPool(uint256 marketId) public view returns(SyntheticZCBPool){
-    return markets[marketId].bondPool; 
-  }
 
   /// @notice whether new longZCB can be issued 
   function _canIssue(
@@ -414,7 +331,7 @@ contract MarketManager
     if(queuedRepUpdates[trader] > queuedRepThreshold)
       revert("rep queue"); 
 
-    if (!isVerified(trader)) 
+    if (!controller.isVerified(trader)) 
       revert("!verified");
 
     if (getTraderBudget(marketId, trader) <= uint256(amount))
@@ -432,13 +349,13 @@ contract MarketManager
     uint256 marketId
   ) internal view {
     //If after assessment there is a set buy threshold, people can't buy above this threshold
-    require(marketActive(marketId), "!Active");
+    require(restriction_data[marketId].alive, "!Active");
 
     // TODO: check if this is correct
     // require(controller.getVault(marketId).fetchInstrumentData(marketId).maturityDate > block.timestamp, "market maturity reached");
 
-    bool _duringMarketAssessment = duringMarketAssessment(marketId);
-    bool _onlyReputable =  onlyReputable(marketId);
+    bool _duringMarketAssessment = restriction_data[marketId].duringAssessment;
+    bool _onlyReputable =  restriction_data[marketId].onlyReputable;
 
     if(amount>0){
       if (_duringMarketAssessment){
@@ -448,7 +365,7 @@ contract MarketManager
 
     //During the early risk assessment phase only reputable can buy 
     if (_onlyReputable){
-      if (!isReputable(trader, marketId)){
+      if (!controller.isReputable(trader, parameters[marketId].r)){
         revert("insufficient rep");
       }
     }
@@ -460,12 +377,12 @@ contract MarketManager
     uint256 amount, 
     uint256 marketId
   ) internal view returns(bool) {
-    require(marketActive(marketId), "!Active");
+    require(restriction_data[marketId].alive, "!Active");
 
     //TODO: check if this is correct
     // require(controller.getVault(marketId).fetchInstrumentData(marketId).maturityDate > block.timestamp, "market maturity reached");
 
-    if(duringMarketAssessment(marketId)) {
+    if(restriction_data[marketId].duringAssessment) {
       // restrict attacking via disapproving the utilizer by just shorting a bunch
      // if(amount>= hedgeAmount) return false; 
 
@@ -493,27 +410,12 @@ contract MarketManager
     address validator
   ) external onlyController {
     loggedCollaterals[marketId] += collateral_required;
-    SyntheticZCBPool bondPool = getBondPool(marketId); 
+    SyntheticZCBPool bondPool = getPool(marketId); 
     bondPool.BaseToken().transferFrom(validator, address(bondPool), collateral_required); 
     bondPool.trustedDiscountedMint(validator, zcb_for_sale);
   }
 
 
-  /// @notice calculates implied probability of the trader, used to
-  /// update the reputation score by brier scoring mechanism 
-  /// @param budget of trader in collateral decimals 
-  function calcImpliedProbability(
-    uint256 bondAmount, 
-    uint256 collateral_amount,
-    uint256 budget
-    ) public view returns(uint256){
-    console.log('bond', bondAmount, collateral_amount, budget); 
-    uint256 avg_price = collateral_amount.divWadDown(bondAmount); 
-    uint256 b = avg_price.mulWadDown(config.WAD - avg_price);
-    uint256 ratio = bondAmount.divWadDown(budget); 
-
-    return ratio.mulWadDown(b)+ avg_price;
-  }
 
   /// @notice log how much collateral trader has at stake, 
   /// to be used for redeeming, restricting trades
@@ -574,72 +476,7 @@ contract MarketManager
     SyntheticZCBPool(msg.sender).BaseToken().transferFrom(abi.decode(data, (address)), msg.sender, amount); 
   }
 
-  /// @notice deduce fees for non vault stakers, should go down as maturity time approach 0 
-  function deduct_selling_fee(uint256 marketId ) internal view returns(uint256){
-    // Linearly decreasing fee 
-    uint256 normalizedTime = (
-      controller.getVault(marketId).fetchInstrumentData(marketId).maturityDate
-      - block.timestamp)  * config.WAD 
-    / controller.getVault(marketId).fetchInstrumentData(marketId).duration; 
-    return normalizedTime.mulWadDown( riskTransferPenalty); 
-  }
 
-  struct localVars{
-    uint256 promised_return; 
-    uint256 inceptionTime; 
-    uint256 inceptionPrice; 
-    uint256 leverageFactor; 
-    uint256 managementFee; 
-
-    uint256 srpPlusOne; 
-    uint256 totalAssetsHeld; 
-    uint256 juniorSupply; 
-    uint256 seniorSupply; 
-
-    bool belowThreshold; 
-  }
-  /// @notice get programmatic pricing of a pool based longZCB 
-  /// returns psu: price of senior(VT's share of investment) vs underlying 
-  /// returns pju: price of junior(longZCB) vs underlying
-  function poolZCBValue(uint256 marketId) 
-    public 
-    view 
-    returns(uint256 psu, uint256 pju, uint256 levFactor, Vault vault){
-    localVars memory vars; 
-    vault = controller.getVault(marketId); 
-
-    (vars.promised_return, vars.inceptionTime, vars.inceptionPrice, vars.leverageFactor, 
-      vars.managementFee) 
-        = vault.fetchPoolTrancheData(marketId); 
-    levFactor = vars.leverageFactor; 
-
-    require(vars.inceptionPrice > 0, "0"); 
-
-    // Get senior redemption price that increments per unit time 
-    vars.srpPlusOne = vars.inceptionPrice.mulWadDown((config.WAD + vars.promised_return)
-      .rpow(block.timestamp - vars.inceptionTime, config.WAD));
-
-    // Get total assets held by the instrument 
-    vars.totalAssetsHeld = vault.instrumentAssetOracle( marketId); 
-    vars.juniorSupply = markets[marketId].longZCB.totalSupply(); 
-    vars.seniorSupply = vars.juniorSupply.mulWadDown(vars.leverageFactor); 
-
-    // console.log('totalassets', vars.totalAssetsHeld, vars.managementFee*2, (vars.totalAssetsHeld 
-    //  +vars.managementFee*2 - vars.srpPlusOne.mulWadDown(vars.seniorSupply)).divWadDown(vars.juniorSupply));
-    if (vars.seniorSupply == 0) return(vars.srpPlusOne,vars.srpPlusOne,levFactor, vault); 
-    
-    // Check if all seniors can redeem
-    if (vars.totalAssetsHeld >= vars.srpPlusOne.mulWadDown(vars.seniorSupply))
-      psu = vars.srpPlusOne; 
-    else{
-      psu = vars.totalAssetsHeld.divWadDown(vars.seniorSupply);
-      vars.belowThreshold = true;  
-    }
-
-    // should be 0 otherwise 
-    if(!vars.belowThreshold) pju = (vars.totalAssetsHeld 
-      - vars.srpPlusOne.mulWadDown(vars.seniorSupply)).divWadDown(vars.juniorSupply); 
-  }
 
   /// @notice after assessment, let managers buy newly issued longZCB if the instrument is pool based 
   /// funds + funds * levFactor will be directed to the instrument 
@@ -647,11 +484,11 @@ contract MarketManager
     uint256 _marketId, 
     uint256 _amountIn
     ) external _lock_ {
-    require(!duringMarketAssessment(_marketId), "Pre Approval"); 
+    require(!restriction_data[_marketId].duringAssessment, "Pre Approval"); 
     _canIssue(msg.sender, int256(_amountIn), _marketId); 
 
     // Get price and sell longZCB with this price
-    (uint256 psu, uint256 pju, uint256 levFactor, Vault vault ) = poolZCBValue(_marketId);
+    (uint256 psu, uint256 pju, uint256 levFactor, Vault vault ) = controller.poolZCBValue(_marketId);
     markets[_marketId].bondPool.BaseToken().transferFrom(msg.sender, address(vault), _amountIn);
     uint256 issueQTY = _amountIn.divWadDown(pju); 
     markets[_marketId].bondPool.trustedDiscountedMint(msg.sender, issueQTY); 
@@ -666,12 +503,12 @@ contract MarketManager
     uint256 marketId, 
     uint256 redeemAmount
     ) external _lock_ returns(uint256 collateral_redeem_amount, uint256 seniorAmount){
-    require(!marketActive(marketId), "!market"); 
+    require(!restriction_data[marketId].alive, "!market"); 
     require(restriction_data[marketId].resolved, "!market"); 
     require(markets[marketId].isPool, "!pool"); 
     require(markets[marketId].longZCB.balanceOf(msg.sender) > redeemAmount, "insufficient bal"); 
 
-    (uint256 psu, uint256 pju, uint256 levFactor , Vault vault ) = poolZCBValue(marketId);
+    (uint256 psu, uint256 pju, uint256 levFactor , Vault vault ) = controller.poolZCBValue(marketId);
     collateral_redeem_amount = pju.mulWadDown(redeemAmount); 
     seniorAmount = redeemAmount.mulWadDown(levFactor).mulWadDown(psu); 
 
@@ -709,22 +546,21 @@ contract MarketManager
     SyntheticZCBPool bondPool = marketData.bondPool; 
     
     // During assessment, real bonds are issued from utilizer, they are the sole LP 
-    if (duringMarketAssessment(_marketId)){
+    if (restriction_data[_marketId].duringAssessment){
 
       (amountIn, amountOut) = bondPool.takerOpen(true, _amountIn, _priceLimit, abi.encode(msg.sender)); 
-      console.log('amountin', amountIn, amountOut); 
       //Need to log assessment trades for updating reputation scores or returning collateral when market denied 
       _logTrades(_marketId, msg.sender, amountIn, 0, true, true);
 
       // Get implied probability estimates by summing up all this manager bought for this market 
-      assessment_probs[_marketId][msg.sender] = calcImpliedProbability(
+      assessment_probs[_marketId][msg.sender] = controller.calcImpliedProbability(
           getZCB(_marketId).balanceOf(msg.sender) + leveragePosition[_marketId][msg.sender].amount, 
           longTrades[_marketId][msg.sender], 
           getTraderBudget(_marketId, msg.sender) 
       ); 
 
       // Phase Transitions when conditions met
-      if(onlyReputable(_marketId)){
+      if(restriction_data[_marketId].onlyReputable){
         uint256 total_bought = loggedCollaterals[_marketId];
 
         if (total_bought >= parameters[_marketId].omega.mulWadDown(
@@ -762,7 +598,7 @@ contract MarketManager
     require(_canSell(msg.sender, _amountIn, _marketId),"Restricted");
     SyntheticZCBPool bondPool = markets[_marketId].bondPool; 
 
-    if (duringMarketAssessment(_marketId)){
+    if (restriction_data[_marketId].duringAssessment){
 
       (amountIn, amountOut) = bondPool.takerClose(
                                     true, int256(_amountIn), _priceLimit, abi.encode(msg.sender));
@@ -771,7 +607,7 @@ contract MarketManager
 
     }
     else{
-      deduct_selling_fee( _marketId ); //TODO, if validator or manager, deduct reputation 
+      controller.deduct_selling_fee( _marketId ); //TODO, if validator or manager, deduct reputation 
 
       (uint16 point, bool isTaker) = abi.decode(_tradeRequestData, (uint16,bool ));
       if(isTaker) (amountIn, amountOut) = bondPool.takerClose(
@@ -793,7 +629,7 @@ contract MarketManager
     require(_canSell(msg.sender, _amountIn, _marketId),"Restricted");
     SyntheticZCBPool bondPool = markets[_marketId].bondPool; 
 
-    if (duringMarketAssessment(_marketId)){
+    if (restriction_data[_marketId].duringAssessment){
 
       // amountOut is base collateral down the curve, amountIn is collateral used to buy shortZCB 
       (amountOut, amountIn) = bondPool.takerOpen(false, int256(_amountIn), _priceLimit, abi.encode(msg.sender));
@@ -823,7 +659,7 @@ contract MarketManager
     ) external _lock_ returns (uint256 amountIn, uint256 amountOut){
     SyntheticZCBPool bondPool = markets[_marketId].bondPool; 
 
-    if (duringMarketAssessment(_marketId)){
+    if (restriction_data[_marketId].duringAssessment){
 
       // amountOut is collateral up the curve, amountIn is collateral returned from closing  
       (amountOut, amountIn) = bondPool.takerClose(false, -int256(_amountIn), _priceLimit, abi.encode(msg.sender));
@@ -897,48 +733,12 @@ contract MarketManager
     //TODO need to check if last redeemer, so can kill market.
   }
 
-  
-  /// @dev Redemption price, as calculated (only once) at maturity,
-  /// depends on total_repayed/(principal + predetermined yield)
-  /// If total_repayed = 0, redemption price is 0
-  /// @param atLoss: defines circumstances where expected returns are higher than actual
-  /// @param loss: facevalue - returned amount => non-negative always?
-  /// @param extra_gain: any extra yield not factored during assessment. Is 0 yield is as expected
-  function updateRedemptionPrice(
-    uint256 marketId,
-    bool atLoss, 
-    uint256 extra_gain, 
-    uint256 loss, 
-    bool premature
-  ) external  onlyController {  
-    if (atLoss) assert(extra_gain == 0); 
-
-    uint256 total_supply = markets[marketId].longZCB.totalSupply(); 
-    uint256 total_shorts = (extra_gain >0) ?  markets[marketId].shortZCB.totalSupply() :0; 
-
-    if(!atLoss)
-      redemption_prices[marketId] = config.WAD + extra_gain.divWadDown(total_supply + total_shorts); 
-    
-    else {
-      if (config.WAD <= loss.divWadDown(total_supply)){
-        redemption_prices[marketId] = 0; 
-      }
-      else {
-        redemption_prices[marketId] = config.WAD - loss.divWadDown(total_supply);
-      }
-    }
-
-    deactivateMarket(marketId, atLoss, !premature); 
-
-    // TODO edgecase redemption price calculations  
-  }
-
   /// @notice trader will redeem entire balance of ZCB
   /// Needs to be called at maturity, market needs to be resolved first(from controller)
   function redeem(
     uint256 marketId
     ) external _lock_ returns(uint256 collateral_redeem_amount){
-    require(!marketActive(marketId), "!Active"); 
+    require(!restriction_data[marketId].alive, "!Active"); 
     require(restriction_data[marketId].resolved, "!resolved"); 
     require(!redeemed[marketId][msg.sender], "Redeemed");
     redeemed[marketId][msg.sender] = true; 
@@ -948,7 +748,7 @@ contract MarketManager
     if (controller.isValidator(marketId, msg.sender)) controller.redeemValidator(marketId, msg.sender);
 
     uint256 zcb_redeem_amount = markets[marketId].longZCB.balanceOf(msg.sender); 
-    uint256 redemption_price = get_redemption_price(marketId); 
+    uint256 redemption_price = redemption_prices[marketId]; 
     collateral_redeem_amount = redemption_price.mulWadDown(zcb_redeem_amount); 
 
     if (!controller.isValidator(marketId, msg.sender)) { // TODO should validators get reputation if they do ok.
@@ -970,7 +770,7 @@ contract MarketManager
   function redeemShortZCB(
     uint256 marketId 
     ) external _lock_ returns(uint256 collateral_redeem_amount){
-    require(!marketActive(marketId), "Active"); 
+    require(!restriction_data[marketId].alive, "Active"); 
     require(restriction_data[marketId].resolved, "!resolved"); 
     require(!redeemed[marketId][msg.sender], "Redeemed");
     redeemed[marketId][msg.sender] = true; 
@@ -978,7 +778,7 @@ contract MarketManager
     SyntheticZCBPool bondPool = markets[marketId].bondPool; 
 
     uint256 shortZCB_redeem_amount = markets[marketId].shortZCB.balanceOf(msg.sender); 
-    uint256 long_redemption_price = get_redemption_price(marketId);
+    uint256 long_redemption_price = redemption_prices[marketId];
     uint256 redemption_price = long_redemption_price >= config.WAD 
                                ? 0 
                                : config.WAD - long_redemption_price; 
@@ -1000,11 +800,6 @@ contract MarketManager
     uint128 amount; // how much bonds were bought with the given leverage
   }
 
-  function getLeveragePosition(uint256 marketId, address manager) public view returns(uint256, uint256){
-    return (uint256(leveragePosition[marketId][manager].debt), 
-      uint256(leveragePosition[marketId][manager].amount));
-  }
-
   /// @notice for managers that are a) meet certain reputation threshold and b) choose to be more
   /// capital efficient with their zcb purchase. 
   /// @param _amountIn (in collateral) already accounts for the leverage, so the actual amount manager is transferring
@@ -1018,7 +813,7 @@ contract MarketManager
     uint256 _priceLimit, 
     uint256 _leverage //in 18 dec 
     ) external _lock_ returns(uint256 amountIn, uint256 amountOut){
-    require(duringMarketAssessment(_marketId), "PhaseERR"); 
+    require(restriction_data[_marketId].duringAssessment, "PhaseERR"); 
     require(!restriction_data[_marketId].resolved, "!resolved");
     require(_leverage <= getMaxLeverage(msg.sender) && _leverage >= config.WAD, "!leverage");
     _canBuy(msg.sender, int256(_amountIn), _marketId);
@@ -1037,14 +832,14 @@ contract MarketManager
     _logTrades(_marketId, msg.sender, _amountIn, 0, true, true);
 
     // Get implied probability estimates by summing up all this managers bought for this market 
-    assessment_probs[_marketId][msg.sender] = calcImpliedProbability(
+    assessment_probs[_marketId][msg.sender] = controller.calcImpliedProbability(
         amountOut, 
         amountIn, 
         getTraderBudget(_marketId, msg.sender) 
     ); 
 
     // Phase Transitions when conditions met
-    if(onlyReputable(_marketId)){
+    if(restriction_data[_marketId].onlyReputable){
       uint256 total_bought = loggedCollaterals[_marketId];
 
       if (total_bought >= parameters[_marketId].omega.mulWadDown(
@@ -1061,7 +856,7 @@ contract MarketManager
   }
 
   function redeemLeveredBond(uint256 marketId) public{
-    require(!marketActive(marketId), "!Active"); 
+    require(!restriction_data[marketId].alive, "!Active"); 
     require(restriction_data[marketId].resolved, "!resolved"); 
     require(!redeemed[marketId][msg.sender], "Redeemed");
     redeemed[marketId][msg.sender] = true; 
@@ -1071,7 +866,7 @@ contract MarketManager
     LeveredBond memory position = leveragePosition[marketId][msg.sender]; 
     require(position.amount>0, "ERR"); 
 
-    uint256 redemption_price = get_redemption_price(marketId); 
+    uint256 redemption_price = redemption_prices[marketId]; 
     uint256 collateral_back = redemption_price.mulWadDown(position.amount) ; 
     uint256 collateral_redeem_amount = collateral_back >= uint256(position.debt)  
         ? collateral_back - uint256(position.debt) : 0; 

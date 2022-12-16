@@ -289,7 +289,7 @@ contract FullCycleTest is Test {
             marketmanager.buyBond(vars.marketId, int256(vars.amountToBuy), vars.curPrice + precision/10 , data); 
         assertApproxEqAbs(vars.amountIn, vars.amountToBuy, 10); 
         assertEq(marketmanager.loggedCollaterals(vars.marketId),vars.amountIn); 
-        assert(marketmanager.marketCondition(vars.marketId)); 
+        assert(controller.marketCondition(vars.marketId)); 
         assert(marketmanager.getPool(vars.marketId).pool().getCurPrice() > vars.curPrice ); 
 
         // let validator invest to vault and approve 
@@ -414,7 +414,7 @@ contract FullCycleTest is Test {
 
         }
 
-        console.log('collat', marketmanager.loggedCollaterals(vars.marketId), marketmanager.marketCondition(vars.marketId));
+        console.log('collat', marketmanager.loggedCollaterals(vars.marketId), controller.marketCondition(vars.marketId));
     }
 
     function doApprove(uint256 marketId, address vault) public{ //TODO: update
@@ -453,7 +453,6 @@ contract FullCycleTest is Test {
         // controller.denyMarket(vars.marketId); 
         assertEq(marketmanager.getPool(vars.marketId).cBal(), 0); 
         assertApproxEqAbs(collateral.balanceOf(controller.getVaultAd(vars.marketId)) - vars.vaultBal, vars.cbalbefore, 10); 
-        assert(!marketmanager.marketActive(vars.marketId)); 
     }
 
     function closeMarket(testVars2 memory vars) public {
@@ -630,7 +629,7 @@ contract FullCycleTest is Test {
         vm.prank(jonna); 
         marketmanager.redeem(vars.marketId); 
         assertEq(marketmanager.getZCB(vars.marketId).balanceOf(jonna) , 0); 
-        assertApproxEqAbs(collateral.balanceOf(jonna) - balbefore , marketmanager.get_redemption_price(vars.marketId).mulWadDown(
+        assertApproxEqAbs(collateral.balanceOf(jonna) - balbefore , marketmanager.redemption_prices(vars.marketId).mulWadDown(
             zcbbal), 10); 
 
         balbefore = collateral.balanceOf(sybal); 
@@ -638,7 +637,7 @@ contract FullCycleTest is Test {
         vm.prank(sybal); 
         marketmanager.redeem(vars.marketId); 
         assertEq(marketmanager.getZCB(vars.marketId).balanceOf(sybal) , 0); 
-        assertApproxEqAbs(collateral.balanceOf(sybal) - balbefore , marketmanager.get_redemption_price(vars.marketId).mulWadDown(
+        assertApproxEqAbs(collateral.balanceOf(sybal) - balbefore , marketmanager.redemption_prices(vars.marketId).mulWadDown(
             zcbbal), 10);  
 
         balbefore = collateral.balanceOf(miku); 
@@ -646,7 +645,7 @@ contract FullCycleTest is Test {
         vm.prank(miku); 
         marketmanager.redeem(vars.marketId); 
         assertEq(marketmanager.getZCB(vars.marketId).balanceOf(miku) , 0); 
-        assertApproxEqAbs(collateral.balanceOf(miku) - balbefore , marketmanager.get_redemption_price(vars.marketId).mulWadDown(
+        assertApproxEqAbs(collateral.balanceOf(miku) - balbefore , marketmanager.redemption_prices(vars.marketId).mulWadDown(
             zcbbal), 10);     
 
         //shorter 
@@ -674,8 +673,8 @@ contract FullCycleTest is Test {
         //     zcbbal), 10);  
 
         //invariant 1: longsupply * redemption + shortsupply * 1-redemption = difference in vault balance 
-        assertApproxEqAbs( longsupply.mulWadDown(marketmanager.get_redemption_price(vars.marketId)) +
-            shortsupply.mulWadDown(precision - marketmanager.get_redemption_price(vars.marketId)), 
+        assertApproxEqAbs( longsupply.mulWadDown(marketmanager.redemption_prices(vars.marketId)) +
+            shortsupply.mulWadDown(precision - marketmanager.redemption_prices(vars.marketId)), 
         vaultbalbefore - collateral.balanceOf(controller.getVaultAd(vars.marketId)), 100);
 
         // invariant 2: return for manager> return for LP 
@@ -779,7 +778,7 @@ contract FullCycleTest is Test {
         doApproveCol(address(marketmanager), miku); 
         vm.prank(miku);
         marketmanager.buyBondLevered(vars.marketId, vars.amount1, vars.curPrice + precision/10, precision *leverage); 
-        (uint debt, uint amount) = marketmanager.getLeveragePosition(vars.marketId, miku); 
+        (uint debt, uint amount) = marketmanager.leveragePosition(vars.marketId, miku); 
 
         assertApproxEqAbs(debt , vars.amount1 - (bal - collateral.balanceOf(miku) ),10 ); 
         assertApproxEqAbs(marketmanager.loggedCollaterals(vars.marketId), vars.amount1, 10); 
@@ -798,10 +797,10 @@ contract FullCycleTest is Test {
         marketmanager.redeemLeveredBond(vars.marketId); 
         assertEq(marketmanager.getZCB(vars.marketId).balanceOf(address(marketmanager)) , 0); 
         console.log('?',  collateral.balanceOf(miku) - vars.cbalbefore, 
-            marketmanager.get_redemption_price(vars.marketId).mulWadDown(
+            marketmanager.redemption_prices(vars.marketId).mulWadDown(
             amount) - debt); 
         assertApproxEqAbs(collateral.balanceOf(miku) - vars.cbalbefore , 
-            marketmanager.get_redemption_price(vars.marketId).mulWadDown(
+            marketmanager.redemption_prices(vars.marketId).mulWadDown(
             amount) - debt, 10);          
         
 
@@ -835,7 +834,7 @@ contract FullCycleTest is Test {
         doApproveCol(address(marketmanager), miku); 
         vm.prank(miku);
         marketmanager.buyBondLevered(vars.marketId, vars.amount1, vars.curPrice + precision/10, precision *leverage); 
-        (uint debt, uint amount) = marketmanager.getLeveragePosition(vars.marketId, miku); 
+        (uint debt, uint amount) = marketmanager.leveragePosition(vars.marketId, miku); 
 
         assertApproxEqAbs(debt , vars.amount1 - (bal - collateral.balanceOf(miku)),10 ); 
         assertApproxEqAbs(marketmanager.loggedCollaterals(vars.marketId), vars.amount1, 10); 
@@ -876,7 +875,7 @@ contract FullCycleTest is Test {
             assertEq(otc.profit(), 0); 
 
             closeMarket(vars); 
-            assertEq(marketmanager.get_redemption_price(vars.marketId), precision); 
+            assertEq(marketmanager.redemption_prices(vars.marketId), precision); 
 
         }
         else{
@@ -899,10 +898,10 @@ contract FullCycleTest is Test {
 
             controller.resolveMarket(vars.marketId); 
 
-            assert(marketmanager.get_redemption_price(vars.marketId)< precision);
+            assert(marketmanager.redemption_prices(vars.marketId)< precision);
             assertEq(collateral.balanceOf(address(otc)), 0); 
 
-            console.log('redemption', marketmanager.get_redemption_price(vars.marketId)); 
+            console.log('redemption', marketmanager.redemption_prices(vars.marketId)); 
         }
 
     }

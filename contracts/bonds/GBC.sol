@@ -241,18 +241,12 @@ contract GranularBondingCurve{
             // Need liquidity for both move up and move down for path independence within a 
             // given point range. Either one of them should be 0 
             step.liqDir = ticks.oneTimeLiquidity(state.point);
-            console.log('inv', uint256(state.liquidity), PRECISION.divWadDown(state.liquidity)); 
             vars.a = exactInput 
                 ? inv(state.liquidity + step.liqDir)
                 : invRoundUp(state.liquidity + step.liqDir); 
-                console.log('??');
             vars.b = yInt(state.curPrice, moveUp); 
-                            console.log('??');
-
             vars.s = xMax(state.curPrice, vars.b, vars.a); 
-                            console.log('??');
 
-            console.log('params', vars.a, vars.b, vars.s); 
             //If moveup, amountIn is in cash, amountOut is token and vice versa 
             (state.curPrice, step.amountIn, step.amountOut, step.feeAmount) = swapStep(
                 state.curPrice, 

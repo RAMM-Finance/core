@@ -91,7 +91,7 @@ contract PoolInstrumentTest is TestBase {
 
         assertApproxEqAbs(vars.amountIn, vars.amountToBuy, 10); 
         assertEq(marketmanager.loggedCollaterals(vars.marketId),vars.amountIn); 
-        assert(marketmanager.marketCondition(vars.marketId)); 
+        assert(controller.marketCondition(vars.marketId)); 
         assert(marketmanager.getPool(vars.marketId).pool().getCurPrice() > vars.curPrice ); 
 
         // price needs to be at inceptionPrice
@@ -133,18 +133,18 @@ contract PoolInstrumentTest is TestBase {
             marketmanager.buyBond(vars.marketId, int256(vars.amountToBuy), vars.curPrice + precision/2 , data); 
             console.log('amountOut!!!', vars.amountOut); 
 
-        marketmanager.poolZCBValue(vars.marketId); 
+        controller.poolZCBValue(vars.marketId); 
         doApprove(vars.marketId, vars.vault_ad);
 
 
-        (uint256 psu, uint256 pju, uint256 levFactor, Vault vault) = marketmanager.poolZCBValue(vars.marketId);
+        (uint256 psu, uint256 pju, uint256 levFactor, Vault vault) = controller.poolZCBValue(vars.marketId);
         assertEq(psu, vault.fetchInstrumentData(vars.marketId).poolData.inceptionPrice); 
         assertApproxEqAbs(psu, pju, 10); 
         console.log('psu', psu, pju); 
 
         //After some time.. 
         vm.warp(block.timestamp+31536000); 
-        ( psu,  pju, ,) = marketmanager.poolZCBValue(vars.marketId);
+        ( psu,  pju, ,) = controller.poolZCBValue(vars.marketId);
         console.log('psu', psu, pju); 
         assert(psu>vault.fetchInstrumentData(vars.marketId).poolData.inceptionPrice ); 
         assert(psu> pju+100); 
