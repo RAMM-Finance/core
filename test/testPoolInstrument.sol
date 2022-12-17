@@ -7,7 +7,7 @@ import {MarketManager} from "../contracts/protocol/marketmanager.sol";
 import {ReputationNFT} from "../contracts/protocol/reputationtoken.sol";
 import {Cash} from "../contracts/utils/Cash.sol";
 import {CreditLine, MockBorrowerContract} from "../contracts/vaults/instrument.sol";
-import {SyntheticZCBPoolFactory} from "../contracts/bonds/synthetic.sol"; 
+import {SyntheticZCBPoolFactory, ZCBFactory} from "../contracts/bonds/synthetic.sol"; 
 import {LinearCurve} from "../contracts/bonds/GBC.sol"; 
 import {FixedPointMath} from "../contracts/bonds/libraries.sol"; 
 import {CoveredCallOTC} from "../contracts/vaults/dov.sol";
@@ -32,7 +32,9 @@ contract PoolInstrumentTest is TestBase {
             address(controller), 
             address(0),data, uint64(0)
         );
-        poolFactory = new SyntheticZCBPoolFactory(address(controller)); 
+        ZCBFactory zcbfactory = new ZCBFactory(); 
+        poolFactory = new SyntheticZCBPoolFactory(address(controller), address(zcbfactory)); 
+
 
         controller.setMarketManager(address(marketmanager));
         controller.setVaultFactory(address(vaultFactory));
@@ -79,7 +81,7 @@ contract PoolInstrumentTest is TestBase {
 
         vars.vault_ad = controller.getVaultfromId(vars.marketId); //
         vars.amountToBuy = Vault(vars.vault_ad).fetchInstrumentData(vars.marketId).poolData.saleAmount*3/2; 
-        vars.curPrice = marketmanager.getPool(vars.marketId).pool().getCurPrice(); 
+        vars.curPrice = marketmanager.getPool(vars.marketId).getCurPrice(); 
         assertEq(vars.curPrice, marketmanager.getPool(vars.marketId).b()); 
 
         // Let manager buy
@@ -92,10 +94,10 @@ contract PoolInstrumentTest is TestBase {
         assertApproxEqAbs(vars.amountIn, vars.amountToBuy, 10); 
         assertEq(marketmanager.loggedCollaterals(vars.marketId),vars.amountIn); 
         assert(controller.marketCondition(vars.marketId)); 
-        assert(marketmanager.getPool(vars.marketId).pool().getCurPrice() > vars.curPrice ); 
+        assert(marketmanager.getPool(vars.marketId).getCurPrice() > vars.curPrice ); 
 
         // price needs to be at inceptionPrice
-        vars.curPrice = marketmanager.getPool(vars.marketId).pool().getCurPrice(); 
+        vars.curPrice = marketmanager.getPool(vars.marketId).getCurPrice(); 
         assertApproxEqAbs(vars.curPrice, Vault(vars.vault_ad).fetchInstrumentData(vars.marketId).poolData.inceptionPrice, 100); 
 
         // let validator invest to vault and approve 

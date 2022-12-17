@@ -1,5 +1,6 @@
 pragma solidity ^0.8.9;
-import {BoundedDerivativesPool, LinearCurve} from "./GBC.sol"; 
+import { LinearCurve} from "./GBC.sol"; 
+import {BoundedDerivativesPool} from "./boundedDerivatives.sol"; 
 import {FixedPointMathLib} from "solmate/utils/FixedPointMathLib.sol";
 import {ERC20} from "./libraries.sol"; 
 import "forge-std/console.sol";
@@ -8,7 +9,7 @@ contract ZCBFactory{
     function newBond(
         string memory name, 
         string memory description 
-        ) internal returns(address) {
+        ) public returns(address) {
         ERC20 bondToken = new ERC20(name,description, 18);
         return address(bondToken); 
     }
@@ -16,25 +17,20 @@ contract ZCBFactory{
 }
 contract SyntheticZCBPoolFactory{
     address public immutable controller;
-    constructor(address _controller){
+    address public immutable zcbFactory; 
+    constructor(address _controller, address _zcbFactory){
         controller = _controller; 
+        zcbFactory = _zcbFactory; 
     }
 
-    function newBond(
-        string memory name, 
-        string memory description 
-        ) internal returns(address) {
-        ERC20 bondToken = new ERC20(name,description, 18);
-        return address(bondToken); 
-    }
 
     /// @notice param base is the collateral used in pool 
     function newPool(
         address base, 
         address entry
         ) external returns(address longZCB, address shortZCB, SyntheticZCBPool pool){
-        longZCB = newBond("longZCB", "long");
-        shortZCB = newBond("shortZCB", "short");
+        longZCB = ZCBFactory(zcbFactory).newBond("longZCB", "long");
+        shortZCB = ZCBFactory(zcbFactory).newBond("shortZCB", "short");
 
         pool = new SyntheticZCBPool(
             base, longZCB, shortZCB, entry, controller
@@ -51,7 +47,7 @@ contract SyntheticZCBPool is BoundedDerivativesPool{
     uint256 public discount_cap; 
     uint256 public discountedReserves; 
 
-    address public immutable entry; 
+    address public immutable trader_entry; 
     address public immutable controller; 
     uint256 public constant precision = 1e18; 
     constructor(address base, 
@@ -60,8 +56,8 @@ contract SyntheticZCBPool is BoundedDerivativesPool{
         address _entry, 
         address _controller
         )BoundedDerivativesPool(base,trade,s_trade, false){
-
         entry = _entry; 
+        trader_entry = _entry; 
         controller = _controller; 
         }
 
@@ -81,8 +77,8 @@ contract SyntheticZCBPool is BoundedDerivativesPool{
         (discount_cap, b) = LinearCurve.amountOutGivenIn(P.mulWadDown(sigma), 0, a_initial, b_initial, true);
 
         // Set initial liquidity and price 
-        pool.setLiquidity(uint128(precision.divWadDown(a_initial))); 
-        pool.setPriceAndPoint(b); 
+        this.setLiquidity(uint128(precision.divWadDown(a_initial))); 
+        this.setPriceAndPoint(b); 
     }
 
     /// @notice calculates initparams for pool based instruments 
@@ -107,10 +103,10 @@ contract SyntheticZCBPool is BoundedDerivativesPool{
             - saleAmount.mulWadDown(sigma) + saleAmountQty.mulWadDown(endPrice) - saleAmount ; 
 
         // set initial liquidity and price 
-        pool.setLiquidity(uint128(precision.divWadDown(a))); 
-        pool.setPriceAndPoint(b); 
-        pool.setDynamicLiquidity(pool.priceToPoint(endPrice), type(int128).max); 
-        pool.setModifyLiqPoint(pool.priceToPoint(endPrice)); 
+        this.setLiquidity(uint128(precision.divWadDown(a))); 
+        this.setPriceAndPoint(b); 
+        this.setDynamicLiquidity(this.priceToPoint(endPrice), type(int128).max); 
+        this.setModifyLiqPoint(this.priceToPoint(endPrice)); 
     }
 
     /// @notice computes area between the curve and max price for given storage parameters
@@ -124,7 +120,7 @@ contract SyntheticZCBPool is BoundedDerivativesPool{
         address receiver, 
         uint256 amount 
         ) external{
-        require(msg.sender == entry, "entryERR"); 
+        require(msg.sender == trader_entry, "entryERR"); 
 
         TradeToken.mint(receiver, amount);
         discountedReserves += amount;  
@@ -136,7 +132,7 @@ contract SyntheticZCBPool is BoundedDerivativesPool{
         uint256 amount, 
         bool long
         ) external {
-        require(msg.sender == entry, "entryERR"); 
+        require(msg.sender == trader_entry, "entryERR"); 
 
         if (long) TradeToken.burn(trader, amount); 
         else s_tradeToken.burn(trader, amount);
@@ -152,8 +148,8 @@ contract SyntheticZCBPool is BoundedDerivativesPool{
     /// by anyone 
     function resetLiq() external{
         require(msg.sender == controller, "entryERR"); 
-        pool.setLiquidity(0); 
-        pool.amortizeLiq(); 
+        this.setLiquidity(0); 
+        this.amortizeLiq(); 
     }
 
     function cBal() external view returns(uint256){

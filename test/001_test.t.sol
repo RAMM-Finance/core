@@ -7,7 +7,7 @@ import {MarketManager} from "contracts/protocol/marketmanager.sol";
 import {ReputationNFT} from "contracts/protocol/reputationtoken.sol";
 import {Cash} from "contracts/utils/Cash.sol";
 import {CreditLine, MockBorrowerContract} from "contracts/vaults/instrument.sol";
-import {SyntheticZCBPoolFactory} from "contracts/bonds/synthetic.sol"; 
+import {SyntheticZCBPoolFactory,ZCBFactory} from "contracts/bonds/synthetic.sol"; 
 import {LinearCurve} from "contracts/bonds/GBC.sol"; 
 import {FixedPointMath} from "contracts/bonds/libraries.sol"; 
 import {CoveredCallOTC} from "contracts/vaults/dov.sol";
@@ -138,7 +138,8 @@ contract FullCycleTest is Test {
             address(controller), 
             address(0),data, uint64(0)
         );
-        poolFactory = new SyntheticZCBPoolFactory(address(controller)); 
+        ZCBFactory zcbfactory = new ZCBFactory(); 
+        poolFactory = new SyntheticZCBPoolFactory(address(controller), address(zcbfactory)); 
 
         controller.setMarketManager(address(marketmanager));
         controller.setVaultFactory(address(vaultFactory));
@@ -278,7 +279,7 @@ contract FullCycleTest is Test {
 
         vars.vault_ad = controller.getVaultfromId(1); //
         vars.amountToBuy = Vault(vars.vault_ad).fetchInstrumentData(vars.marketId).principal/2; 
-        vars.curPrice = marketmanager.getPool(vars.marketId).pool().getCurPrice(); 
+        vars.curPrice = marketmanager.getPool(vars.marketId).getCurPrice(); 
         assertEq(vars.curPrice, marketmanager.getPool(vars.marketId).b()); 
 
         // Let manager buy
@@ -290,7 +291,7 @@ contract FullCycleTest is Test {
         assertApproxEqAbs(vars.amountIn, vars.amountToBuy, 10); 
         assertEq(marketmanager.loggedCollaterals(vars.marketId),vars.amountIn); 
         assert(controller.marketCondition(vars.marketId)); 
-        assert(marketmanager.getPool(vars.marketId).pool().getCurPrice() > vars.curPrice ); 
+        assert(marketmanager.getPool(vars.marketId).getCurPrice() > vars.curPrice ); 
 
         // let validator invest to vault and approve 
         vars.cbalnow = cBal(address(marketmanager.getPool(vars.marketId))); 
@@ -350,7 +351,7 @@ contract FullCycleTest is Test {
         vars.maxSupply = (precision - marketmanager.getPool(vars.marketId).b_initial()).divWadDown( marketmanager.getPool(vars.marketId).a_initial() ) ; 
 
         vars.vault_ad = controller.getVaultfromId(1); //
-        vars.curPrice = marketmanager.getPool(vars.marketId).pool().getCurPrice(); 
+        vars.curPrice = marketmanager.getPool(vars.marketId).getCurPrice(); 
         if(!vars.dontAssert)assertEq(vars.curPrice, marketmanager.getPool(vars.marketId).b()); 
         vars.principal = Vault(vars.vault_ad).fetchInstrumentData(vars.marketId).principal; 
 
@@ -394,7 +395,7 @@ contract FullCycleTest is Test {
         // price is ax+b for x = amount1+amount2 - amount3+amount4 
         assertApproxEqAbs( marketmanager.getPool(vars.marketId).a_initial()
             .mulWadDown(vars.amount1 + vars.amount2 + vars.amount4 - vars.amount3) 
-            + marketmanager.getPool(vars.marketId).b() , marketmanager.getPool(vars.marketId).pool().getCurPrice(), 100000); 
+            + marketmanager.getPool(vars.marketId).b() , marketmanager.getPool(vars.marketId).getCurPrice(), 100000); 
         // assert(!marketmanager.marketCondition(vars.marketId)); 
         }
         // now buy 
@@ -505,7 +506,7 @@ contract FullCycleTest is Test {
             marketmanager.getPool(vars.marketId).cBal(), 10); 
 
         // how does liquidity change after approval, can people trade in zero liq 
-        assertEq(uint256(marketmanager.getPool(vars.marketId).pool().liquidity()), 0); 
+        assertEq(uint256(marketmanager.getPool(vars.marketId).liquidity()), 0); 
     }
 
 
@@ -571,7 +572,7 @@ contract FullCycleTest is Test {
         doApprove(vars.marketId, vars.vault_ad); 
 
         //set bids at current price 
-         bytes memory data = abi.encode(uint16(uint16(marketmanager.getPool(vars.marketId).pool().getCurPrice()/1e16) -1),
+         bytes memory data = abi.encode(uint16(uint16(marketmanager.getPool(vars.marketId).getCurPrice()/1e16) -1),
            false ); 
         doApproveCol(address(marketmanager.getPool(vars.marketId)), jonna); 
         vm.prank(jonna); 
@@ -588,14 +589,14 @@ contract FullCycleTest is Test {
 
         // let someone close long limit 
         uint256 bal2 = marketmanager.getZCB(vars.marketId).balanceOf(jonna); 
-        bytes memory data4 = abi.encode(uint16(uint16(marketmanager.getPool(vars.marketId).pool().getCurPrice()/1e16) +1),
+        bytes memory data4 = abi.encode(uint16(uint16(marketmanager.getPool(vars.marketId).getCurPrice()/1e16) +1),
            false ); 
         vm.prank(jonna); 
         marketmanager.sellBond( vars.marketId, bal2, 0, data4); 
         assertEq(marketmanager.getZCB(vars.marketId).balanceOf(jonna), 0); 
 
          // close all short via limit or via taker. half via limit half via taker 
-        bytes memory data3 = abi.encode(uint16(uint16(marketmanager.getPool(vars.marketId).pool().getCurPrice()/1e16) -1),
+        bytes memory data3 = abi.encode(uint16(uint16(marketmanager.getPool(vars.marketId).getCurPrice()/1e16) -1),
            false ); 
         uint256 bal = marketmanager.getShortZCB(vars.marketId).balanceOf(goku); 
         vm.prank(goku); 
@@ -763,7 +764,7 @@ contract FullCycleTest is Test {
         vars.maxSupply = (precision - marketmanager.getPool(vars.marketId).b_initial()).divWadDown( marketmanager.getPool(vars.marketId).a_initial() ) ; 
 
         vars.vault_ad = controller.getVaultfromId(1); //
-        vars.curPrice = marketmanager.getPool(vars.marketId).pool().getCurPrice(); 
+        vars.curPrice = marketmanager.getPool(vars.marketId).getCurPrice(); 
         assertEq(vars.curPrice, marketmanager.getPool(vars.marketId).b()); 
         vars.principal = Vault(vars.vault_ad).fetchInstrumentData(vars.marketId).principal; 
         vars.amount1 = vars.principal*11/100; 
@@ -819,7 +820,7 @@ contract FullCycleTest is Test {
         vars.maxSupply = (precision - marketmanager.getPool(vars.marketId).b_initial()).divWadDown( marketmanager.getPool(vars.marketId).a_initial() ) ; 
 
         vars.vault_ad = controller.getVaultfromId(1); //
-        vars.curPrice = marketmanager.getPool(vars.marketId).pool().getCurPrice(); 
+        vars.curPrice = marketmanager.getPool(vars.marketId).getCurPrice(); 
         assertEq(vars.curPrice, marketmanager.getPool(vars.marketId).b()); 
         vars.principal = Vault(vars.vault_ad).fetchInstrumentData(vars.marketId).principal; 
         vars.amount1 = vars.principal*11/100; 

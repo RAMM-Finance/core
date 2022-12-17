@@ -6,6 +6,7 @@ import "hardhat-preprocessor";
 import fs from "fs";
 import '@typechain/hardhat'
 import '@nomiclabs/hardhat-ethers'
+import "hardhat-abi-exporter"; 
 
 function getRemappings() {
   return fs

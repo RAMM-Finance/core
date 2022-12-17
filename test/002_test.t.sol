@@ -7,7 +7,7 @@ import {MarketManager} from "contracts/protocol/marketmanager.sol";
 import {VaultFactory} from "contracts/protocol/factories.sol";
 import {CreditLine, MockBorrowerContract} from "contracts/vaults/instrument.sol";
 import {Vault} from "contracts/vaults/vault.sol";
-import {SyntheticZCBPoolFactory} from "contracts/bonds/synthetic.sol";
+import {SyntheticZCBPoolFactory,ZCBFactory} from "contracts/bonds/synthetic.sol";
 import {Cash} from "contracts/utils/Cash.sol";
 import {ERC4626} from "contracts/vaults/mixins/ERC4626.sol";
 import {FixedPointMathLib} from "solmate/utils/FixedPointMathLib.sol";
@@ -73,8 +73,9 @@ contract ValdiatorTests is Test {
         vf = new VaultFactory(
             address(c)  
         );
+     ZCBFactory zcbfactory = new ZCBFactory(); 
+        pf = new SyntheticZCBPoolFactory(address(c), address(zcbfactory)); 
 
-        pf = new SyntheticZCBPoolFactory(address(c));
 
 
         addressSetup();
@@ -212,7 +213,7 @@ contract ValdiatorTests is Test {
 
         vars.vault_ad = c.getVaultfromId(1);
         vars.amountToBuy = Vault(vars.vault_ad).fetchInstrumentData(vars.marketId).principal/2; 
-        vars.curPrice = mm.getPool(vars.marketId).pool().getCurPrice(); 
+        vars.curPrice = mm.getPool(vars.marketId).getCurPrice(); 
         assertEq(vars.curPrice, mm.getPool(vars.marketId).b()); 
        
         // Let manager buy
