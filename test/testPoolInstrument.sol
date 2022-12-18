@@ -35,10 +35,11 @@ contract PoolInstrumentTest is TestBase {
         ZCBFactory zcbfactory = new ZCBFactory(); 
         poolFactory = new SyntheticZCBPoolFactory(address(controller), address(zcbfactory)); 
 
-
+        vm.startPrank(deployer); 
         controller.setMarketManager(address(marketmanager));
         controller.setVaultFactory(address(vaultFactory));
         controller.setPoolFactory(address(poolFactory)); 
+        vm.stopPrank(); 
 
         controller.createVault(
             address(collateral),
@@ -133,22 +134,22 @@ contract PoolInstrumentTest is TestBase {
         vm.prank(jonna); 
         (vars.amountIn, vars.amountOut) =
             marketmanager.buyBond(vars.marketId, int256(vars.amountToBuy), vars.curPrice + precision/2 , data); 
-            console.log('amountOut!!!', vars.amountOut); 
+            console.log('amountOut!!!', vars.amountOut,  marketmanager.getZCB(vars.marketId).totalSupply()); 
 
-        controller.poolZCBValue(vars.marketId); 
+        controller.getVault(vars.marketId).poolZCBValue(vars.marketId); 
         doApprove(vars.marketId, vars.vault_ad);
 
 
-        (uint256 psu, uint256 pju, uint256 levFactor, Vault vault) = controller.poolZCBValue(vars.marketId);
-        assertEq(psu, vault.fetchInstrumentData(vars.marketId).poolData.inceptionPrice); 
+        (uint256 psu, uint256 pju, uint256 levFactor) = controller.getVault(vars.marketId).poolZCBValue(vars.marketId);
+        assertEq(psu, controller.getVault(vars.marketId).fetchInstrumentData(vars.marketId).poolData.inceptionPrice); 
         assertApproxEqAbs(psu, pju, 10); 
         console.log('psu', psu, pju); 
 
         //After some time.. 
         vm.warp(block.timestamp+31536000); 
-        ( psu,  pju, ,) = controller.poolZCBValue(vars.marketId);
+        ( psu,  pju, ) = controller.getVault(vars.marketId).poolZCBValue(vars.marketId);
         console.log('psu', psu, pju); 
-        assert(psu>vault.fetchInstrumentData(vars.marketId).poolData.inceptionPrice ); 
+        assert(psu>controller.getVault(vars.marketId).fetchInstrumentData(vars.marketId).poolData.inceptionPrice ); 
         assert(psu> pju+100); 
 
 

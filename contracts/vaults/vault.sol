@@ -116,12 +116,10 @@ contract Vault is ERC4626, Auth{
 
     {
         UNDERLYING = ERC20(_UNDERLYING);
-        //BASE_UNIT = 10**ERC20(_UNDERLYING).decimals();
         BASE_UNIT = 10**18; 
         controller = Controller(_controller);
         set_minting_conditions( _onlyVerified,  _r, _asset_limit, _total_asset_limit); 
         default_params = _default_params; 
-        //totalSupply = type(uint256).max;
     }
 
     function getInstrumentType(uint256 marketId) public view returns(uint256){
@@ -159,6 +157,59 @@ contract Vault is ERC4626, Auth{
     /// @notice burns all balance of address 
     function burnAll(address to) private{
       _burn(to, balanceOf[to]); 
+    }
+
+    struct localVars{
+    uint256 promised_return; 
+    uint256 inceptionTime; 
+    uint256 inceptionPrice; 
+    uint256 leverageFactor; 
+    uint256 managementFee; 
+
+    uint256 srpPlusOne; 
+    uint256 totalAssetsHeld; 
+    uint256 juniorSupply; 
+    uint256 seniorSupply; 
+
+    bool belowThreshold; 
+  }
+  /// @notice get programmatic pricing of a pool based longZCB 
+  /// returns psu: price of senior(VT's share of investment) vs underlying 
+  /// returns pju: price of junior(longZCB) vs underlying
+  function poolZCBValue(uint256 marketId) 
+    public 
+    view 
+    returns(uint256 psu, uint256 pju, uint256 levFactor){
+    localVars memory vars; 
+
+    (vars.promised_return, vars.inceptionTime, vars.inceptionPrice, vars.leverageFactor, 
+      vars.managementFee) = fetchPoolTrancheData(marketId); 
+    levFactor = vars.leverageFactor; 
+
+    require(vars.inceptionPrice > 0, "0"); 
+
+    // Get senior redemption price that increments per unit time 
+    vars.srpPlusOne = vars.inceptionPrice.mulWadDown((BASE_UNIT+ vars.promised_return)
+      .rpow(block.timestamp - vars.inceptionTime, BASE_UNIT));
+
+    // Get total assets held by the instrument 
+    vars.totalAssetsHeld = instrumentAssetOracle(marketId); 
+    vars.juniorSupply = controller.getTotalSupply(marketId); 
+    vars.seniorSupply = vars.juniorSupply.mulWadDown(vars.leverageFactor); 
+    console.log('totalsupply?', vars.juniorSupply); 
+    if (vars.seniorSupply == 0) return(vars.srpPlusOne,vars.srpPlusOne,levFactor); 
+    
+    // Check if all seniors can redeem
+    if (vars.totalAssetsHeld >= vars.srpPlusOne.mulWadDown(vars.seniorSupply))
+      psu = vars.srpPlusOne; 
+    else{
+      psu = vars.totalAssetsHeld.divWadDown(vars.seniorSupply);
+      vars.belowThreshold = true;  
+    }
+
+    // should be 0 otherwise 
+    if(!vars.belowThreshold) pju = (vars.totalAssetsHeld 
+      - vars.srpPlusOne.mulWadDown(vars.seniorSupply)).divWadDown(vars.juniorSupply); 
     }
 
     /// @notice Harvest a trusted Instrument, records profit/loss 
@@ -227,6 +278,7 @@ contract Vault is ERC4626, Auth{
       ) external
     //onlyManager
     {
+      require(fetchInstrument( marketId).isLiquid(underlyingAmount), "!liq"); 
       withdrawFromInstrument(fetchInstrument(marketId), underlyingAmount);
     }
     /// @notice Stores a Instrument as trusted when its approved

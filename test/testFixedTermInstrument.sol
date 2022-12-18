@@ -141,9 +141,11 @@ contract FullCycleTest is Test {
         ZCBFactory zcbfactory = new ZCBFactory(); 
         poolFactory = new SyntheticZCBPoolFactory(address(controller), address(zcbfactory)); 
 
+        vm.startPrank(deployer); 
         controller.setMarketManager(address(marketmanager));
         controller.setVaultFactory(address(vaultFactory));
         controller.setPoolFactory(address(poolFactory)); 
+        vm.stopPrank(); 
 
         controller.createVault(
             address(collateral),
@@ -462,11 +464,12 @@ contract FullCycleTest is Test {
             vm.prank(vals[i]);
             controller.validatorResolve(vars.marketId);
         }
-        vm.prank(vals[0]); 
+        vm.startPrank(vals[0]); 
         controller.beforeResolve(vars.marketId); 
         vm.roll(block.number+1);
         controller.resolveMarket(vars.marketId); 
         assertEq(collateral.balanceOf(address(instrument)),0); 
+        vm.stopPrank(); 
     }
 
     function setMaturityInstrumentResolveCondition(bool noDefault, uint256 loss) public{
@@ -896,8 +899,9 @@ contract FullCycleTest is Test {
                 vm.prank(vals[i]);
                 controller.validatorResolve(vars.marketId);
             }
-
+            vm.startPrank(vals[0]); 
             controller.resolveMarket(vars.marketId); 
+            vm.stopPrank(); 
 
             assert(marketmanager.redemption_prices(vars.marketId)< precision);
             assertEq(collateral.balanceOf(address(otc)), 0); 

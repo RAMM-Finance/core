@@ -58,7 +58,15 @@ const config: HardhatUserConfig = {
     sources: "./contracts",
     cache: "./cache_hardhat",
   },
-  solidity: "0.8.12",
+  solidity: {
+    version: "0.8.12",
+    settings: {
+      optimizer: {
+        runs: 200,
+        enabled: true
+      }
+    }
+  },
   namedAccounts: {
     deployer: {
       default: 0, // here this will by default take the first account as deployer

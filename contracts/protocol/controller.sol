@@ -48,7 +48,6 @@ contract Controller {
   mapping(address=> uint256) public ad_to_id; //utilizer address to marketId
   mapping(uint256=> Vault) public vaults; // vault id to Vault contract
   mapping(uint256=> uint256) public id_parent; //marketId-> vaultId 
-  mapping(uint256=> uint256) public vault_debt; //vault debt for each marketId ??
   mapping(uint256=>uint256[]) public vault_to_marketIds;
 
   address creator_address;
@@ -66,16 +65,12 @@ contract Controller {
 
   /* ========== MODIFIERS ========== */
   modifier onlyValidator(uint256 marketId) {
-      require(isValidator(marketId, msg.sender)|| msg.sender == creator_address, "not validator for market");
+      require(isValidator(marketId, msg.sender)|| msg.sender == creator_address, "!Val");
       _;
   }
 
-  modifier onlyOwner() {
-      require(msg.sender == creator_address, "Only Owner can call this function");
-      _;
-  }
   modifier onlyManager() {
-      require(msg.sender == address(marketManager) || msg.sender == creator_address, "Only Manager can call this function");
+      require(msg.sender == address(marketManager) || msg.sender == creator_address, "!manager");
       _;
   }
 
@@ -88,20 +83,18 @@ contract Controller {
 
   /*----Setup Functions----*/
 
-  function setMarketManager(address _marketManager) public onlyOwner {
+  function setMarketManager(address _marketManager) public onlyManager {
     require(_marketManager != address(0));
     marketManager = MarketManager(_marketManager);
   }
 
-  // function setReputationNFT(address NFT_address) public onlyOwner{
-  //   repNFT = ReputationNFT(NFT_address); 
-  // }
 
-  function setVaultFactory(address _vaultFactory) public onlyOwner {
+
+  function setVaultFactory(address _vaultFactory) public onlyManager {
     vaultFactory = VaultFactory(_vaultFactory); 
   }
 
-  function setPoolFactory(address _poolFactory) public onlyOwner{
+  function setPoolFactory(address _poolFactory) public onlyManager{
     poolFactory = SyntheticZCBPoolFactory(_poolFactory); 
   }
 
@@ -118,8 +111,6 @@ contract Controller {
   function testVerifyAddress() external {
     verified[msg.sender] = true;
   }
-
-
   /// @notice called only when redeeming, transfer funds from vault 
   function redeem_transfer(
     uint256 amount, 
@@ -414,63 +405,6 @@ contract Controller {
     marketManager.denyMarket(marketId);
   }
 
-  struct localVars{
-    uint256 promised_return; 
-    uint256 inceptionTime; 
-    uint256 inceptionPrice; 
-    uint256 leverageFactor; 
-    uint256 managementFee; 
-
-    uint256 srpPlusOne; 
-    uint256 totalAssetsHeld; 
-    uint256 juniorSupply; 
-    uint256 seniorSupply; 
-
-    bool belowThreshold; 
-  }
-  /// @notice get programmatic pricing of a pool based longZCB 
-  /// returns psu: price of senior(VT's share of investment) vs underlying 
-  /// returns pju: price of junior(longZCB) vs underlying
-  function poolZCBValue(uint256 marketId) 
-    public 
-    view 
-    returns(uint256 psu, uint256 pju, uint256 levFactor, Vault vault){
-    localVars memory vars; 
-    vault = getVault(marketId); 
-
-    (vars.promised_return, vars.inceptionTime, vars.inceptionPrice, vars.leverageFactor, 
-      vars.managementFee) 
-        = vault.fetchPoolTrancheData(marketId); 
-    levFactor = vars.leverageFactor; 
-
-    require(vars.inceptionPrice > 0, "0"); 
-
-    // Get senior redemption price that increments per unit time 
-    vars.srpPlusOne = vars.inceptionPrice.mulWadDown((config.WAD + vars.promised_return)
-      .rpow(block.timestamp - vars.inceptionTime, config.WAD));
-
-    // Get total assets held by the instrument 
-    vars.totalAssetsHeld = vault.instrumentAssetOracle( marketId); 
-    vars.juniorSupply = marketManager.getZCB(marketId).totalSupply(); 
-    vars.seniorSupply = vars.juniorSupply.mulWadDown(vars.leverageFactor); 
-
-    // console.log('totalassets', vars.totalAssetsHeld, vars.managementFee*2, (vars.totalAssetsHeld 
-    //  +vars.managementFee*2 - vars.srpPlusOne.mulWadDown(vars.seniorSupply)).divWadDown(vars.juniorSupply));
-    if (vars.seniorSupply == 0) return(vars.srpPlusOne,vars.srpPlusOne,levFactor, vault); 
-    
-    // Check if all seniors can redeem
-    if (vars.totalAssetsHeld >= vars.srpPlusOne.mulWadDown(vars.seniorSupply))
-      psu = vars.srpPlusOne; 
-    else{
-      psu = vars.totalAssetsHeld.divWadDown(vars.seniorSupply);
-      vars.belowThreshold = true;  
-    }
-
-    // should be 0 otherwise 
-    if(!vars.belowThreshold) pju = (vars.totalAssetsHeld 
-      - vars.srpPlusOne.mulWadDown(vars.seniorSupply)).divWadDown(vars.juniorSupply); 
-  }
-
 
   /*----Validator Logic----*/
   struct ValidatorData {
@@ -620,11 +554,11 @@ contract Controller {
   function validatorApprove(
     uint256 marketId
   ) external returns(uint256) {
-    require(isValidator(marketId, msg.sender), "not a validator for the market");
-    require(marketCondition(marketId), "market condition not met");
+    require(isValidator(marketId, msg.sender), "!Val");
+    require(marketCondition(marketId), "!condition");
 
     ValidatorData storage valdata = validator_data[marketId]; 
-    require(!valdata.staked[msg.sender], "caller already staked for this market");
+    require(!valdata.staked[msg.sender], "!staked");
 
     // staking logic, TODO optional since will throw error on transfer.
    // require(ERC20(getVaultAd(marketId)).balanceOf(msg.sender) >= valdata.initialStake, "not enough tokens to stake");
@@ -639,7 +573,7 @@ contract Controller {
     uint256 zcb_for_sale = valdata.val_cap/N; 
     uint256 collateral_required = zcb_for_sale.mulWadDown(valdata.avg_price); 
 
-    require(valdata.sales[msg.sender] <= zcb_for_sale, "already approved");
+    require(valdata.sales[msg.sender] <= zcb_for_sale, "approved");
 
     valdata.sales[msg.sender] += zcb_for_sale;
     valdata.totalSales += (zcb_for_sale +1);  //since division rounds down ??
@@ -724,8 +658,8 @@ contract Controller {
   function validatorResolve(
     uint256 marketId
   ) external {
-    require(isValidator(marketId, msg.sender), "must be validator to resolve the function");
-    require(!validator_data[marketId].resolved[msg.sender], "validator already voted to resolve");
+    require(isValidator(marketId, msg.sender), "!val");
+    require(!validator_data[marketId].resolved[msg.sender], "voted");
 
     validator_data[marketId].resolved[msg.sender] = true;
     validator_data[marketId].numResolved ++;
@@ -735,8 +669,8 @@ contract Controller {
    @notice called by validators when the market is resolved or denied to retrieve their stake.
    */
   function unlockValidatorStake(uint256 marketId) external {
-    require(isValidator(marketId, msg.sender), "not a validator");
-    require(validator_data[marketId].staked[msg.sender], "no stake");
+    require(isValidator(marketId, msg.sender), "!validator");
+    require(validator_data[marketId].staked[msg.sender], "!stake");
     (bool duringMarketAssessment, , ,  ,,) = marketManager.restriction_data(marketId); 
 
     // market early denial, no loss.
@@ -1011,23 +945,23 @@ contract Controller {
     }
   }
  
-  /// @notice computes the price for ZCB one needs to short at to completely
-  /// hedge for the case of maximal loss, function of principal and interest
-  function getHedgePrice(uint256 marketId) public view returns(uint256){
-    uint256 principal = getVault(marketId).fetchInstrumentData(marketId).principal; 
-    uint256 yield = getVault(marketId).fetchInstrumentData(marketId).expectedYield; 
-    uint256 den = principal.mulWadDown(config.WAD - marketManager.getParameters(marketId).alpha); 
-    return config.WAD - yield.divWadDown(den); 
-  }
+  // /// @notice computes the price for ZCB one needs to short at to completely
+  // /// hedge for the case of maximal loss, function of principal and interest
+  // function getHedgePrice(uint256 marketId) public view returns(uint256){
+  //   uint256 principal = getVault(marketId).fetchInstrumentData(marketId).principal; 
+  //   uint256 yield = getVault(marketId).fetchInstrumentData(marketId).expectedYield; 
+  //   uint256 den = principal.mulWadDown(config.WAD - marketManager.getParameters(marketId).alpha); 
+  //   return config.WAD - yield.divWadDown(den); 
+  // }
 
-  /// @notice computes maximum amount of quantity that trader can short while being hedged
-  /// such that when he loses his loss will be offset by his gains  
-  function getHedgeQuantity(address trader, uint256 marketId) public view returns(uint256){
-    uint num = getVault(marketId).fetchInstrumentData(marketId)
-              .principal.mulWadDown(config.WAD - marketManager.getParameters(marketId).alpha); 
-    return num.mulDivDown(getVault(marketId).balanceOf(trader), 
-              getVault(marketId).totalSupply()); 
-  }
+  // /// @notice computes maximum amount of quantity that trader can short while being hedged
+  // /// such that when he loses his loss will be offset by his gains  
+  // function getHedgeQuantity(address trader, uint256 marketId) public view returns(uint256){
+  //   uint num = getVault(marketId).fetchInstrumentData(marketId)
+  //             .principal.mulWadDown(config.WAD - marketManager.getParameters(marketId).alpha); 
+  //   return num.mulDivDown(getVault(marketId).balanceOf(trader), 
+  //             getVault(marketId).totalSupply()); 
+  // }
 
   /// @notice calculates implied probability of the trader, used to
   /// update the reputation score by brier scoring mechanism 
@@ -1046,6 +980,9 @@ contract Controller {
 
   function pullLeverage(uint256 marketId, uint256 amount) external onlyManager{
     getVault(marketId).trusted_transfer(amount, address(marketManager)); 
+  }
+  function getTotalSupply(uint256 marketId) external view returns(uint256){
+    return marketManager.getZCB(marketId).totalSupply(); 
   }
 
   function getMarketId(address recipient) public view returns(uint256){
@@ -1078,9 +1015,7 @@ contract Controller {
   function getMarketIds(uint256 vaultId) public view returns (uint256[] memory) {
     return vault_to_marketIds[vaultId];
   }
-  function max(uint256 a, uint256 b) internal pure returns (uint256) {
-      return a >= b ? a : b;
-  }
+
   function min(uint256 a, uint256 b) internal pure returns (uint256) {
       return a <= b ? a : b;
   }
