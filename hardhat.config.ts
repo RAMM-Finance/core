@@ -122,12 +122,15 @@ const config: HardhatUserConfig = {
     //   gas: 200000000, // arbitrum has as higher gas limit and cost for contract deploys from contracts
     //   gasPrice: 1,
     // },
+
+
     maticMumbai: {
       live: true,
       url: "https://rpc-mumbai.maticvigil.com/v1/d955b11199dbfd5871c21bdc750c994edfa52abd",
       chainId: 80001,
      /// confirmations: 2,
-      accounts: ['5505f9ddf81b3aa83661c849fe8d56ea7a02dd3ede636f47296d85a7fc4e3bd6',
+      accounts: ['cd1988dd3edbd37d39aaeb5de91832be7b537582e9e58a3d5408817244230819', 
+      '5505f9ddf81b3aa83661c849fe8d56ea7a02dd3ede636f47296d85a7fc4e3bd6',
       'f7c11910f42a6cab4436bffea7dca20fed310bd794b7c37a930cc013ae6392d2'
       ],
       gas: 10000000000,

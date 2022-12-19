@@ -196,7 +196,6 @@ contract Vault is ERC4626, Auth{
     vars.totalAssetsHeld = instrumentAssetOracle(marketId); 
     vars.juniorSupply = controller.getTotalSupply(marketId); 
     vars.seniorSupply = vars.juniorSupply.mulWadDown(vars.leverageFactor); 
-    console.log('totalsupply?', vars.juniorSupply); 
     if (vars.seniorSupply == 0) return(vars.srpPlusOne,vars.srpPlusOne,levFactor); 
     
     // Check if all seniors can redeem
