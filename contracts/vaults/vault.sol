@@ -76,7 +76,6 @@ contract Vault is ERC4626, Auth{
       address Instrument_address;
       InstrumentType instrument_type;
       uint256 maturityDate;
-
       PoolData poolData; 
     }
 
@@ -159,7 +158,7 @@ contract Vault is ERC4626, Auth{
       _burn(to, balanceOf[to]); 
     }
 
-    struct localVars{
+  struct localVars{
     uint256 promised_return; 
     uint256 inceptionTime; 
     uint256 inceptionPrice; 

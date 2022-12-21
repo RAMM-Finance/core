@@ -32,8 +32,6 @@ contract Controller {
     uint256 approved_principal; 
     uint256 approved_yield; 
   }
-
-
   
   event MarketInitiated(uint256 marketId, address recipient);
 
@@ -1012,6 +1010,7 @@ contract Controller {
   function marketIdToVaultId(uint256 marketId) public view returns(uint256){
     return id_parent[marketId]; 
   }
+
   function getMarketIds(uint256 vaultId) public view returns (uint256[] memory) {
     return vault_to_marketIds[vaultId];
   }
