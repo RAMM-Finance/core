@@ -5,7 +5,7 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   // const { deployments, getNamedAccounts } = hre;
   // const { deployer, interep } = await getNamedAccounts();
   // const controller_addr = (await deployments.get("Controller")).address;
-  // const rep_addr = (await deployments.get("ReputationNFT")).address;
+  // // const rep_addr = (await deployments.get("ReputationNFT")).address;
   // const args = [
   //   deployer, 
   //   // rep_addr,  

@@ -1,6 +1,6 @@
 pragma solidity ^0.8.4;
 import {MarketManager} from "./marketmanager.sol";
-import {ReputationNFT} from "./reputationtoken.sol";
+// import {ReputationNFT} from "./reputationtoken.sol";
 import {Vault} from "../vaults/vault.sol";
 import {Instrument} from "../vaults/instrument.sol";
 import {Strings} from "openzeppelin-contracts/utils/Strings.sol";
@@ -16,6 +16,7 @@ import {Vault} from "../vaults/vault.sol";
 // import "@interep/contracts/IInterep.sol";
 import {SyntheticZCBPoolFactory, SyntheticZCBPool} from "../bonds/synthetic.sol"; 
 import {SafeTransferLib} from "solmate/utils/SafeTransferLib.sol";
+import {ReputationManager} from "./reputationmanager.sol";
 
 
 contract Controller {
@@ -33,8 +34,6 @@ contract Controller {
     uint256 approved_yield; 
   }
 
-
-  
   event MarketInitiated(uint256 marketId, address recipient);
 
   mapping(uint256=>ApprovalData) approvalDatas;
@@ -58,6 +57,7 @@ contract Controller {
   // ReputationNFT repNFT; 
   VaultFactory vaultFactory; 
   SyntheticZCBPoolFactory poolFactory; 
+  ReputationManager reputationManager;
 
   uint256 constant TWITTER_UNRATED_GROUP_ID = 16106950158033643226105886729341667676405340206102109927577753383156646348711;
   bytes32 constant private signal = bytes32("twitter-unrated");
@@ -88,7 +88,9 @@ contract Controller {
     marketManager = MarketManager(_marketManager);
   }
 
-
+  function setReputationManager(address _reputationManager) public onlyManager {
+    reputationManager = ReputationManager(_reputationManager);
+  }
 
   function setVaultFactory(address _vaultFactory) public onlyManager {
     vaultFactory = VaultFactory(_vaultFactory); 
@@ -159,14 +161,14 @@ contract Controller {
     uint256 vaultId
   ) external  {
     require(recipient != address(0), "address0"); 
-    require(instrumentData.Instrument_address != address(0), "address0");
+    require(instrumentData.instrument_address != address(0), "address0");
     require(address(vaults[vaultId]) != address(0), "address0");
 
     Vault vault = vaults[vaultId]; 
     uint256 marketId = marketManager.marketCount();
     id_parent[marketId] = vaultId;
     vault_to_marketIds[vaultId].push(marketId);
-    market_data[marketId] = MarketData(instrumentData.Instrument_address, recipient);
+    market_data[marketId] = MarketData(instrumentData.instrument_address, recipient);
     marketManager.setParameters(vault.get_vault_params(), vault.utilizationRate(), marketId); //TODO non-default 
 
     // Create new pool and bonds and store initial price and liquidity for the pool
@@ -293,9 +295,9 @@ contract Controller {
     uint256 change = implied_probs.mulDivDown(implied_probs, config.WAD);
     
     if (increment) {
-      _incrementScore(trader, change);
+      reputationManager.incrementScore(trader, change);
     } else {
-      _decrementScore(trader, change);
+      reputationManager.decrementScore(trader, change);
     }
   }
 
@@ -424,7 +426,7 @@ contract Controller {
   }
 
   mapping(uint256 => uint256) requestToMarketId;
-  mapping(uint256 => ValidatorData) validator_data;
+  mapping(uint256 => ValidatorData) public validator_data;
 
     /// @notice sets the validator cap + valdiator amount 
   /// param prinicipal is saleAmount for pool based instruments 
@@ -440,6 +442,14 @@ contract Controller {
     _setValidatorStake(marketId, principal);
   }
 
+  function getValidatorPrice(uint256 marketId) view public returns (uint256) {
+    return validator_data[marketId].avg_price;
+  }
+
+  function getValidatorCap(uint256 marketId) view public returns (uint256) {
+    return validator_data[marketId].val_cap;
+  }  
+
   function viewValidators(uint256 marketId) view public returns (address[] memory) {
     return validator_data[marketId].validators;
   }
@@ -454,6 +464,10 @@ contract Controller {
 
   function getTotalStaked(uint256 marketId) view public returns (uint256) {
     return validator_data[marketId].totalStaked;
+  }
+
+  function getTotalValidatorSales(uint256 marketId) view public returns (uint256) {
+    return validator_data[marketId].totalSales;
   }
 
   function getInitialStake(uint256 marketId) view public returns (uint256) {
@@ -473,7 +487,7 @@ contract Controller {
     // address instrument = market_data[marketId].instrument_address;
     address utilizer = market_data[marketId].utilizer;
     (uint256 N,,,,,uint256 r,,) = marketManager.parameters(marketId);
-    address[] memory selected = _filterTraders(r, utilizer);
+    address[] memory selected = reputationManager.filterTraders(r, utilizer);
 
     // if there are not enough traders, set validators to all selected traders.
     if (selected.length <= N) {
@@ -506,12 +520,13 @@ contract Controller {
   {
     uint256 marketId = requestToMarketId[requestId];
     (uint256 N,,,,,uint256 r,,) = marketManager.parameters(marketId);
+    
     assert(randomWords.length == N);
 
     // address instrument = market_data[marketId].instrument_address;
     address utilizer = market_data[marketId].utilizer;
 
-    address[] memory temp = _filterTraders(r, utilizer);
+    address[] memory temp = reputationManager.filterTraders(r, utilizer);
     uint256 length = temp.length;
     
     // get validators
@@ -527,13 +542,13 @@ contract Controller {
     uint256 sum_weights;
 
     for (uint8 i=0; i<length; i++) {
-      sum_weights += trader_scores[group[i]];//repToken.getReputationScore(group[i]);
+      sum_weights += getTraderScore(group[i]);//repToken.getReputationScore(group[i]);
     }
 
     uint256 tmp = randomWord % sum_weights;
 
     for (uint8 i=0; i<length; i++) {
-      uint256 wt = trader_scores[group[i]];
+      uint256 wt = getTraderScore(group[i]);
       if (tmp < wt) {
         return i;
       }
@@ -542,7 +557,6 @@ contract Controller {
       }
       
     }
-    console.log("should never be here");
   }
 
     /// @notice allows validators to buy at a discount + automatically stake a percentage of the principal
@@ -744,224 +758,14 @@ contract Controller {
     uint256 zcb_for_sale = val_cap/N; 
     return zcb_for_sale.mulWadDown(validator_data[marketId].avg_price); 
   }
-  /*----Reputation Logic----*/
-  mapping(address=>uint256) public trader_scores; // trader address => score
-  mapping(address=>bool) public isRated;
-  address[] public traders;
 
-  /**
-   @notice calculates whether a trader meets the requirements to trade during the reputation assessment phase.
-   @param percentile: 0-100 w/ WAD.
-   */
-  function isReputable(address trader, uint256 percentile) view external returns (bool) {
-    uint256 k = _findTrader(trader);
-    uint256 n = (traders.length - (k+1))*config.WAD;
-    uint256 N = traders.length*config.WAD;
-    uint256 p = uint256(n).divWadDown(N)*10**2;
-
-    if (p >= percentile) {
-      return true;
-    } else {
-      return false;
-    }
+  function getTraderScore(address trader) view public returns (uint256) {
+    return reputationManager.trader_scores(trader);
   }
 
-  /**
-   @notice finds the first trader within the percentile
-   @param percentile: 0-100 WAD
-   @dev returns 0 on no minimum threshold
-   */
-  function calculateMinScore(uint256 percentile) view external returns (uint256) {
-    uint256 l = traders.length * config.WAD;
-    if (percentile / 1e2 == 0) {
-      return 0;
-    }
-    uint256 x = l.mulWadDown(percentile / 1e2);
-    x /= config.WAD;
-    return trader_scores[traders[x - 1]];
+  function isReputable(address trader, uint256 r) view public returns (bool) {
+    return reputationManager.isReputable(trader, r);
   }
-
-  function setTraderScore(address trader, uint256 score) external {
-    uint256 prev_score = trader_scores[trader];
-    if (score > prev_score) {
-      _incrementScore(trader, score - prev_score);
-    } else if (score < prev_score) {
-      _decrementScore(trader, prev_score - score);
-    }
-  }
-
-  /**
-   @dev percentile is is wad 0-100
-   @notice returns a list of top X percentile traders excluding the utilizer. 
-   */
-  function _filterTraders(uint256 percentile, address utilizer) view public returns (address[] memory) {
-    uint256 l = traders.length * config.WAD;
-    
-    // if below minimum percentile, return all traders excluding the utilizer
-    if (percentile / 1e2 == 0) {
-      console.log("here");
-      if (isRated[utilizer]) {
-        address[] memory result = new address[](traders.length - 1);
-
-        uint256 j = 0;
-        for (uint256 i=0; i<traders.length; i++) {
-          if (utilizer == traders[i]) {
-            j = 1;
-            continue;
-          }
-          result[i - j] = traders[i];
-        }
-        return result;
-      } else {
-        return traders;
-      }
-    }
-
-    uint256 x = l.mulWadDown((config.WAD*100 - percentile) / 1e2);
-    x /= config.WAD;
-
-    address[] memory selected; 
-    if (utilizer == address(0) || !isRated[utilizer]) {
-      selected = new address[](x);
-      for (uint256 i=0; i<x; i++) {
-        selected[i] = traders[i];
-      }
-    } else {
-      selected = new address[](x - 1);
-      uint256 j=0;
-      for (uint256 i = 0; i<x; i++) {
-        if (traders[i] == utilizer) {
-          j = 1;
-          continue;
-        }
-        selected[i - j] = traders[i];
-      }
-    }
-
-    return selected;
-  }
-
-  /**
-   @notice retrieves all rated traders
-   */
-  function getTraders() public returns (address[] memory) {
-    return traders;
-  }
-
-  /**
-   @notice increments trader's score
-   @dev score >= 0, update > 0
-   */
-  function _incrementScore(address trader, uint256 update) public {
-    trader_scores[trader] += update;
-    _updateRanking(trader, true);
-  }
-
-  /**
-   @notice decrements trader's score
-   @dev score >= 0, update > 0
-   */
-  function _decrementScore(address trader, uint256 update) public {
-    if (update >= trader_scores[trader]) {
-      trader_scores[trader] = 0;
-    } else {
-      trader_scores[trader] -= update;
-    }
-    _updateRanking(trader, false);
-  }
-
-  /**
-   @notice updates top trader array
-   */
-  function _updateRanking(address trader, bool increase) internal {
-    uint256 score = trader_scores[trader];
-
-    if (!isRated[trader]) {
-      isRated[trader] = true;
-      if (traders.length == 0) {
-        traders.push(trader);
-        return;
-      }
-      for (uint256 i=0; i<traders.length; i++) {
-        if (score > trader_scores[traders[i]]) {
-          traders.push(address(0));
-          _shiftRight(i, traders.length-1);
-          traders[i] = trader;
-          return;
-        }
-        if (i == traders.length - 1) {
-          traders.push(trader);
-          return;
-        }
-      }
-    } else {
-      uint256 k = _findTrader(trader);
-      //swap places with someone.
-      if ((k == 0 && increase)
-      || (k == traders.length - 1 && !increase)) {
-        return;
-      }
-
-      if (increase) {
-        for (uint256 i=0; i<k; i++) {
-          if (score > trader_scores[traders[i]]) {
-            _shiftRight(i,k);
-            traders[i] = trader;
-            return;
-          }
-        }
-      } else {
-        for (uint256 i=traders.length - 1; i>k; i--) {
-          if (score < trader_scores[traders[i]]) {
-            _shiftLeft(k, i);
-            traders[i] = trader;
-            return;
-          }
-        }
-      }
-    }
-  }
-
-  function _findTrader(address trader) internal view returns (uint256) {
-    for (uint256 i=0; i<traders.length; i++) {
-      if (trader == traders[i]) {
-        return i;
-      }
-    }
-  }
-
-  /**
-   @notice 
-   */
-  function _shiftRight(uint256 pos, uint256 end) internal {
-    for (uint256 i=end; i>pos; i--) {
-      traders[i] = traders[i-1];
-    }
-  }
-
-  function _shiftLeft(uint256 pos, uint256 end) internal {
-    for (uint256 i=pos; i<end; i++) {
-      traders[i] = traders[i+1];
-    }
-  }
- 
-  // /// @notice computes the price for ZCB one needs to short at to completely
-  // /// hedge for the case of maximal loss, function of principal and interest
-  // function getHedgePrice(uint256 marketId) public view returns(uint256){
-  //   uint256 principal = getVault(marketId).fetchInstrumentData(marketId).principal; 
-  //   uint256 yield = getVault(marketId).fetchInstrumentData(marketId).expectedYield; 
-  //   uint256 den = principal.mulWadDown(config.WAD - marketManager.getParameters(marketId).alpha); 
-  //   return config.WAD - yield.divWadDown(den); 
-  // }
-
-  // /// @notice computes maximum amount of quantity that trader can short while being hedged
-  // /// such that when he loses his loss will be offset by his gains  
-  // function getHedgeQuantity(address trader, uint256 marketId) public view returns(uint256){
-  //   uint num = getVault(marketId).fetchInstrumentData(marketId)
-  //             .principal.mulWadDown(config.WAD - marketManager.getParameters(marketId).alpha); 
-  //   return num.mulDivDown(getVault(marketId).balanceOf(trader), 
-  //             getVault(marketId).totalSupply()); 
-  // }
 
   /// @notice calculates implied probability of the trader, used to
   /// update the reputation score by brier scoring mechanism 
@@ -1012,6 +816,7 @@ contract Controller {
   function marketIdToVaultId(uint256 marketId) public view returns(uint256){
     return id_parent[marketId]; 
   }
+  
   function getMarketIds(uint256 vaultId) public view returns (uint256[] memory) {
     return vault_to_marketIds[vaultId];
   }

@@ -11,6 +11,7 @@ import {FixedPointMath} from "../contracts/bonds/libraries.sol";
 import {CoveredCallOTC} from "../contracts/vaults/dov.sol";
 import {ERC20} from "solmate/tokens/ERC20.sol";
 import {SimpleNFTPool} from "../contracts/vaults/nftLending.sol"; 
+import {ReputationManager} from "../contracts/protocol/reputationmanager.sol";
 
 contract TestBase is Test {
     using FixedPointMath for uint256; 
@@ -67,6 +68,8 @@ contract TestBase is Test {
     uint256 shortCollateral = principal; 
     uint256 longCollateral = shortCollateral.mulWadDown(pricePerContract); 
 
+    ReputationManager reputationManager;
+
     function setUsers() public {
         jonna = address(0xbabe);
         vm.label(jonna, "jonna"); // manager1
@@ -85,14 +88,14 @@ contract TestBase is Test {
         toku = address(0xbabe8);
         vm.label(toku, "toku"); 
 
-        controller._incrementScore(jonna, precision);
-        controller._incrementScore(jott, precision);
-        controller._incrementScore(gatdang, precision);
-        controller._incrementScore(sybal, precision);
-        controller._incrementScore(chris, precision);
-        controller._incrementScore(miku, precision);
-        controller._incrementScore(goku, precision);
-        controller._incrementScore(toku, precision);
+        reputationManager.incrementScore(jonna, precision);
+        reputationManager.incrementScore(jott, precision);
+        reputationManager.incrementScore(gatdang, precision);
+        reputationManager.incrementScore(sybal, precision);
+        reputationManager.incrementScore(chris, precision);
+        reputationManager.incrementScore(miku, precision);
+        reputationManager.incrementScore(goku, precision);
+        reputationManager.incrementScore(toku, precision);
 
         vm.prank(jonna); 
         collateral.faucet(10000000*precision);
@@ -140,7 +143,7 @@ contract TestBase is Test {
         data.expectedYield = interest;
         data.duration = duration;
         data.description = "test";
-        data.Instrument_address = address(instrument);
+        data.instrument_address = address(instrument);
         data.instrument_type = Vault.InstrumentType.CreditLine;
         data.maturityDate = 10; 
 
@@ -162,7 +165,7 @@ contract TestBase is Test {
         data.expectedYield = interest;
         data.duration = duration;
         data.description = "test";
-        data.Instrument_address = address(otc);
+        data.instrument_address = address(otc);
         data.instrument_type = Vault.InstrumentType.CoveredCall;
         data.maturityDate = 10; 
         controller.initiateMarket(toku, data, 1);
@@ -193,7 +196,7 @@ contract TestBase is Test {
         data.expectedYield = 0;
         data.duration = 0;
         data.description = "test";
-        data.Instrument_address = address(nftPool);
+        data.instrument_address = address(nftPool);
         data.instrument_type = Vault.InstrumentType.Pool;
         data.maturityDate = 0; 
         data.poolData = poolData; 

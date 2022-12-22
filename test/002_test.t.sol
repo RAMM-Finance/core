@@ -11,6 +11,7 @@ import {SyntheticZCBPoolFactory,ZCBFactory} from "contracts/bonds/synthetic.sol"
 import {Cash} from "contracts/utils/Cash.sol";
 import {ERC4626} from "contracts/vaults/mixins/ERC4626.sol";
 import {FixedPointMathLib} from "solmate/utils/FixedPointMathLib.sol";
+import {ReputationManager} from "contracts/protocol/reputationmanager.sol";
 
 contract ValdiatorTests is Test {
     using stdStorage for StdStorage;
@@ -58,6 +59,8 @@ contract ValdiatorTests is Test {
 
     uint256[] randomWords;
 
+    ReputationManager rm;
+
     function setUp() public {
         c = new Controller(deployer, address(0));
         cash = new Cash("n","n",18);
@@ -76,16 +79,18 @@ contract ValdiatorTests is Test {
      ZCBFactory zcbfactory = new ZCBFactory(); 
         pf = new SyntheticZCBPoolFactory(address(c), address(zcbfactory)); 
 
+        rm = new ReputationManager(address(c), address(mm));
+
 
 
         addressSetup();
-        addUserScores();
         addUserFunds();
         vm.startPrank(deployer); 
 
         c.setMarketManager(address(mm));
         c.setVaultFactory(address(vf));
         c.setPoolFactory(address(pf));
+        c.setReputationManager(address(rm));
         vm.stopPrank(); 
         c.createVault(
             address(cash),
@@ -106,6 +111,10 @@ contract ValdiatorTests is Test {
         instrument.setUtilizer(jott); 
     }
 
+    function testReputationManager() public {
+        addUserScores();
+    }
+
 
 
     function initiateCreditMarket() public {
@@ -119,9 +128,10 @@ contract ValdiatorTests is Test {
         data.expectedYield = interest;
         data.duration = duration;
         data.description = "test";
-        data.Instrument_address = address(instrument);
+        data.instrument_address = address(instrument);
         data.instrument_type = Vault.InstrumentType.CreditLine;
         data.maturityDate = 10; 
+        data.name = "name";
 
         c.initiateMarket(jott, data, 1);
 
@@ -129,31 +139,35 @@ contract ValdiatorTests is Test {
         words[0] = 19238489189248918234;
         words[1] = 172837;
         words[2] = 18928;
+        (uint256 N, , , , , , , ) =mm.parameters(1);
+        console.log(N);
         c.fulfillRandomWords(1, words);
 
         (bool assess, bool onlyrep, bool resolved, bool alive, bool atloss, uint256 budget) = mm.restriction_data(1);
 
-        assertEq(assess, true);
-        assertEq(onlyrep, true);   
-        assertEq(alive, true);
-        assertEq(address(v.Instruments(1)), address(instrument));
+        assertEq(assess, true, "not during assessment");
+        assertEq(onlyrep, true, "not during reputation");   
+        assertEq(alive, true, "not alive");
+        assertEq(address(v.Instruments(1)), address(instrument), "not equal");
     }
 
-    function testFilterTraders() public {
-        address [] memory stuff = c._filterTraders(10, jott);
+    // function testFilterTraders() public {
+    //     address [] memory stuff = c._filterTraders(10, jott);
         
-        c._filterTraders(90*W, jeong);
+    //     c._filterTraders(90*W, jeong);
 
-        c._filterTraders(50*W, jeong);
-    }
+    //     c._filterTraders(50*W, jeong);
+    // }    
 
     function testChooseValidators() public {
+        addUserScores();
         initiateCreditMarket();
         emit log_array(c.viewValidators(1));
-        assertEq(c.viewValidators(1).length, N);
+        assertEq(c.viewValidators(1).length, N, "number of validators and parameter is not same");
     }
 
     function testDenyBeforeMarketApproval1() public  {
+        addUserScores();
         initiateCreditMarket();
         address[] memory vals = c.viewValidators(1);
         console.log("validators: ", vals[0], vals[1], vals[2]);
@@ -175,6 +189,7 @@ contract ValdiatorTests is Test {
     }
 
     function testDenyBeforeMarketApproval2() public {
+        addUserScores();
         initiateCreditMarket();
         address[] memory vals = c.viewValidators(1);
         // test retrieve stake
@@ -384,16 +399,17 @@ contract ValdiatorTests is Test {
     }
 
     function addUserScores() public {
-        c._incrementScore(jonna, 10);
-        c._incrementScore(jott, 20);
-        c._incrementScore(gatdang, 30);
-        c._incrementScore(goku, 40);
-        c._incrementScore(toku, 50);
-        c._incrementScore(miku, 60);
-        c._incrementScore(chris, 70);
-        c._incrementScore(sybal, 80);
-        c._incrementScore(zeke, 90);
-        c._incrementScore(jeong, 100);
+
+        rm.incrementScore(jonna, 10);
+        rm.incrementScore(jott, 20);
+        rm.incrementScore(gatdang, 30);
+        rm.incrementScore(goku, 40);
+        rm.incrementScore(toku, 50);
+        rm.incrementScore(miku, 60);
+        rm.incrementScore(chris, 70);
+        rm.incrementScore(sybal, 80);
+        rm.incrementScore(zeke, 90);
+        rm.incrementScore(jeong, 100);
     }
 
     function addUserFunds() public {

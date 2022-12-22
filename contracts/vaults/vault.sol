@@ -60,6 +60,7 @@ contract Vault is ERC4626, Auth{
     /// @param trusted Whether the Instrument is trusted.
     /// @param balance The amount of underlying tokens held in the Instrument.
     struct InstrumentData {
+      bytes32 name;
       bool isPool; 
       // Used to determine if the Vault will operate on a Instrument.
       bool trusted;
@@ -73,10 +74,9 @@ contract Vault is ERC4626, Auth{
       uint256 expectedYield; // total interest paid over duration in underlying
       uint256 duration;
       string description;
-      address Instrument_address;
+      address instrument_address;
       InstrumentType instrument_type;
       uint256 maturityDate;
-
       PoolData poolData; 
     }
 
@@ -159,7 +159,7 @@ contract Vault is ERC4626, Auth{
       _burn(to, balanceOf[to]); 
     }
 
-    struct localVars{
+  struct localVars{
     uint256 promised_return; 
     uint256 inceptionTime; 
     uint256 inceptionPrice; 
@@ -378,9 +378,9 @@ contract Vault is ERC4626, Auth{
       }
         num_proposals[msg.sender] ++; 
 
-        instrument_data[Instrument(data.Instrument_address)] = data;  
+        instrument_data[Instrument(data.instrument_address)] = data;  
 
-        Instruments[data.marketId] = Instrument(data.Instrument_address);
+        Instruments[data.marketId] = Instrument(data.instrument_address);
     }
 
     function setMaturityDate(uint256 marketId) internal {
@@ -471,7 +471,7 @@ contract Vault is ERC4626, Auth{
     function denyInstrument(uint256 marketId) external onlyController {
         InstrumentData storage data = instrument_data[Instruments[marketId]];
 
-        require(marketId > 0 && data.Instrument_address != address(0), "invalid instrument");
+        require(marketId > 0 && data.instrument_address != address(0), "invalid instrument");
 
         require(!data.trusted, "can't deny approved instrument");
         
