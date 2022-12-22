@@ -1,10 +1,11 @@
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 import { DeployFunction } from "hardhat-deploy/types";
+// import { BigNumber } from "ethers";
 
 const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
-  // const { deployments, getNamedAccounts } = hre;
-  // const { deployer } = await getNamedAccounts();
-  // const cash_addr = (await deployments.get("Collateral")).address;
+  const { deployments, getNamedAccounts } = hre;
+  const { deployer } = await getNamedAccounts();
+  const cash_addr = (await deployments.get("Collateral")).address;
   // const controller_addr = (await deployments.get("Controller")).address;
   // const args = [controller_addr];
   // // await deployments.deploy("Vault", {
@@ -18,14 +19,14 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   //   args,
   //   log: true, 
   // });
-  
-  // const vault_addr = (await deployments.get("Vault")).address;
-  // const cr_args = [vault_addr, deployer, 1000000, 100000, 1000000, 1100000]
-  // await deployments.deploy("CreditLine", {
-  //   from: deployer,
-  //   args: cr_args,
-  //   log: true,
-  // });
+          
+  const cr_args = ["0x88197517e53F3E82a5385339bD41cF65e32ed82F", deployer, 10000, 1000, 100, 11000, 
+  cash_addr, cash_addr, 0,0]
+  await deployments.deploy("CreditLine", {
+    from: deployer,
+    args: cr_args,
+    log: true,
+  });
 
 };
         

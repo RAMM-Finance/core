@@ -236,6 +236,7 @@ contract CreditLine is Instrument {
 
     // Collateral Info 
     enum CollateralType{
+        none,
         liquidateAble, 
         nonLiquid, 
         ownership 
@@ -286,14 +287,14 @@ contract CreditLine is Instrument {
         uint256 _collateral_type
     )  Instrument(vault, _borrower) {
         borrower = _borrower; 
-        principal = _principal; 
-        notionalInterest = _notionalInterest; 
+        principal = DUST* _principal; 
+        notionalInterest =DUST* _notionalInterest; 
         duration = _duration;   
-        faceValue = _faceValue;
+        faceValue = DUST*_faceValue;
 
         collateral = _collateral; 
         oracle = _oracle; 
-        collateral_balance = _collateral_balance; 
+        collateral_balance = DUST*_collateral_balance; 
         collateral_type = CollateralType(_collateral_type); 
 
         loanStatus = LoanStatus.notApproved; 
