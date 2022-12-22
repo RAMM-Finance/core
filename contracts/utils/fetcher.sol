@@ -6,8 +6,11 @@ import {VaultFactory} from "../protocol/factories.sol";
 import {Controller} from "../protocol/controller.sol";
 import {ERC20} from "../vaults/tokens/ERC20.sol";
 import {SyntheticZCBPool} from "../bonds/synthetic.sol";
+import {FixedPointMathLib} from "solmate/utils/FixedPointMathLib.sol";
 
 contract Fetcher {
+    using FixedPointMathLib for uint256;
+
     /**
         static => only called on creation of vault or market.
         dynamic => called continuously.
@@ -17,6 +20,18 @@ contract Fetcher {
         string symbol;
         uint256 decimals;
         string name;
+    }
+
+    struct ValidatorBundle {
+        address[] validators;
+        uint256 val_cap;
+        uint256 avg_price;
+        uint256 totalSales;
+        uint256 totalStaked;
+        uint256 numApproved;
+        uint256 initialStake;
+        uint256 finalStake;
+        uint256 numResolved;
     }
 
     // change types
@@ -32,6 +47,7 @@ contract Fetcher {
         AssetBundle want;
         uint256 totalShares;
         address vault_address;
+        uint256 exchange_rate;
     }
 
     struct MarketBundle {
@@ -49,6 +65,7 @@ contract Fetcher {
         SyntheticZCBPool bondPool;
         MarketManager.MarketParameters parameters;
         MarketManager.MarketPhaseData phase;
+        ValidatorBundle validatorData;
     }
 
     struct InstrumentBundle {
@@ -112,6 +129,7 @@ contract Fetcher {
         vaultBundle.totalShares = vault.totalSupply();
         vaultBundle.vault_address = address(vault);
         vaultBundle.name = vault.name();
+        vaultBundle.exchange_rate = uint256(vault.totalSupply()).divWadDown(vault.totalAssets());
 
         if (vaultBundle.marketIds.length == 0) {
             return (vaultBundle, new MarketBundle[](0), new InstrumentBundle[](0), timestamp);
@@ -167,6 +185,19 @@ contract Fetcher {
         bundle.totalCollateral = marketManager.loggedCollaterals(mid);
         bundle.longZCBsupply = data.longZCB.totalSupply();
         bundle.longZCBprice = data.bondPool.getCurPrice();
+        bundle.validatorData = buildValidatorBundle(mid, controller);
+    }
+
+    function buildValidatorBundle(uint256 mid, Controller controller) view internal returns (ValidatorBundle memory bundle)  {
+        bundle.avg_price = controller.getValidatorPrice(mid);
+        bundle.validators = controller.viewValidators(mid);
+        bundle.totalSales = controller.getTotalValidatorSales(mid);
+        bundle.totalStaked = controller.getTotalStaked(mid);
+        bundle.numApproved = controller.getNumApproved(mid);
+        bundle.initialStake = controller.getInitialStake(mid);
+        bundle.finalStake = controller.getFinalStake(mid);
+        bundle.numResolved = controller.getNumResolved(mid);
+        bundle.val_cap = controller.getValidatorCap(mid);
     }
 
     function makeEmptyVaultBundle() pure internal returns (VaultBundle memory) {
@@ -181,7 +212,8 @@ contract Fetcher {
             0,
             AssetBundle(address(0), "", 0, ""),
             0,
-            address(0)
+            address(0),
+            0
         );
     }
 }

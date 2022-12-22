@@ -32,6 +32,8 @@ contract Controller {
     uint256 approved_principal; 
     uint256 approved_yield; 
   }
+
+
   
   event MarketInitiated(uint256 marketId, address recipient);
 
@@ -422,7 +424,7 @@ contract Controller {
   }
 
   mapping(uint256 => uint256) requestToMarketId;
-  mapping(uint256 => ValidatorData) validator_data;
+  mapping(uint256 => ValidatorData) public validator_data;
 
     /// @notice sets the validator cap + valdiator amount 
   /// param prinicipal is saleAmount for pool based instruments 
@@ -438,6 +440,14 @@ contract Controller {
     _setValidatorStake(marketId, principal);
   }
 
+  function getValidatorPrice(uint256 marketId) view public returns (uint256) {
+    return validator_data[marketId].avg_price;
+  }
+
+  function getValidatorCap(uint256 marketId) view public returns (uint256) {
+    return validator_data[marketId].val_cap;
+  }  
+
   function viewValidators(uint256 marketId) view public returns (address[] memory) {
     return validator_data[marketId].validators;
   }
@@ -452,6 +462,10 @@ contract Controller {
 
   function getTotalStaked(uint256 marketId) view public returns (uint256) {
     return validator_data[marketId].totalStaked;
+  }
+
+  function getTotalValidatorSales(uint256 marketId) view public returns (uint256) {
+    return validator_data[marketId].totalSales;
   }
 
   function getInitialStake(uint256 marketId) view public returns (uint256) {
@@ -1010,7 +1024,7 @@ contract Controller {
   function marketIdToVaultId(uint256 marketId) public view returns(uint256){
     return id_parent[marketId]; 
   }
-
+  
   function getMarketIds(uint256 vaultId) public view returns (uint256[] memory) {
     return vault_to_marketIds[vaultId];
   }

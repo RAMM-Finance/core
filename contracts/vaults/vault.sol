@@ -60,6 +60,7 @@ contract Vault is ERC4626, Auth{
     /// @param trusted Whether the Instrument is trusted.
     /// @param balance The amount of underlying tokens held in the Instrument.
     struct InstrumentData {
+      bytes32 name;
       bool isPool; 
       // Used to determine if the Vault will operate on a Instrument.
       bool trusted;
