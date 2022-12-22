@@ -12,6 +12,7 @@ import {LinearCurve} from "contracts/bonds/GBC.sol";
 import {FixedPointMath} from "contracts/bonds/libraries.sol"; 
 import {CoveredCallOTC} from "contracts/vaults/dov.sol";
 import {ERC20} from "solmate/tokens/ERC20.sol";
+import {ReputationManager} from "contracts/protocol/reputationmanager.sol";
 
 contract FullCycleTest is Test {
     using FixedPointMath for uint256; 
@@ -65,6 +66,7 @@ contract FullCycleTest is Test {
     uint256 pricePerContract = precision/10; //pricepercontract * 
     uint256 shortCollateral = principal; 
     uint256 longCollateral = shortCollateral.mulWadDown(pricePerContract); 
+    ReputationManager reputationManager;
 
     function setUsers() public {
         jonna = address(0xbabe);
@@ -84,14 +86,15 @@ contract FullCycleTest is Test {
         toku = address(0xbabe8);
         vm.label(toku, "toku"); 
 
-        controller._incrementScore(jonna, precision);
-        controller._incrementScore(jott, precision);
-        controller._incrementScore(gatdang, precision);
-        controller._incrementScore(sybal, precision);
-        controller._incrementScore(chris, precision);
-        controller._incrementScore(miku, precision);
-        controller._incrementScore(goku, precision);
-        controller._incrementScore(toku, precision);
+
+        reputationManager.incrementScore(jonna, precision);
+        reputationManager.incrementScore(jott, precision);
+        reputationManager.incrementScore(gatdang, precision);
+        reputationManager.incrementScore(sybal, precision);
+        reputationManager.incrementScore(chris, precision);
+        reputationManager.incrementScore(miku, precision);
+        reputationManager.incrementScore(goku, precision);
+        reputationManager.incrementScore(toku, precision);
 
         vm.prank(jonna); 
         collateral.faucet(10000000*precision);
@@ -139,12 +142,14 @@ contract FullCycleTest is Test {
             address(0),data, uint64(0)
         );
         ZCBFactory zcbfactory = new ZCBFactory(); 
-        poolFactory = new SyntheticZCBPoolFactory(address(controller), address(zcbfactory)); 
+        poolFactory = new SyntheticZCBPoolFactory(address(controller), address(zcbfactory));
+        reputationManager = new ReputationManager(address(controller), address(marketmanager)); 
 
         vm.startPrank(deployer); 
         controller.setMarketManager(address(marketmanager));
         controller.setVaultFactory(address(vaultFactory));
         controller.setPoolFactory(address(poolFactory)); 
+        controller.setReputationManager(address(reputationManager));
         vm.stopPrank(); 
 
         controller.createVault(
@@ -156,8 +161,9 @@ contract FullCycleTest is Test {
             MarketManager.MarketParameters(N, sigma, alpha, omega, delta, r, s, steak)
         ); //vaultId = 1; 
         vault_ad = controller.getVaultfromId(1); 
-
+        console.log("A");
         setUsers();
+        console.log("B");
 
         instrument = new CreditLine(
             vault_ad, 
@@ -195,6 +201,7 @@ contract FullCycleTest is Test {
         data.instrument_address = address(instrument);
         data.instrument_type = Vault.InstrumentType.CreditLine;
         data.maturityDate = 10; 
+        data.name = "name";
 
         controller.initiateMarket(jott, data, 1);
         uint256[] memory words = new uint256[](N);
@@ -716,12 +723,12 @@ contract FullCycleTest is Test {
 
         closeMarket(vars); 
 
-        uint scoreBefore1 = controller.trader_scores( jonna); 
-        uint scoreBefore2 = controller.trader_scores( sybal); 
-        uint scoreBefore3 = controller.trader_scores( miku); 
-        uint scoreBefore4 = controller.trader_scores( chris); 
-        uint scoreBefore5 = controller.trader_scores( gatdang); 
-        // uint scoreBefore4 = controller.trader_scores( jonna); 
+        uint scoreBefore1 = controller.getTraderScore( jonna); 
+        uint scoreBefore2 = controller.getTraderScore( sybal); 
+        uint scoreBefore3 = controller.getTraderScore( miku); 
+        uint scoreBefore4 = controller.getTraderScore( chris); 
+        uint scoreBefore5 = controller.getTraderScore( gatdang); 
+        // uint scoreBefore4 = controller.getTraderScore( jonna); 
 
         // Now let managers redeem, reputation score dif
         vm.prank(jonna); 
@@ -736,24 +743,24 @@ contract FullCycleTest is Test {
         marketmanager.redeem(vars.marketId);
 
         if (increase){
-        assert(controller.trader_scores(jonna)> scoreBefore1);  
-        assert(controller.trader_scores(sybal)> scoreBefore2);  
-        assert(controller.trader_scores(miku)> scoreBefore3);  
-        assert(controller.trader_scores(chris)== scoreBefore4);  
+        assert(controller.getTraderScore(jonna)> scoreBefore1);  
+        assert(controller.getTraderScore(sybal)> scoreBefore2);  
+        assert(controller.getTraderScore(miku)> scoreBefore3);  
+        assert(controller.getTraderScore(chris)== scoreBefore4);  
 
         }
         else{
-        assert(controller.trader_scores(jonna)< scoreBefore1);  
-        assert(controller.trader_scores(sybal)< scoreBefore2);  
-        assert(controller.trader_scores(miku)< scoreBefore3);  
-        assert(controller.trader_scores(chris)== scoreBefore4);  
+        assert(controller.getTraderScore(jonna)< scoreBefore1);  
+        assert(controller.getTraderScore(sybal)< scoreBefore2);  
+        assert(controller.getTraderScore(miku)< scoreBefore3);  
+        assert(controller.getTraderScore(chris)== scoreBefore4);  
         }
   
 
-        console.log('before after', scoreBefore1,controller.trader_scores(jonna) ); 
-        console.log('before after', scoreBefore2,controller.trader_scores(sybal) ); 
-        console.log('before after', scoreBefore3,controller.trader_scores(miku) ); 
-        console.log(marketmanager.getMaxLeverage( jonna)); 
+        console.log('before after', scoreBefore1,controller.getTraderScore(jonna) ); 
+        console.log('before after', scoreBefore2,controller.getTraderScore(sybal) ); 
+        console.log('before after', scoreBefore3,controller.getTraderScore(miku) ); 
+        console.log(marketmanager.getMaxLeverage(jonna)); 
     }
 
     function testLeverageBuyAndRedemption() public{
@@ -777,7 +784,7 @@ contract FullCycleTest is Test {
 
         bytes memory data; 
 
-        controller.setTraderScore(miku, precision*5); 
+        reputationManager.setTraderScore(miku, precision*5); 
         uint bal = collateral.balanceOf(miku); 
         doApproveCol(address(marketmanager), miku); 
         vm.prank(miku);
@@ -833,7 +840,7 @@ contract FullCycleTest is Test {
 
         bytes memory data;
 
-        controller.setTraderScore(miku, precision*5); 
+        reputationManager.setTraderScore(miku, precision*5); 
         uint bal = collateral.balanceOf(miku); 
         doApproveCol(address(marketmanager), miku); 
         vm.prank(miku);

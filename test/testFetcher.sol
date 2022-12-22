@@ -13,10 +13,13 @@ import {FixedPointMath} from "contracts/bonds/libraries.sol";
 import {CoveredCallOTC} from "contracts/vaults/dov.sol";
 import {ERC20} from "solmate/tokens/ERC20.sol";
 import {Fetcher} from "contracts/utils/fetcher.sol";
+import {ReputationManager} from "contracts/protocol/reputationmanager.sol";
 
 contract FullCycleTest is Test {
     using FixedPointMath for uint256; 
     using stdStorage for StdStorage; 
+
+    ReputationManager reputationManager;
 
     Controller controller;
     MarketManager marketmanager;
@@ -85,14 +88,14 @@ contract FullCycleTest is Test {
         toku = address(0xbabe8);
         vm.label(toku, "toku"); 
 
-        controller._incrementScore(jonna, precision);
-        controller._incrementScore(jott, precision);
-        controller._incrementScore(gatdang, precision);
-        controller._incrementScore(sybal, precision);
-        controller._incrementScore(chris, precision);
-        controller._incrementScore(miku, precision);
-        controller._incrementScore(goku, precision);
-        controller._incrementScore(toku, precision);
+        reputationManager.incrementScore(jonna, precision);
+        reputationManager.incrementScore(jott, precision);
+        reputationManager.incrementScore(gatdang, precision);
+        reputationManager.incrementScore(sybal, precision);
+        reputationManager.incrementScore(chris, precision);
+        reputationManager.incrementScore(miku, precision);
+        reputationManager.incrementScore(goku, precision);
+        reputationManager.incrementScore(toku, precision);
 
         vm.prank(jonna); 
         collateral.faucet(10000000*precision);
@@ -139,6 +142,8 @@ contract FullCycleTest is Test {
             address(controller), 
             address(0),data, uint64(0)
         );
+        reputationManager = new ReputationManager(address(controller), address(marketmanager));
+        
         ZCBFactory zcbfactory = new ZCBFactory(); 
         poolFactory = new SyntheticZCBPoolFactory(address(controller), address(zcbfactory)); 
 
@@ -146,6 +151,7 @@ contract FullCycleTest is Test {
         controller.setMarketManager(address(marketmanager));
         controller.setVaultFactory(address(vaultFactory));
         controller.setPoolFactory(address(poolFactory)); 
+        controller.setReputationManager(address(reputationManager));
         vm.stopPrank(); 
 
         controller.createVault(
@@ -158,7 +164,9 @@ contract FullCycleTest is Test {
         ); //vaultId = 1; 
         vault_ad = controller.getVaultfromId(1); 
 
+        console.log("A");
         setUsers();
+        console.log("B");
 
         instrument = new CreditLine(
             vault_ad, 
@@ -196,6 +204,7 @@ contract FullCycleTest is Test {
         data.instrument_address = address(instrument);
         data.instrument_type = Vault.InstrumentType.CreditLine;
         data.maturityDate = 10; 
+        data.name = "instrument name";
 
         controller.initiateMarket(jott, data, 1);
         uint256[] memory words = new uint256[](N);
@@ -227,6 +236,18 @@ contract FullCycleTest is Test {
     }
 
     function testFetcher() public {
+        vault_ad = controller.getVaultfromId(1); 
+        Vault vault = Vault(vault_ad);
+
+        vm.prank(goku);
+        collateral.faucet(1000000);
+
+        vm.prank(goku);
+        collateral.approve(address(vault), 1000);
+        
+        vm.prank(goku);
+        vault.deposit(1000, goku);
+
         controller.createVault(
             address(collateral),
             false,
@@ -266,25 +287,41 @@ contract FullCycleTest is Test {
             console.log("totalShares: ", v.totalShares);
             console.log("vault address: ", v.vault_address);
             console.log("vault name: ", v.name);
+            console.log("utilization_rate: ", v.utilizationRate);
+            console.log("totalAssets: ", v.totalAssets);
+            console.log("exchangeRate: ", v.exchangeRate);
 
             console.log("MARKET LOG: ");
             if (m.length > 0) {
                 for (uint j; j < m.length; j++) {
                     console.log("market id: ", m[j].marketId);
-                    console.log("vaultId", m[j].vaultId);
-                    console.log("creationTimestamp", m[j].creationTimestamp);
-                    console.log("longZCB", m[j].longZCB);
-                    console.log("shortZCB", m[j].shortZCB);
-                    console.log("approved_principal", m[j].approved_principal);
-                    console.log("approved_yield", m[j].approved_yield);
-                    console.log("bondPool", address(m[j].bondPool));
+                    // console.log("vaultId", m[j].vaultId);
+                    // console.log("creationTimestamp", m[j].creationTimestamp);
+                    // console.log("longZCB", m[j].longZCB);
+                    // console.log("shortZCB", m[j].shortZCB);
+                    // console.log("approved_principal", m[j].approved_principal);
+                    // console.log("approved_yield", m[j].approved_yield);
+                    // console.log("bondPool", address(m[j].bondPool));
                     //console.log("parameters", m[j].parameters.N, m[j].parameters.sigma, m[j].parameters.alpha, m[j].parameters.omega, m[j].parameters.delta, m[j].parameters.r, m[j].parameters.s, m[j].parameters.steak);
                     console.log("parameters", m[j].parameters.N);
                     //console.log("phase:", m[j].phase.duringAssessment, m[j].phase.onlyReputable, m[j].phase.resolved, m[j].phase.alive, m[j].phase.atLoss);
-                    console.log("phase: ", m[j].phase.alive);
-                    console.log("longZCBsupply", m[j].longZCBsupply);
-                    console.log("longZCBprice", m[j].longZCBprice);
+                    // console.log("phase: ", m[j].phase.alive);
+                    // console.log("longZCBsupply", m[j].longZCBsupply);
+                    // console.log("longZCBprice", m[j].longZCBprice);
+                    emit log_array(m[j].validatorData.validators);
+                    console.log("val_cap", m[j].validatorData.val_cap);
+                    console.log("avg_price", m[j].validatorData.avg_price);
+                    console.log("totalSales", m[j].validatorData.totalSales);
+                    console.log("totalStaked", m[j].validatorData.totalStaked);
+                    console.log("numApproved", m[j].validatorData.numApproved);
+                    console.log("initialStake", m[j].validatorData.initialStake);
+                    console.log("finalStake", m[j].validatorData.finalStake);
+                    console.log("numResolved", m[j].validatorData.numResolved);
+
                 }
+            }
+            if (instrs.length > 0) {
+                console.log(string(abi.encodePacked(instrs[0].name)));
             }
         }
     }

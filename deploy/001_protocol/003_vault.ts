@@ -2,16 +2,16 @@ import { HardhatRuntimeEnvironment } from "hardhat/types";
 import { DeployFunction } from "hardhat-deploy/types";
 
 const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
-  // const { deployments, getNamedAccounts } = hre;
-  // const { deployer } = await getNamedAccounts();
-  // const cash_addr = (await deployments.get("Collateral")).address;
-  // const controller_addr = (await deployments.get("Controller")).address;
-  // const args = [controller_addr];
-  // // await deployments.deploy("Vault", {
-  // //   from: deployer,
-  // //   args,
-  // //   log: true,
-  // // });
+  const { deployments, getNamedAccounts } = hre;
+  const { deployer } = await getNamedAccounts();
+  const cash_addr = (await deployments.get("Collateral")).address;
+  const controller_addr = (await deployments.get("Controller")).address;
+  const args = [controller_addr];
+  // await deployments.deploy("Vault", {
+  //   from: deployer,
+  //   args,
+  //   log: true,
+  // });
 
   // await deployments.deploy("VaultFactory", {
   //   from: deployer,
@@ -29,6 +29,6 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
 
 };
         
-func.tags = ["Vault"];
+// func.tags = ["Vault"];
   
 export default func;

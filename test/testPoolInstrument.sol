@@ -13,6 +13,7 @@ import {FixedPointMath} from "../contracts/bonds/libraries.sol";
 import {CoveredCallOTC} from "../contracts/vaults/dov.sol";
 import {ERC20} from "solmate/tokens/ERC20.sol";
 import {SimpleNFTPool} from "../contracts/vaults/nftLending.sol"; 
+import {ReputationManager} from "../contracts/protocol/reputationmanager.sol";
 
 import {TestBase} from "./testbase.sol";
 
@@ -34,11 +35,13 @@ contract PoolInstrumentTest is TestBase {
         );
         ZCBFactory zcbfactory = new ZCBFactory(); 
         poolFactory = new SyntheticZCBPoolFactory(address(controller), address(zcbfactory)); 
+        reputationManager = new ReputationManager(address(controller), address(marketmanager));
 
         vm.startPrank(deployer); 
         controller.setMarketManager(address(marketmanager));
         controller.setVaultFactory(address(vaultFactory));
         controller.setPoolFactory(address(poolFactory)); 
+        controller.setReputationManager(address(reputationManager));
         vm.stopPrank(); 
 
         controller.createVault(

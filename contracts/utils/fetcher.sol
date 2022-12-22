@@ -47,7 +47,9 @@ contract Fetcher {
         AssetBundle want;
         uint256 totalShares;
         address vault_address;
-        uint256 exchange_rate;
+        uint256 exchangeRate;
+        uint256 totalAssets;
+        uint256 utilizationRate;
     }
 
     struct MarketBundle {
@@ -84,6 +86,7 @@ contract Fetcher {
         Vault.InstrumentType instrument_type;
         uint256 maturityDate;
         Vault.PoolData poolData;
+        bytes32 name;
     }
 
     function buildAssetBundle(ERC20 _asset) internal view returns (AssetBundle memory _bundle) {
@@ -115,6 +118,8 @@ contract Fetcher {
         // vault bundle
         Vault vault = _controller.vaults(vaultId);
 
+        uint256 one_asset = 10**vault.asset().decimals();
+
         if (address(vault) == address(0)) {
             return (makeEmptyVaultBundle(), new MarketBundle[](0), new InstrumentBundle[](0), timestamp);
         }
@@ -129,7 +134,9 @@ contract Fetcher {
         vaultBundle.totalShares = vault.totalSupply();
         vaultBundle.vault_address = address(vault);
         vaultBundle.name = vault.name();
-        vaultBundle.exchange_rate = uint256(vault.totalSupply()).divWadDown(vault.totalAssets());
+        vaultBundle.exchangeRate = vault.previewDeposit(one_asset);
+        vaultBundle.utilizationRate = vault.utilizationRate();
+        vaultBundle.totalAssets = vault.totalAssets(); 
 
         if (vaultBundle.marketIds.length == 0) {
             return (vaultBundle, new MarketBundle[](0), new InstrumentBundle[](0), timestamp);
@@ -166,6 +173,7 @@ contract Fetcher {
         bundle.poolData = data.poolData;
         bundle.instrument_address = address(data.instrument_address);
         bundle.utilizer = utilizer;
+        bundle.name = data.name;
     }
 
     function buildMarketBundle(uint256 mid, uint256 vid, Controller controller, MarketManager marketManager) internal view returns (MarketBundle memory bundle) {
@@ -213,6 +221,8 @@ contract Fetcher {
             AssetBundle(address(0), "", 0, ""),
             0,
             address(0),
+            0,
+            0,
             0
         );
     }

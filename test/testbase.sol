@@ -11,6 +11,7 @@ import {FixedPointMath} from "../contracts/bonds/libraries.sol";
 import {CoveredCallOTC} from "../contracts/vaults/dov.sol";
 import {ERC20} from "solmate/tokens/ERC20.sol";
 import {SimpleNFTPool} from "../contracts/vaults/nftLending.sol"; 
+import {ReputationManager} from "../contracts/protocol/reputationmanager.sol";
 
 contract TestBase is Test {
     using FixedPointMath for uint256; 
@@ -67,6 +68,8 @@ contract TestBase is Test {
     uint256 shortCollateral = principal; 
     uint256 longCollateral = shortCollateral.mulWadDown(pricePerContract); 
 
+    ReputationManager reputationManager;
+
     function setUsers() public {
         jonna = address(0xbabe);
         vm.label(jonna, "jonna"); // manager1
@@ -85,14 +88,14 @@ contract TestBase is Test {
         toku = address(0xbabe8);
         vm.label(toku, "toku"); 
 
-        controller._incrementScore(jonna, precision);
-        controller._incrementScore(jott, precision);
-        controller._incrementScore(gatdang, precision);
-        controller._incrementScore(sybal, precision);
-        controller._incrementScore(chris, precision);
-        controller._incrementScore(miku, precision);
-        controller._incrementScore(goku, precision);
-        controller._incrementScore(toku, precision);
+        reputationManager.incrementScore(jonna, precision);
+        reputationManager.incrementScore(jott, precision);
+        reputationManager.incrementScore(gatdang, precision);
+        reputationManager.incrementScore(sybal, precision);
+        reputationManager.incrementScore(chris, precision);
+        reputationManager.incrementScore(miku, precision);
+        reputationManager.incrementScore(goku, precision);
+        reputationManager.incrementScore(toku, precision);
 
         vm.prank(jonna); 
         collateral.faucet(10000000*precision);

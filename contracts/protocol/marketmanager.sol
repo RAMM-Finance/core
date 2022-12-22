@@ -297,7 +297,7 @@ contract MarketManager
   /// sqrt for now
   function getTraderBudget(uint256 marketId, address trader) public view returns(uint256){
     //uint256 repscore = repToken.getReputationScore(trader); 
-    uint256 repscore = controller.trader_scores(trader);
+    uint256 repscore = controller.getTraderScore(trader);
     
     if (repscore==0) return 0; 
 
@@ -337,7 +337,7 @@ contract MarketManager
     if (getTraderBudget(marketId, trader) <= uint256(amount))
       revert("budget");
 
-    if (controller.trader_scores(trader) == 0)
+    if (controller.getTraderScore(trader) == 0)
       revert("!rep"); 
   }
 
@@ -794,7 +794,7 @@ contract MarketManager
   /// @notice returns the manager's maximum leverage 
   function getMaxLeverage(address manager) public view returns(uint256){
     //return (repToken.getReputationScore(manager) * config.WAD).sqrt(); //TODO experiment 
-    return (controller.trader_scores(manager) * config.WAD).sqrt();
+    return (controller.getTraderScore(manager) * config.WAD).sqrt();
   }
 
   mapping(uint256=>mapping(address=> LeveredBond)) public leveragePosition; 
