@@ -164,7 +164,7 @@ contract Fetcher {
         bundle.instrument_type = data.instrument_type;
         bundle.maturityDate = data.maturityDate;
         bundle.poolData = data.poolData;
-        bundle.instrument_address = address(data.Instrument_address);
+        bundle.instrument_address = address(data.instrument_address);
         bundle.utilizer = utilizer;
     }
 

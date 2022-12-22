@@ -159,14 +159,14 @@ contract Controller {
     uint256 vaultId
   ) external  {
     require(recipient != address(0), "address0"); 
-    require(instrumentData.Instrument_address != address(0), "address0");
+    require(instrumentData.instrument_address != address(0), "address0");
     require(address(vaults[vaultId]) != address(0), "address0");
 
     Vault vault = vaults[vaultId]; 
     uint256 marketId = marketManager.marketCount();
     id_parent[marketId] = vaultId;
     vault_to_marketIds[vaultId].push(marketId);
-    market_data[marketId] = MarketData(instrumentData.Instrument_address, recipient);
+    market_data[marketId] = MarketData(instrumentData.instrument_address, recipient);
     marketManager.setParameters(vault.get_vault_params(), vault.utilizationRate(), marketId); //TODO non-default 
 
     // Create new pool and bonds and store initial price and liquidity for the pool

@@ -192,7 +192,7 @@ contract FullCycleTest is Test {
         data.expectedYield = interest;
         data.duration = duration;
         data.description = "test";
-        data.Instrument_address = address(instrument);
+        data.instrument_address = address(instrument);
         data.instrument_type = Vault.InstrumentType.CreditLine;
         data.maturityDate = 10; 
 
@@ -214,7 +214,7 @@ contract FullCycleTest is Test {
         data.expectedYield = interest;
         data.duration = duration;
         data.description = "test";
-        data.Instrument_address = address(otc);
+        data.instrument_address = address(otc);
         data.instrument_type = Vault.InstrumentType.CoveredCall;
         data.maturityDate = 10; 
         controller.initiateMarket(toku, data, 1);

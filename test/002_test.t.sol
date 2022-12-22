@@ -119,7 +119,7 @@ contract ValdiatorTests is Test {
         data.expectedYield = interest;
         data.duration = duration;
         data.description = "test";
-        data.Instrument_address = address(instrument);
+        data.instrument_address = address(instrument);
         data.instrument_type = Vault.InstrumentType.CreditLine;
         data.maturityDate = 10; 
 
