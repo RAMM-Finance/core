@@ -477,25 +477,32 @@ contract MarketManager
   }
 
 
-
   /// @notice after assessment, let managers buy newly issued longZCB if the instrument is pool based 
   /// funds + funds * levFactor will be directed to the instrument 
   function issuePoolBond(
     uint256 _marketId, 
     uint256 _amountIn
-    ) external _lock_ {
+    ) external _lock_ returns(uint256 issueQTY){
     require(!restriction_data[_marketId].duringAssessment, "Pre Approval"); 
     _canIssue(msg.sender, int256(_amountIn), _marketId);  
     Vault vault = controller.getVault(_marketId); 
+    ERC20 underlying = ERC20(address(markets[_marketId].bondPool.BaseToken())); 
 
     // Get price and sell longZCB with this price
     (uint256 psu, uint256 pju, uint256 levFactor ) = vault.poolZCBValue(_marketId);
-    markets[_marketId].bondPool.BaseToken().transferFrom(msg.sender, address(vault), _amountIn);
-    uint256 issueQTY = _amountIn.divWadDown(pju); 
+
+    underlying.transferFrom(msg.sender, address(this), _amountIn);
+    underlying.approve(address(vault.Instruments(_marketId)), _amountIn); 
+    vault.Instruments(_marketId).pullRawFunds(_amountIn); 
+
+    issueQTY = _amountIn.divWadDown(pju); 
     markets[_marketId].bondPool.trustedDiscountedMint(msg.sender, issueQTY); 
 
     // Need to transfer funds automatically to the instrument, seniorAmount is longZCB * levFactor * psu  
-    vault.depositIntoInstrument(_marketId, _amountIn + issueQTY.mulWadDown(levFactor).mulWadDown(psu)); 
+    vault.depositIntoInstrument(_marketId, issueQTY.mulWadDown(levFactor).mulWadDown(psu)); 
+    console.log('how much??', issueQTY.mulWadDown(levFactor).mulWadDown(psu)); 
+    //TODO Need totalAssets and exchange rate to remain same assertion 
+    //TODO reputation logs 
   }
 
   /// @notice when a manager redeems a poollongzcb, redeemAmount*levFactor are automatically 
@@ -504,9 +511,7 @@ contract MarketManager
     uint256 marketId, 
     uint256 redeemAmount
     ) external _lock_ returns(uint256 collateral_redeem_amount, uint256 seniorAmount){
-    require(!restriction_data[marketId].alive, "!market"); 
-    require(restriction_data[marketId].resolved, "!market"); 
-
+    // TODO conditions 
     Vault vault = controller.getVault(marketId); 
     CoreMarketData memory market = markets[marketId]; 
 
@@ -518,7 +523,7 @@ contract MarketManager
     seniorAmount = redeemAmount.mulWadDown(levFactor).mulWadDown(psu); 
 
     // Need to check if redeemAmount*levFactor can be withdrawn from the pool and do so
-    vault.withdrawFromInstrumentExternal(marketId, seniorAmount); 
+    vault.withdrawFromPoolInstrument(marketId, collateral_redeem_amount, msg.sender, seniorAmount); 
 
     // TODO update reputation 
 
@@ -526,9 +531,10 @@ contract MarketManager
     if (queuedRepUpdates[msg.sender] > 0){
      unchecked{queuedRepUpdates[msg.sender] -= 1;} 
     }
-
     market.bondPool.trustedBurn(msg.sender, redeemAmount, true); 
-    controller.redeem_transfer(collateral_redeem_amount, msg.sender, marketId); 
+
+    // TODO assert pju stays same 
+    // TODO assert need totalAssets and exchange rate to remain same 
   }
 
   mapping(address => uint8) public queuedRepUpdates; 

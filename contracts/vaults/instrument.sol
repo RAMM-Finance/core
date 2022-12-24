@@ -48,6 +48,7 @@ abstract contract Instrument {
     bool locked; 
     uint256 private constant MAX_UINT = 2**256 - 1;
     uint256 private maturity_balance; 
+    uint256 rawFunds; 
 
     /// @notice address of user who submits the liquidity proposal 
     address public Utilizer; 
@@ -82,8 +83,16 @@ abstract contract Instrument {
     /// @param user The user to get the underlying balance of.
     /// @return The user's Instrument balance in underlying tokens.
     /// @dev May mutate the state of the Instrument by accruing interest.
-    function balanceOfUnderlying(address user) public view returns (uint256){
+    /// TODO need to incorporate the capital supplied by pool bond issuers
+    function balanceOfUnderlying(address user) public view virtual returns (uint256){
+        if(user == address(this)) return underlying.balanceOf(user) - rawFunds;
         return underlying.balanceOf(user); 
+    }
+
+    /// @notice raw funds should not be harvested by the vault
+    function pullRawFunds(uint256 amount) public {
+        underlying.transferFrom(msg.sender,address(this), amount); 
+        rawFunds += amount; 
     }
 
 
@@ -194,7 +203,10 @@ abstract contract Instrument {
         return maturity_balance; 
     }
 
-    function isLiquid(uint256 amount) public virtual view returns(bool){}
+    function isLiquid(uint256 amount) public virtual view returns(bool){
+        //TODO 
+        return balanceOfUnderlying(address(this)) >= amount; 
+    }
 
 
     /// @notice Before supplying liquidity from the vault to this instrument,
@@ -207,9 +219,6 @@ abstract contract Instrument {
 }
 
 
-// contract RevenueToken is ERC20{
-
-// }
 
  
 /// @notice Contract for unsecured loans, each instance will be associated to a borrower+marketId
@@ -236,10 +245,12 @@ contract CreditLine is Instrument {
 
     // Collateral Info 
     enum CollateralType{
-        none,
         liquidateAble, 
         nonLiquid, 
-        ownership 
+        ownership ,        
+        none
+
+
     }
     address public collateral; 
     address public oracle; 

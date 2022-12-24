@@ -155,14 +155,66 @@ contract PoolInstrumentTest is TestBase {
         assert(psu>controller.getVault(vars.marketId).fetchInstrumentData(vars.marketId).poolData.inceptionPrice ); 
         assert(psu> pju+100); 
 
-
-
         // (vars.amountIn, vars.amountOut) =
         //     marketmanager.buyBond(vars.marketId, int256(vars.amountToBuy), vars.curPrice + precision/2 , data); 
         // marketmanager.issuePoolBond(vars.marketId, vars.amountToBuy); 
-    
+    }
+
+    function testPricingIsSupplyAgnostic() public{}
+
+    function testTwoEqualAmountTimeRedemption() public{
+
+        // let jonna and sybal both buy and both redeem, equal amount 
+        testVars1 memory vars; 
+
+        vars.marketId = controller.getMarketId(toku); 
+        vars.vault_ad = controller.getVaultfromId(vars.marketId); //
+        vars.amountToBuy = Vault(vars.vault_ad).fetchInstrumentData(vars.marketId).poolData.saleAmount*3/2; 
+        bytes memory data; 
+        doApproveCol(address(marketmanager), jonna); 
+
+        doInvest(vars.vault_ad, gatdang, precision * 100000);
+        vm.prank(jonna); 
+        (vars.amountIn, vars.amountOut) =
+            marketmanager.buyBond(vars.marketId, int256(vars.amountToBuy), vars.curPrice + precision/2 , data); 
+        // let validator invest to vault and approve 
+        doApprove(vars.marketId, vars.vault_ad);
+
+        uint start = Vault(vars.vault_ad).UNDERLYING()
+        .balanceOf(address(Vault(vars.vault_ad).Instruments(vars.marketId))); 
+        // Let two managers buy at same time, should equal issued qty
+        doApproveCol(address(marketmanager), jonna); 
+        vm.prank(jonna); 
+        uint256 issueQTY = marketmanager.issuePoolBond(vars.marketId, vars.amountToBuy); 
+        doApproveCol(address(marketmanager), sybal); 
+        vm.prank(sybal);
+        uint256 issueQTY2 = marketmanager.issuePoolBond(vars.marketId, vars.amountToBuy); 
+        assertEq(issueQTY2, issueQTY); 
+
+        vm.warp(block.timestamp+31536000); 
+        vars.cbalnow = Vault(vars.vault_ad).UNDERLYING().balanceOf(jonna); 
+        vars.cbalnow2 = Vault(vars.vault_ad).UNDERLYING().balanceOf(sybal); 
+        vm.prank(jonna); 
+        marketmanager.redeemPoolLongZCB(vars.marketId, issueQTY );
+        vm.prank(sybal); 
+        marketmanager.redeemPoolLongZCB(vars.marketId, issueQTY2 );
+
+        assertApproxEqAbs(Vault(vars.vault_ad).UNDERLYING().balanceOf(jonna) - vars.cbalnow, 
+            Vault(vars.vault_ad).UNDERLYING().balanceOf(sybal)- vars.cbalnow2, 100); 
+        // instrument balance goes back to same 
+        assertApproxEqAbs(Vault(vars.vault_ad).UNDERLYING()
+        .balanceOf(address(Vault(vars.vault_ad).Instruments(vars.marketId))) , start, 100); 
+        
+    }
+
+    // vault deposit goes back to same? 
+    function testSupplyWithdraw() public{
 
     }
+
+    function testInstrumentBalance() public{}
+
+
 
     function testAfterApprovalSupply() public{
         testVars1 memory vars; 
@@ -183,11 +235,72 @@ contract PoolInstrumentTest is TestBase {
         marketmanager.issuePoolBond(vars.marketId, vars.amountToBuy); 
 
         // how much is it supplied? 
-
-    
-
     }
-    function testPerpetualPayoff()public{}
+
+ 
+
+    function testPerpetualPayoff()public{
+        // test whether manager will get correct redemption amount at any time 
+        testVars1 memory vars; 
+
+        vars.marketId = controller.getMarketId(toku); 
+        vars.vault_ad = controller.getVaultfromId(vars.marketId); 
+        vars.amountToBuy = Vault(vars.vault_ad).fetchInstrumentData(vars.marketId).poolData.saleAmount*3/2; 
+        uint256 amount = Vault(vars.vault_ad).fetchInstrumentData(vars.marketId).poolData.saleAmount*3/2; 
+
+        // Let manager buy
+        bytes memory data; 
+        doApproveCol(address(marketmanager), jonna); 
+        vm.prank(jonna); 
+        (vars.amountIn, vars.amountOut) =
+            marketmanager.buyBond(vars.marketId, int256(vars.amountToBuy), vars.curPrice + precision/2 , data); 
+        // let validator invest to vault and approve 
+        doApprove(vars.marketId, vars.vault_ad);
+        doInvest(vars.vault_ad, gatdang, precision * 100000);
+
+        // Let manager buy
+        doApproveCol(address(marketmanager), jonna); 
+
+        vars.cbalnow = Vault(vars.vault_ad).UNDERLYING().balanceOf(vars.vault_ad); 
+        vm.prank(jonna); 
+
+        uint256 issueQTY = marketmanager.issuePoolBond(vars.marketId, vars.amountToBuy); 
+        uint balStart = Vault(vars.vault_ad).UNDERLYING().balanceOf(jonna); 
+        vars.cbalnow2 = Vault(vars.vault_ad).UNDERLYING().balanceOf(vars.vault_ad); 
+
+        // some time passes... supply to instrument, harvest
+        vm.warp(block.timestamp+31536000); 
+        address instrument = address(Vault(vars.vault_ad).fetchInstrument(vars.marketId)); 
+        vm.startPrank(jonna); 
+        Vault(vars.vault_ad).UNDERLYING().transfer(instrument, amount); 
+        vm.stopPrank(); 
+        Vault(vars.vault_ad).harvest(instrument); 
+
+        // pju should be same even after redemption  
+        uint balNow = Vault(vars.vault_ad).UNDERLYING().balanceOf(jonna); 
+        vm.prank(jonna); 
+        marketmanager.redeemPoolLongZCB(vars.marketId, issueQTY );
+        ( uint psu, uint pju, ) = controller.getVault(vars.marketId).poolZCBValue(vars.marketId);
+        assert(pju>0); 
+        assert(psu != pju); 
+        assert(vars.cbalnow2 < vars.cbalnow); 
+
+        // get vault profit 
+        // assertApproxEqAbs(Vault(vars.vault_ad).UNDERLYING().balanceOf(vars.vault_ad) - vars.cbalnow,
+        //  precision * amount - pju.mulWadDown(issueQTY) , 100); 
+        assertApproxEqAbs(Vault(vars.vault_ad).UNDERLYING().balanceOf(jonna) - balNow, pju.mulWadDown(issueQTY), 1000);
+        console.log('?', Vault(vars.vault_ad).UNDERLYING().balanceOf(jonna), balNow, balStart);  
+        if(pju> psu) assert(Vault(vars.vault_ad).UNDERLYING().balanceOf(jonna) > balStart); 
+     
+    }
+
+    //approve test
+    function testVaultExchangeRateSameAfterApprove()public {}
+
+    function testprofitSplit() public{}//profit split between vault and 
+    function testEveryoneRedeem() public{}
+
+
     function testBorrowAndRepay() public{}
 
     // struct testVars2{

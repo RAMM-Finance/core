@@ -357,6 +357,7 @@ contract Controller {
 
       else generalApproval(marketId); 
     }
+    // TODO vault exchange rate should not change 
     // pull from pool to vault, which will be used to fund the instrument
     pool.flush(address(vault), managerCollateral); 
 
