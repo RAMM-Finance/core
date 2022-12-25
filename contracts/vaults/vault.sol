@@ -206,15 +206,15 @@ contract Vault is ERC4626, Auth{
       psu = vars.totalAssetsHeld.divWadDown(vars.seniorSupply);
       vars.belowThreshold = true;  
     }
-    console.log('srp', vars.srpPlusOne, vars.totalAssetsHeld, vars.inceptionPrice ); 
-    console.log('preview', previewMint(BASE_UNIT)); 
-    uint pju_ = (BASE_UNIT+ vars.leverageFactor).mulWadDown(previewMint(BASE_UNIT*8/10)) 
-      -  vars.srpPlusOne.mulWadDown(vars.leverageFactor);
+
     // should be 0 otherwise 
     if(!vars.belowThreshold) pju = (vars.totalAssetsHeld 
       - vars.srpPlusOne.mulWadDown(vars.seniorSupply)).divWadDown(vars.juniorSupply); 
-    console.log('mock pju', pju_, pju); 
 
+
+    uint pju_ = (BASE_UNIT+ vars.leverageFactor).mulWadDown(previewMint(BASE_UNIT*8/10)) 
+      -  vars.srpPlusOne.mulWadDown(vars.leverageFactor);
+    assert(pju_ >= pju-10 || pju_ <= pju+10); 
     }
 
     /// @notice Harvest a trusted Instrument, records profit/loss 
@@ -290,8 +290,8 @@ contract Vault is ERC4626, Auth{
       instrument.redeemUnderlying(instrumentPullAmount ); 
       UNDERLYING.transfer(pushTo, instrumentPullAmount); 
 
-      require(instrument.isLiquid(underlyingAmount), "!liq"); 
-      console.log('how much?', instrument_data[instrument].balance, underlyingAmount); 
+      require(instrument.isLiquid(underlyingAmount), "!liq");
+      //TODO instrument balance should decrease to 0 and stay solvent  
       withdrawFromInstrument(fetchInstrument(marketId), underlyingAmount);
     }
 
@@ -310,14 +310,14 @@ contract Vault is ERC4626, Auth{
         instrumentData.expectedYield = data.approved_yield;
         instrumentData.faceValue = data.approved_principal + data.approved_yield; 
 
-        depositIntoInstrument(marketId, data.approved_principal);
+        depositIntoInstrument(marketId, data.approved_principal-data.managers_stake);
         
         setMaturityDate(marketId);
 
         fetchInstrument(marketId).onMarketApproval(data.approved_principal, data.approved_yield); 
 
       } else{
-        depositIntoInstrument(marketId, data.approved_principal);
+        depositIntoInstrument(marketId, data.approved_principal-data.managers_stake);
       }
     }
 

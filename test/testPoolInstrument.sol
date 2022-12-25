@@ -112,7 +112,11 @@ contract PoolInstrumentTest is TestBase {
             vars.valamountIn + vars.amountIn,10); 
 
         // see how much is supplied to instrument 
-        assertApproxEqAbs(cBal(address(nftPool)) - vars.cbalnow2,
+        console.log('?',
+        marketmanager.getZCB(vars.marketId).totalSupply().mulWadDown(Vault(vars.vault_ad).fetchInstrumentData(vars.marketId).poolData.leverageFactor)
+        .mulWadDown(Vault(vars.vault_ad).fetchInstrumentData(vars.marketId).poolData.inceptionPrice), 
+         marketmanager.loggedCollaterals(vars.marketId), cBal(address(nftPool)) - vars.cbalnow2);
+        assertApproxEqAbs(cBal(address(nftPool)) - vars.cbalnow2, 
          marketmanager.getZCB(vars.marketId).totalSupply().mulWadDown(1e18+ Vault(vars.vault_ad).fetchInstrumentData(vars.marketId).poolData.leverageFactor)
         .mulWadDown(Vault(vars.vault_ad).fetchInstrumentData(vars.marketId).poolData.inceptionPrice), 100);
 
@@ -204,8 +208,11 @@ contract PoolInstrumentTest is TestBase {
         // instrument balance goes back to same 
         assertApproxEqAbs(Vault(vars.vault_ad).UNDERLYING()
         .balanceOf(address(Vault(vars.vault_ad).Instruments(vars.marketId))) , start, 100); 
-        
+
+
     }
+
+    function testMultipleEqualAmountTimeRedemption()public{}
 
     // vault deposit goes back to same? 
     function testSupplyWithdraw() public{
@@ -214,7 +221,7 @@ contract PoolInstrumentTest is TestBase {
 
     function testInstrumentBalance() public{}
 
-
+    function testVaultProfit() public{}//exchangerate should go up with instrument profit 
 
     function testAfterApprovalSupply() public{
         testVars1 memory vars; 
@@ -278,24 +285,62 @@ contract PoolInstrumentTest is TestBase {
 
         // pju should be same even after redemption  
         uint balNow = Vault(vars.vault_ad).UNDERLYING().balanceOf(jonna); 
+        uint exchangeRate1 = Vault(vars.vault_ad).previewMint(1e18); 
+
         vm.prank(jonna); 
         marketmanager.redeemPoolLongZCB(vars.marketId, issueQTY );
         ( uint psu, uint pju, ) = controller.getVault(vars.marketId).poolZCBValue(vars.marketId);
         assert(pju>0); 
         assert(psu != pju); 
         assert(vars.cbalnow2 < vars.cbalnow); 
+        assertEq(exchangeRate1, Vault(vars.vault_ad).previewMint(1e18));
 
         // get vault profit 
         // assertApproxEqAbs(Vault(vars.vault_ad).UNDERLYING().balanceOf(vars.vault_ad) - vars.cbalnow,
         //  precision * amount - pju.mulWadDown(issueQTY) , 100); 
         assertApproxEqAbs(Vault(vars.vault_ad).UNDERLYING().balanceOf(jonna) - balNow, pju.mulWadDown(issueQTY), 1000);
-        console.log('?', Vault(vars.vault_ad).UNDERLYING().balanceOf(jonna), balNow, balStart);  
         if(pju> psu) assert(Vault(vars.vault_ad).UNDERLYING().balanceOf(jonna) > balStart); 
+
      
     }
 
     //approve test
-    function testVaultExchangeRateSameAfterApprove()public {}
+    function testVaultExchangeRateSameAfterApprove()public {
+        // test whether manager will get correct redemption amount at any time 
+        testVars1 memory vars; 
+
+        vars.marketId = controller.getMarketId(toku); 
+        vars.vault_ad = controller.getVaultfromId(vars.marketId); 
+        vars.amountToBuy = Vault(vars.vault_ad).fetchInstrumentData(vars.marketId).poolData.saleAmount*3/2; 
+        uint256 amount = Vault(vars.vault_ad).fetchInstrumentData(vars.marketId).poolData.saleAmount*3/2; 
+
+        // Let manager buy
+        uint exchangeRate = Vault(vars.vault_ad).previewMint(1e18); 
+        bytes memory data; 
+        doApproveCol(address(marketmanager), jonna); 
+        vm.prank(jonna); 
+        (vars.amountIn, vars.amountOut) =
+            marketmanager.buyBond(vars.marketId, int256(vars.amountToBuy), vars.curPrice + precision/2 , data); 
+
+        // let validator invest to vault and approve, 
+        // After approval, should remain same exchange rate
+        uint exchangeRate1 = Vault(vars.vault_ad).previewMint(1e18); 
+        doApprove(vars.marketId, vars.vault_ad);
+        uint exchangeRate2 = Vault(vars.vault_ad).previewMint(1e18);
+        assertEq(exchangeRate, exchangeRate1);  
+        assertEq(exchangeRate1, exchangeRate2);
+
+        // even after approval, issueing bonds will not change exchange rate
+        doApproveCol(address(marketmanager), jonna); 
+        vm.prank(jonna); 
+        marketmanager.issuePoolBond(vars.marketId, vars.amountToBuy); 
+        assertEq(exchangeRate1, Vault(vars.vault_ad).previewMint(1e18));
+
+
+    }
+
+    // Redeem test 
+    function testVaultExchangeRateSameAfterRedemption() public{}
 
     function testprofitSplit() public{}//profit split between vault and 
     function testEveryoneRedeem() public{}
