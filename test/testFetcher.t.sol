@@ -15,7 +15,7 @@ import {ERC20} from "solmate/tokens/ERC20.sol";
 import {Fetcher} from "contracts/utils/fetcher.sol";
 import {ReputationManager} from "contracts/protocol/reputationmanager.sol";
 
-contract FullCycleTest is Test {
+contract FetcherTest is Test {
     using FixedPointMath for uint256; 
     using stdStorage for StdStorage; 
 
@@ -290,6 +290,9 @@ contract FullCycleTest is Test {
             console.log("utilization_rate: ", v.utilizationRate);
             console.log("totalAssets: ", v.totalAssets);
             console.log("exchangeRate: ", v.exchangeRate);
+            console.log("totalEstimatedAPR: ", v.totalEstimatedAPR);
+            console.log("goalAPR: ", v.goalAPR);
+            console.log("totalProtection: ", v.totalProtection);
 
             console.log("MARKET LOG: ");
             if (m.length > 0) {
@@ -322,6 +325,12 @@ contract FullCycleTest is Test {
             }
             if (instrs.length > 0) {
                 console.log(string(abi.encodePacked(instrs[0].name)));
+
+   
+                console.log("seniorAPR: ", instrs[0].seniorAPR); 
+                console.log("exposurePercentage", instrs[0].exposurePercentage); 
+                console.log("managers_stake", instrs[0].managers_stake); 
+                console.log("approvalPrice", instrs[0].approvalPrice); 
             }
         }
     }

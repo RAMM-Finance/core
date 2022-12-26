@@ -7,6 +7,7 @@ import {Controller} from "../protocol/controller.sol";
 import {ERC20} from "../vaults/tokens/ERC20.sol";
 import {SyntheticZCBPool} from "../bonds/synthetic.sol";
 import {FixedPointMathLib} from "solmate/utils/FixedPointMathLib.sol";
+import {LinearCurve} from "../bonds/GBC.sol"; 
 
 contract Fetcher {
     using FixedPointMathLib for uint256;
@@ -50,6 +51,10 @@ contract Fetcher {
         uint256 exchangeRate;
         uint256 totalAssets;
         uint256 utilizationRate;
+
+        uint256 totalEstimatedAPR; 
+        uint256 goalAPR; 
+        uint256 totalProtection; 
     }
 
     struct MarketBundle {
@@ -87,6 +92,11 @@ contract Fetcher {
         uint256 maturityDate;
         Vault.PoolData poolData;
         bytes32 name;
+
+        uint256 seniorAPR; 
+        uint256 exposurePercentage;
+        uint256 managers_stake; 
+        uint256 approvalPrice; 
     }
 
     function buildAssetBundle(ERC20 _asset) internal view returns (AssetBundle memory _bundle) {
@@ -150,7 +160,15 @@ contract Fetcher {
         for (uint256 i; i < vaultBundle.marketIds.length; i++) {
             marketBundle[i] = buildMarketBundle(vaultBundle.marketIds[i], vaultId, _controller, _marketManager);
             instrumentBundle[i] = buildInstrumentBundle(vaultBundle.marketIds[i], vaultId, _controller);
+
+            computeInstrumentProfile(vaultBundle.marketIds[i], instrumentBundle[i], _controller, _marketManager);
+            vaultBundle.totalEstimatedAPR += instrumentBundle[i].seniorAPR.mulWadDown(instrumentBundle[i].exposurePercentage);
+            vaultBundle.totalProtection += marketBundle[i].totalCollateral; 
         }
+        uint256 goalUtilizationRate = 9e17; //90% utilization goal? 
+        if(vaultBundle.totalEstimatedAPR <= goalUtilizationRate)
+        vaultBundle.goalAPR = (goalUtilizationRate.divWadDown(1+vaultBundle.utilizationRate)).mulWadDown(vaultBundle.totalEstimatedAPR); 
+        else vaultBundle.goalAPR = vaultBundle.totalEstimatedAPR ; 
     }
 
     function buildInstrumentBundle(uint256 mid, uint256 vid, Controller controller) internal view returns (InstrumentBundle memory bundle) {
@@ -208,6 +226,48 @@ contract Fetcher {
         bundle.val_cap = controller.getValidatorCap(mid);
     }
 
+    function computeInstrumentProfile(
+        uint256 mid, 
+        InstrumentBundle memory bundle, 
+        Controller controller, 
+        MarketManager marketmanager
+        ) internal view returns(uint256){
+        // get senior instrument apr, approval price, manager's stake, 
+        MarketManager.CoreMarketData memory data = marketmanager.getMarket(mid); 
+        Controller.ApprovalData memory approvalData = controller.getApprovalData(mid); 
+        bundle.managers_stake = approvalData.managers_stake; 
+        bundle.exposurePercentage = (approvalData.approved_principal- approvalData.managers_stake).divWadDown(
+            controller.getVault(mid).totalAssets()+1); 
+
+        if(!bundle.isPool){
+            uint256 amountDelta;
+            uint256 resultPrice;
+
+            if(approvalData.managers_stake>0){
+                ( amountDelta,  resultPrice) = LinearCurve.amountOutGivenIn(
+                approvalData.managers_stake,
+                0, 
+                data.bondPool.a_initial(), 
+                data.bondPool.b(), 
+                true 
+                );
+            }
+            
+            uint256 seniorYield = bundle.faceValue -amountDelta
+                - (bundle.principal - approvalData.managers_stake); 
+
+            bundle.seniorAPR = approvalData.approved_principal>0
+                ? seniorYield.divWadDown(1+bundle.principal - approvalData.managers_stake)
+                : 0; 
+            bundle.approvalPrice = resultPrice; 
+        }
+        else{
+            bundle.seniorAPR = bundle.poolData.promisedReturn; 
+            bundle.approvalPrice = bundle.poolData.inceptionPrice; 
+        }
+
+    }
+
     function makeEmptyVaultBundle() pure internal returns (VaultBundle memory) {
         return VaultBundle(
             "",
@@ -223,7 +283,8 @@ contract Fetcher {
             address(0),
             0,
             0,
-            0
+            0, 
+            0,0,0
         );
     }
 }
