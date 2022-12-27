@@ -841,6 +841,7 @@ library LinearCurve{
         // If liquidity is not infinite 
         if(a > 0){
             if (up){
+                //TODO overflow on small amount 
                 uint256 x = ((a.mulWadDown(s) + b) ** 2)/PRECISION; 
                 uint256 y = 2*( a.mulWadDown(amount)); 
                 uint256 x_y_sqrt = ((x+y)*PRECISION).sqrt();

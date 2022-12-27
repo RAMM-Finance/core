@@ -14,3 +14,4 @@ artifacts
 out
 
 .DS_Store
+cache_hardhat/solidity-files-cache.json

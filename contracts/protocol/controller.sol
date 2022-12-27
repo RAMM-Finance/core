@@ -30,6 +30,7 @@ contract Controller {
   }
 
   struct ApprovalData{
+    uint256 managers_stake; 
     uint256 approved_principal; 
     uint256 approved_yield; 
   }
@@ -332,7 +333,6 @@ contract Controller {
     }
   }
 
-
   /// @notice called by the validator from validatorApprove when market conditions are met
   /// need to move the collateral in the wCollateral to 
   function approveMarket(
@@ -357,8 +357,14 @@ contract Controller {
 
       else generalApproval(marketId); 
     }
+
+    approvalDatas[marketId].managers_stake = managerCollateral; 
+
+    // TODO vault exchange rate should not change 
     // pull from pool to vault, which will be used to fund the instrument
-    pool.flush(address(vault), managerCollateral); 
+    pool.flush(address(this), managerCollateral);
+    pool.BaseToken().approve(address(vault.Instruments(marketId)), managerCollateral); 
+    vault.Instruments(marketId).pullRawFunds(managerCollateral); 
 
     // Trust and deposit to the instrument contract
     vault.trustInstrument(marketId, approvalDatas[marketId], isPool);
@@ -367,10 +373,14 @@ contract Controller {
     pool.resetLiq(); 
   }
 
-  function poolApproval(uint256 marketId, uint256 juniorSupply, Vault.PoolData memory data ) internal{
+  function poolApproval(
+    uint256 marketId,
+    uint256 juniorSupply, 
+    Vault.PoolData memory data ) internal{
     require(data.leverageFactor > 0, "0 LEV_FACTOR"); 
-    approvalDatas[marketId] = ApprovalData(juniorSupply
-      .mulWadDown(config.WAD + data.leverageFactor).mulWadDown(data.inceptionPrice), 0 ); 
+    approvalDatas[marketId] = ApprovalData(0,  
+      juniorSupply.mulWadDown(config.WAD + data.leverageFactor).mulWadDown(data.inceptionPrice), 0 ); 
+    console.log("principal", juniorSupply.mulWadDown(config.WAD + data.leverageFactor).mulWadDown(data.inceptionPrice)); 
   }
 
   /// @notice receives necessary market information. Only applicable for creditlines 
@@ -388,12 +398,12 @@ contract Controller {
     // Required notional yield amount denominated in underlying  given credit determined by managers
     uint256 quoted_interest = min(pool.areaBetweenCurveAndMax(max_principal), proposed_yield ); 
 
-    approvalDatas[marketId] = ApprovalData(max_principal, quoted_interest); 
+    approvalDatas[marketId] = ApprovalData(0, max_principal, quoted_interest); 
   }
 
   function generalApproval(uint256 marketId) internal {
     (uint256 proposed_principal, uint256 proposed_yield) = vaults[id_parent[marketId]].viewPrincipalAndYield(marketId); 
-    approvalDatas[marketId] = ApprovalData(proposed_principal, proposed_yield); 
+    approvalDatas[marketId] = ApprovalData(0, proposed_principal, proposed_yield); 
   }
 
   /**

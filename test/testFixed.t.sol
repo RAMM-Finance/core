@@ -7,251 +7,252 @@ import {MarketManager} from "contracts/protocol/marketmanager.sol";
 import {ReputationNFT} from "contracts/protocol/reputationtoken.sol";
 import {Cash} from "contracts/utils/Cash.sol";
 import {CreditLine, MockBorrowerContract} from "contracts/vaults/instrument.sol";
-import {SyntheticZCBPoolFactory} from "contracts/bonds/synthetic.sol"; 
+import {SyntheticZCBPoolFactory,ZCBFactory} from "contracts/bonds/synthetic.sol"; 
 import {LinearCurve} from "contracts/bonds/GBC.sol"; 
 import {FixedPointMath} from "contracts/bonds/libraries.sol"; 
 import {CoveredCallOTC} from "contracts/vaults/dov.sol";
 import {ERC20} from "solmate/tokens/ERC20.sol";
+import {ReputationManager} from "contracts/protocol/reputationmanager.sol";
 
 contract FullCycleTest is Test {
-    // using FixedPointMath for uint256; 
-    // using stdStorage for StdStorage; 
+    using FixedPointMath for uint256; 
+    using stdStorage for StdStorage; 
 
-    // Controller controller;
-    // MarketManager marketmanager;
-    // Cash collateral;
-    // VaultFactory vaultFactory;
-    // SyntheticZCBPoolFactory poolFactory; 
-    // Cash collateral2; 
-    // CoveredCallOTC otc; 
-    // address deployer = 0xb4c79daB8f259C7Aee6E5b2Aa729821864227e84;
-    // uint256 unit = 10**18; 
-    // uint256 constant precision = 1e18;
-    // address vault_ad; 
+    Controller controller;
+    MarketManager marketmanager;
+    Cash collateral;
+    VaultFactory vaultFactory;
+    SyntheticZCBPoolFactory poolFactory; 
+    Cash collateral2; 
+    CoveredCallOTC otc; 
+    address deployer = 0xb4c79daB8f259C7Aee6E5b2Aa729821864227e84;
+    uint256 unit = 10**18; 
+    uint256 constant precision = 1e18;
+    address vault_ad; 
 
-    // // Participants 
-    // address jonna;
-    // address jott; 
-    // address gatdang;
-    // address sybal; 
-    // address chris; 
-    // address miku;
-    // address tyson; 
-    // address yoku;
-    // address toku; 
-    // address goku; 
+    // Participants 
+    address jonna;
+    address jott; 
+    address gatdang;
+    address sybal; 
+    address chris; 
+    address miku;
+    address tyson; 
+    address yoku;
+    address toku; 
+    address goku; 
 
-    // // Varaibles that sould be tinkered
-    // uint256 principal = 1000 * precision;
-    // uint256 interest = 100*precision; 
-    // uint256 duration = 1*precision; 
-    // uint256 faceValue = 1100*precision; 
-    // MockBorrowerContract borrowerContract = new MockBorrowerContract();
-    // CreditLine instrument;
-    // uint256 N = 1;
-    // uint256 sigma = precision/20; //5%
-    // uint256 alpha = precision*4/10; 
-    // uint256 omega = precision*2/10;
-    // uint256 delta = precision*2/10; 
-    // uint256 r = 0;
-    // uint256 s = precision*2;
-    // uint256 steak = precision;
-    // uint256 amount1; 
-    // uint256 amount2; 
-    // uint256 amount3; 
-    // uint256 amount4; 
+    // Varaibles that sould be tinkered
+    uint256 principal = 1000 * precision;
+    uint256 interest = 100*precision; 
+    uint256 duration = 1*precision; 
+    uint256 faceValue = 1100*precision; 
+    MockBorrowerContract borrowerContract = new MockBorrowerContract();
+    CreditLine instrument;
+    uint256 N = 1;
+    uint256 sigma = precision/20; //5%
+    uint256 alpha = precision*4/10; 
+    uint256 omega = precision*2/10;
+    uint256 delta = precision*2/10; 
+    uint256 r = 0;
+    uint256 s = precision*2;
+    uint256 steak = precision;
+    uint256 amount1; 
+    uint256 amount2; 
+    uint256 amount3; 
+    uint256 amount4; 
 
-    // uint256 strikeprice = precision; 
-    // uint256 pricePerContract = precision/10; //pricepercontract * 
-    // uint256 shortCollateral = principal; 
-    // uint256 longCollateral = shortCollateral.mulWadDown(pricePerContract); 
+    uint256 strikeprice = precision; 
+    uint256 pricePerContract = precision/10; //pricepercontract * 
+    uint256 shortCollateral = principal; 
+    uint256 longCollateral = shortCollateral.mulWadDown(pricePerContract); 
+    ReputationManager reputationManager;
 
-    // function setUsers() public {
-    //     jonna = address(0xbabe);
-    //     vm.label(jonna, "jonna"); // manager1
-    //     jott = address(0xbabe2); 
-    //     vm.label(jott, "jott"); // utilizer 
-    //     gatdang = address(0xbabe3); 
-    //     vm.label(gatdang, "gatdang"); // validator
-    //     sybal = address(0xbabe4);
-    //     vm.label(sybal, "sybal");//manager2
-    //     chris=address(0xbabe5);
-    //     vm.label(chris, "chris");//manager3
-    //     miku = address(0xbabe6);
-    //     vm.label(miku, "miku"); //manager4
-    //     goku = address(0xbabe7); 
-    //     vm.label(goku, "goku"); //LP1 
-    //     toku = address(0xbabe8);
-    //     vm.label(toku, "toku"); 
+    function setUsers() public {
+        jonna = address(0xbabe);
+        vm.label(jonna, "jonna"); // manager1
+        jott = address(0xbabe2); 
+        vm.label(jott, "jott"); // utilizer 
+        gatdang = address(0xbabe3); 
+        vm.label(gatdang, "gatdang"); // validator
+        sybal = address(0xbabe4);
+        vm.label(sybal, "sybal");//manager2
+        chris=address(0xbabe5);
+        vm.label(chris, "chris");//manager3
+        miku = address(0xbabe6);
+        vm.label(miku, "miku"); //manager4
+        goku = address(0xbabe7); 
+        vm.label(goku, "goku"); //LP1 
+        toku = address(0xbabe8);
+        vm.label(toku, "toku"); 
 
-    //     controller._incrementScore(jonna, precision);
-    //     controller._incrementScore(jott, precision);
-    //     controller._incrementScore(gatdang, precision);
-    //     controller._incrementScore(sybal, precision);
-    //     controller._incrementScore(chris, precision);
-    //     controller._incrementScore(miku, precision);
-    //     controller._incrementScore(goku, precision);
-    //     controller._incrementScore(toku, precision);
 
-    //     vm.prank(jonna); 
-    //     collateral.faucet(10000000*precision);
-    //     vm.prank(jott); 
-    //     collateral.faucet(10000000*precision);
-    //     vm.prank(gatdang); 
-    //     collateral.faucet(10000000*precision); 
-    //     vm.prank(sybal); 
-    //     collateral.faucet(10000000*precision); 
-    //     vm.prank(chris); 
-    //     collateral.faucet(10000000*precision); 
-    //     vm.prank(miku); 
-    //     collateral.faucet(10000000*precision); 
-    //     vm.prank(goku);
-    //     collateral.faucet(10000000*precision); 
-    //     vm.prank(toku);
-    //     collateral.faucet(10000000*precision);
+        reputationManager.incrementScore(jonna, precision);
+        reputationManager.incrementScore(jott, precision);
+        reputationManager.incrementScore(gatdang, precision);
+        reputationManager.incrementScore(sybal, precision);
+        reputationManager.incrementScore(chris, precision);
+        reputationManager.incrementScore(miku, precision);
+        reputationManager.incrementScore(goku, precision);
+        reputationManager.incrementScore(toku, precision);
 
-    //     vm.prank(toku); 
-    //     controller.testVerifyAddress(); 
-    //     vm.prank(jott);
-    //     controller.testVerifyAddress();
-    //     vm.prank(jonna);
-    //     controller.testVerifyAddress();
-    //     vm.prank(gatdang); 
-    //     controller.testVerifyAddress(); 
-    //     vm.prank(chris); 
-    //     controller.testVerifyAddress(); 
-    //     vm.prank(miku); 
-    //     controller.testVerifyAddress(); 
-    //     vm.prank(sybal); 
-    //     controller.testVerifyAddress();
-    // }
+        vm.prank(jonna); 
+        collateral.faucet(10000000*precision);
+        vm.prank(jott); 
+        collateral.faucet(10000000*precision);
+        vm.prank(gatdang); 
+        collateral.faucet(10000000*precision); 
+        vm.prank(sybal); 
+        collateral.faucet(10000000*precision); 
+        vm.prank(chris); 
+        collateral.faucet(10000000*precision); 
+        vm.prank(miku); 
+        collateral.faucet(10000000*precision); 
+        vm.prank(goku);
+        collateral.faucet(10000000*precision); 
+        vm.prank(toku);
+        collateral.faucet(10000000*precision);
 
-    // function setUp() public {
+        vm.prank(toku); 
+        controller.testVerifyAddress(); 
+        vm.prank(jott);
+        controller.testVerifyAddress();
+        vm.prank(jonna);
+        controller.testVerifyAddress();
+        vm.prank(gatdang); 
+        controller.testVerifyAddress(); 
+        vm.prank(chris); 
+        controller.testVerifyAddress(); 
+        vm.prank(miku); 
+        controller.testVerifyAddress(); 
+        vm.prank(sybal); 
+        controller.testVerifyAddress();
+    }
 
-    //     controller = new Controller(deployer, address(0)); // zero addr for interep
-    //     vaultFactory = new VaultFactory(address(controller));
-    //     collateral = new Cash("n","n",18);
-    //     collateral2 = new Cash("nn", "nn", 18); 
-    //     bytes32  data;
-    //     marketmanager = new MarketManager(
-    //         deployer,
-    //         address(controller), 
-    //         address(0),data, uint64(0)
-    //     );
-    //     poolFactory = new SyntheticZCBPoolFactory(address(controller)); 
+   
+    function setUp() public {
 
-    //     controller.setMarketManager(address(marketmanager));
-    //     controller.setVaultFactory(address(vaultFactory));
-    //     controller.setPoolFactory(address(poolFactory)); 
+        controller = new Controller(deployer, address(0)); // zero addr for interep
+        vaultFactory = new VaultFactory(address(controller));
+        collateral = new Cash("n","n",18);
+        collateral2 = new Cash("nn", "nn", 18); 
+        bytes32  data;
+        marketmanager = new MarketManager(
+            deployer,
+            address(controller), 
+            address(0),data, uint64(0)
+        );
+        ZCBFactory zcbfactory = new ZCBFactory(); 
+        poolFactory = new SyntheticZCBPoolFactory(address(controller), address(zcbfactory));
+        // reputationManager = new ReputationManager(address(controller), address(marketmanager)); 
 
-    //     controller.createVault(
-    //         address(collateral),
-    //         false,
-    //         0,
-    //         type(uint256).max,
-    //         type(uint256).max,
-    //         MarketManager.MarketParameters(N, sigma, alpha, omega, delta, r, s, steak)
-    //     ); //vaultId = 1; 
-    //     vault_ad = controller.getVaultfromId(1); 
+        // vm.startPrank(deployer); 
+        // controller.setMarketManager(address(marketmanager));
+        // controller.setVaultFactory(address(vaultFactory));
+        // controller.setPoolFactory(address(poolFactory)); 
+        // controller.setReputationManager(address(reputationManager));
+        // vm.stopPrank(); 
 
-    //     setUsers();
+        // controller.createVault(
+        //     address(collateral),
+        //     false,
+        //     0,
+        //     type(uint256).max,
+        //     type(uint256).max,
+        //     MarketManager.MarketParameters(N, sigma, alpha, omega, delta, r, s, steak)
+        // ); //vaultId = 1; 
+        // vault_ad = controller.getVaultfromId(1); 
+        // setUsers();
 
-    //     instrument = new CreditLine(
-    //         vault_ad, 
-    //         jott, principal, interest, duration, faceValue, 
-    //         address(collateral ), address(collateral), principal, 2
-    //         ); 
-    //     instrument.setUtilizer(jott); 
+        // instrument = new CreditLine(
+        //     vault_ad, 
+        //     jott, principal, interest, duration, faceValue, 
+        //     address(collateral ), address(collateral), principal, 2
+        //     ); 
+        // instrument.setUtilizer(jott); 
 
-    //     otc = new CoveredCallOTC(
-    //         vault_ad, toku, address(collateral2), 
-    //         strikeprice, //strikeprice 
-    //         pricePerContract, //price per contract
-    //         shortCollateral, 
-    //         longCollateral, 
-    //         address(collateral), 
-    //         address(0), 
-    //         10); 
-    //     otc.setUtilizer(toku); 
+        // otc = new CoveredCallOTC(
+        //     vault_ad, toku, address(collateral2), 
+        //     strikeprice, //strikeprice 
+        //     pricePerContract, //price per contract
+        //     shortCollateral, 
+        //     longCollateral, 
+        //     address(collateral), 
+        //     address(0), 
+        //     10); 
+        // otc.setUtilizer(toku); 
 
-    //     initiateCreditMarket(); 
-    //     initiateOptionsOTCMarket(); 
-    // }
+        // initiateCreditMarket(); 
+        // initiateOptionsOTCMarket(); 
+    }
 
-    // function initiateCreditMarket() public {
-    //     Vault.InstrumentData memory data;
+    function initiateCreditMarket() public {
+        Vault.InstrumentData memory data;
 
-    //     data.trusted = false; 
-    //     data.balance = 0;
-    //     data.faceValue = faceValue;
-    //     data.marketId = 0; 
-    //     data.principal = principal;
-    //     data.expectedYield = interest;
-    //     data.duration = duration;
-    //     data.description = "test";
-    //     data.Instrument_address = address(instrument);
-    //     data.instrument_type = Vault.InstrumentType.CreditLine;
-    //     data.maturityDate = 10; 
+        data.trusted = false; 
+        data.balance = 0;
+        data.faceValue = faceValue;
+        data.marketId = 0; 
+        data.principal = principal;
+        data.expectedYield = interest;
+        data.duration = duration;
+        data.description = "test";
+        data.instrument_address = address(instrument);
+        data.instrument_type = Vault.InstrumentType.CreditLine;
+        data.maturityDate = 10; 
+        data.name = "name";
 
-    //     controller.initiateMarket(jott, data, 1);
-    //     uint256[] memory words = new uint256[](N);
-    //     for (uint256 i=0; i< words.length; i++) {
-    //         words[i] = uint256(keccak256(abi.encodePacked(i)));
-    //     }
-    //     controller.fulfillRandomWords(1, words);
-    // }
+        controller.initiateMarket(jott, data, 1);
+        uint256[] memory words = new uint256[](N);
+        for (uint256 i=0; i< words.length; i++) {
+            words[i] = uint256(keccak256(abi.encodePacked(i)));
+        }
+        controller.fulfillRandomWords(1, words);
+    }
 
-    // function initiateOptionsOTCMarket() public{
-    //     Vault.InstrumentData memory data;
-    //     data.trusted = false; 
-    //     data.balance = 0;
-    //     data.faceValue = faceValue;
-    //     data.marketId = 0; 
-    //     data.principal = principal;
-    //     data.expectedYield = interest;
-    //     data.duration = duration;
-    //     data.description = "test";
-    //     data.Instrument_address = address(otc);
-    //     data.instrument_type = Vault.InstrumentType.CoveredCall;
-    //     data.maturityDate = 10; 
-    //     controller.initiateMarket(toku, data, 1);
-    //     uint256[] memory words = new uint256[](N);
-    //     for (uint256 i=0; i< words.length; i++) {
-    //         words[i] = uint256(keccak256(abi.encodePacked(i)));
-    //     }
-    //     controller.fulfillRandomWords(1, words);
-    // }
+    function initiateOptionsOTCMarket() public{
+        Vault.InstrumentData memory data;
+        data.trusted = false; 
+        data.balance = 0;
+        data.faceValue = faceValue;
+        data.marketId = 0; 
+        data.principal = principal;
+        data.expectedYield = interest;
+        data.duration = duration;
+        data.description = "test";
+        data.instrument_address = address(otc);
+        data.instrument_type = Vault.InstrumentType.CoveredCall;
+        data.maturityDate = 10; 
+        controller.initiateMarket(toku, data, 1);
+        uint256[] memory words = new uint256[](N);
+        for (uint256 i=0; i< words.length; i++) {
+            words[i] = uint256(keccak256(abi.encodePacked(i)));
+        }
+        controller.fulfillRandomWords(1, words);
+    }
 
-    // function doApproveCol(address _who, address _by) public{
-    //     vm.prank(_by); 
-    //     collateral.approve(_who, type(uint256).max); 
-    // }
-    // function doInvest(address vault, address _by, uint256 amount) public{
-    //     vm.prank(_by); 
-    //     Vault(vault).deposit(amount, _by); 
-    // }
-    // function doApproveVault(address vault, address _from, address _to) public {
-    //     vm.prank(_from);
-    //     ERC20(vault).approve(_to, type(uint256).max);
-    // }
+    function doApproveCol(address _who, address _by) public{
+        vm.prank(_by); 
+        collateral.approve(_who, type(uint256).max); 
+    }
+    function doInvest(address vault, address _by, uint256 amount) public{
+        vm.prank(_by); 
+        Vault(vault).deposit(amount, _by); 
+    }
+    function doApproveVault(address vault, address _from, address _to) public {
+        vm.prank(_from);
+        ERC20(vault).approve(_to, type(uint256).max);
+    }
 
-    // function doMint(address vault, address _by, uint256 shares) public {
-    //     vm.prank(_by);
-    //     Vault(vault).mint(shares, _by);
-    // }
-    // function cBal(address _who) public returns(uint256) {
-    //     return collateral.balanceOf(_who); 
-    // }
+    function doMint(address vault, address _by, uint256 shares) public {
+        vm.prank(_by);
+        Vault(vault).mint(shares, _by);
+    }
+    function cBal(address _who) public returns(uint256) {
+        return collateral.balanceOf(_who); 
+    }
 
-    // // function testFailApproval() public{
-    // //     address proxy =  instrument.getProxy(); 
-    // //     borrowerContract.changeOwner(proxy); 
-    // //     assertEq(borrowerContract.owner(), proxy); 
-    // //     uint256 marketId = controller.getMarketId(jott); 
 
-    // //     controller.approveMarket(marketId);
-
-    // // }
 
     // struct testVars1{
     //     uint256 marketId;
@@ -267,6 +268,7 @@ contract FullCycleTest is Test {
     // }
 
     // function testOneLongNoShortApproval() public{
+    //     console.log('?'); 
     //     testVars1 memory vars; 
 
     //     address proxy =  instrument.getProxy(); 
@@ -278,7 +280,7 @@ contract FullCycleTest is Test {
 
     //     vars.vault_ad = controller.getVaultfromId(1); //
     //     vars.amountToBuy = Vault(vars.vault_ad).fetchInstrumentData(vars.marketId).principal/2; 
-    //     vars.curPrice = marketmanager.getPool(vars.marketId).pool().getCurPrice(); 
+    //     vars.curPrice = marketmanager.getPool(vars.marketId).getCurPrice(); 
     //     assertEq(vars.curPrice, marketmanager.getPool(vars.marketId).b()); 
 
     //     // Let manager buy
@@ -289,8 +291,8 @@ contract FullCycleTest is Test {
     //         marketmanager.buyBond(vars.marketId, int256(vars.amountToBuy), vars.curPrice + precision/10 , data); 
     //     assertApproxEqAbs(vars.amountIn, vars.amountToBuy, 10); 
     //     assertEq(marketmanager.loggedCollaterals(vars.marketId),vars.amountIn); 
-    //     assert(marketmanager.marketCondition(vars.marketId)); 
-    //     assert(marketmanager.getPool(vars.marketId).pool().getCurPrice() > vars.curPrice ); 
+    //     assert(controller.marketCondition(vars.marketId)); 
+    //     assert(marketmanager.getPool(vars.marketId).getCurPrice() > vars.curPrice ); 
 
     //     // let validator invest to vault and approve 
     //     vars.cbalnow = cBal(address(marketmanager.getPool(vars.marketId))); 
@@ -310,32 +312,32 @@ contract FullCycleTest is Test {
 
     // }
 
-    // struct testVars2{
-    //     address utilizer; 
+    struct testVars2{
+        address utilizer; 
 
-    //     uint256 marketId;
-    //     address vault_ad; 
-    //     uint curPrice; 
-    //     uint principal; 
-    //     uint amount1; 
-    //     uint amount2; 
-    //     uint amount3; 
-    //     uint amount4; 
+        uint256 marketId;
+        address vault_ad; 
+        uint curPrice; 
+        uint principal; 
+        uint amount1; 
+        uint amount2; 
+        uint amount3; 
+        uint amount4; 
 
-    //     uint amountIn;
-    //     uint amountOut; 
-    //     uint s_amountIn; 
-    //     uint s_amountOut; 
+        uint amountIn;
+        uint amountOut; 
+        uint s_amountIn; 
+        uint s_amountOut; 
 
-    //     uint vaultBal; 
-    //     uint cbalbefore; 
-    //     uint vaultBalBeforeRedeem; 
-    //     uint sumofcollateral; 
+        uint vaultBal; 
+        uint cbalbefore; 
+        uint vaultBalBeforeRedeem; 
+        uint sumofcollateral; 
 
-    //     uint maxSupply; 
-    //     bool dontAssert; 
+        uint maxSupply; 
+        bool dontAssert; 
 
-    // }
+    }
 
     // function somelongsomeshort(testVars2 memory vars, bool finish) public {
 
@@ -350,7 +352,7 @@ contract FullCycleTest is Test {
     //     vars.maxSupply = (precision - marketmanager.getPool(vars.marketId).b_initial()).divWadDown( marketmanager.getPool(vars.marketId).a_initial() ) ; 
 
     //     vars.vault_ad = controller.getVaultfromId(1); //
-    //     vars.curPrice = marketmanager.getPool(vars.marketId).pool().getCurPrice(); 
+    //     vars.curPrice = marketmanager.getPool(vars.marketId).getCurPrice(); 
     //     if(!vars.dontAssert)assertEq(vars.curPrice, marketmanager.getPool(vars.marketId).b()); 
     //     vars.principal = Vault(vars.vault_ad).fetchInstrumentData(vars.marketId).principal; 
 
@@ -394,7 +396,7 @@ contract FullCycleTest is Test {
     //     // price is ax+b for x = amount1+amount2 - amount3+amount4 
     //     assertApproxEqAbs( marketmanager.getPool(vars.marketId).a_initial()
     //         .mulWadDown(vars.amount1 + vars.amount2 + vars.amount4 - vars.amount3) 
-    //         + marketmanager.getPool(vars.marketId).b() , marketmanager.getPool(vars.marketId).pool().getCurPrice(), 100000); 
+    //         + marketmanager.getPool(vars.marketId).b() , marketmanager.getPool(vars.marketId).getCurPrice(), 100000); 
     //     // assert(!marketmanager.marketCondition(vars.marketId)); 
     //     }
     //     // now buy 
@@ -414,33 +416,33 @@ contract FullCycleTest is Test {
 
     //     }
 
-    //     console.log('collat', marketmanager.loggedCollaterals(vars.marketId), marketmanager.marketCondition(vars.marketId));
+    //     console.log('collat', marketmanager.loggedCollaterals(vars.marketId), controller.marketCondition(vars.marketId));
     // }
 
-    // function doApprove(uint256 marketId, address vault) public{ //TODO: update
-    //     // validators invest and approve 
-    //     address[] memory vals = controller.viewValidators(marketId);
-    //     console.log("val.length", vals.length);
-    //     uint256 initialStake = controller.getInitialStake(marketId);
-    //     for (uint i=0; i < vals.length; i++) {
-    //         doApproveCol(vault, vals[i]);
-    //         doApproveVault(vault, vals[i], address(controller));
-    //         doApproveCol(address(marketmanager), vals[i]);
-    //         doMint(vault, vals[i], initialStake);
-    //         vm.prank(vals[i]);
-    //         controller.validatorApprove(marketId);
-    //     }
+    function doApprove(uint256 marketId, address vault) public{ //TODO: update
+        // validators invest and approve 
+        address[] memory vals = controller.viewValidators(marketId);
+        console.log("val.length", vals.length);
+        uint256 initialStake = controller.getInitialStake(marketId);
+        for (uint i=0; i < vals.length; i++) {
+            doApproveCol(vault, vals[i]);
+            doApproveVault(vault, vals[i], address(controller));
+            doApproveCol(address(marketmanager), vals[i]);
+            doMint(vault, vals[i], initialStake);
+            vm.prank(vals[i]);
+            controller.validatorApprove(marketId);
+        }
+    }
+    function testP() public{}
+    // function doApproveOTC(testVars2 memory vars) public{
+    //     // validators invest and approve  
+    //     doApproveCol(vars.vault_ad, gatdang); 
+    //     doInvest(vars.vault_ad, gatdang, precision * 1000);
+    //     doApproveCol(address(marketmanager), gatdang); 
+    //     otc.setValidator( gatdang);  
+    //     vm.prank(gatdang); 
+    //     controller.validatorApprove(vars.marketId); 
     // }
-
-    // // function doApproveOTC(testVars2 memory vars) public{
-    // //     // validators invest and approve  
-    // //     doApproveCol(vars.vault_ad, gatdang); 
-    // //     doInvest(vars.vault_ad, gatdang, precision * 1000);
-    // //     doApproveCol(address(marketmanager), gatdang); 
-    // //     otc.setValidator( gatdang);  
-    // //     vm.prank(gatdang); 
-    // //     marketmanager.validatorApprove(vars.marketId); 
-    // // }
 
     // function doDeny(testVars2 memory vars) public {
 
@@ -453,7 +455,6 @@ contract FullCycleTest is Test {
     //     // controller.denyMarket(vars.marketId); 
     //     assertEq(marketmanager.getPool(vars.marketId).cBal(), 0); 
     //     assertApproxEqAbs(collateral.balanceOf(controller.getVaultAd(vars.marketId)) - vars.vaultBal, vars.cbalbefore, 10); 
-    //     assert(!marketmanager.marketActive(vars.marketId)); 
     // }
 
     // function closeMarket(testVars2 memory vars) public {
@@ -462,11 +463,12 @@ contract FullCycleTest is Test {
     //         vm.prank(vals[i]);
     //         controller.validatorResolve(vars.marketId);
     //     }
-    //     vm.prank(vals[0]); 
+    //     vm.startPrank(vals[0]); 
     //     controller.beforeResolve(vars.marketId); 
     //     vm.roll(block.number+1);
     //     controller.resolveMarket(vars.marketId); 
     //     assertEq(collateral.balanceOf(address(instrument)),0); 
+    //     vm.stopPrank(); 
     // }
 
     // function setMaturityInstrumentResolveCondition(bool noDefault, uint256 loss) public{
@@ -506,7 +508,7 @@ contract FullCycleTest is Test {
     //         marketmanager.getPool(vars.marketId).cBal(), 10); 
 
     //     // how does liquidity change after approval, can people trade in zero liq 
-    //     assertEq(uint256(marketmanager.getPool(vars.marketId).pool().liquidity()), 0); 
+    //     assertEq(uint256(marketmanager.getPool(vars.marketId).liquidity()), 0); 
     // }
 
 
@@ -572,7 +574,7 @@ contract FullCycleTest is Test {
     //     doApprove(vars.marketId, vars.vault_ad); 
 
     //     //set bids at current price 
-    //      bytes memory data = abi.encode(uint16(uint16(marketmanager.getPool(vars.marketId).pool().getCurPrice()/1e16) -1),
+    //      bytes memory data = abi.encode(uint16(uint16(marketmanager.getPool(vars.marketId).getCurPrice()/1e16) -1),
     //        false ); 
     //     doApproveCol(address(marketmanager.getPool(vars.marketId)), jonna); 
     //     vm.prank(jonna); 
@@ -589,14 +591,14 @@ contract FullCycleTest is Test {
 
     //     // let someone close long limit 
     //     uint256 bal2 = marketmanager.getZCB(vars.marketId).balanceOf(jonna); 
-    //     bytes memory data4 = abi.encode(uint16(uint16(marketmanager.getPool(vars.marketId).pool().getCurPrice()/1e16) +1),
+    //     bytes memory data4 = abi.encode(uint16(uint16(marketmanager.getPool(vars.marketId).getCurPrice()/1e16) +1),
     //        false ); 
     //     vm.prank(jonna); 
     //     marketmanager.sellBond( vars.marketId, bal2, 0, data4); 
     //     assertEq(marketmanager.getZCB(vars.marketId).balanceOf(jonna), 0); 
 
     //      // close all short via limit or via taker. half via limit half via taker 
-    //     bytes memory data3 = abi.encode(uint16(uint16(marketmanager.getPool(vars.marketId).pool().getCurPrice()/1e16) -1),
+    //     bytes memory data3 = abi.encode(uint16(uint16(marketmanager.getPool(vars.marketId).getCurPrice()/1e16) -1),
     //        false ); 
     //     uint256 bal = marketmanager.getShortZCB(vars.marketId).balanceOf(goku); 
     //     vm.prank(goku); 
@@ -630,7 +632,7 @@ contract FullCycleTest is Test {
     //     vm.prank(jonna); 
     //     marketmanager.redeem(vars.marketId); 
     //     assertEq(marketmanager.getZCB(vars.marketId).balanceOf(jonna) , 0); 
-    //     assertApproxEqAbs(collateral.balanceOf(jonna) - balbefore , marketmanager.get_redemption_price(vars.marketId).mulWadDown(
+    //     assertApproxEqAbs(collateral.balanceOf(jonna) - balbefore , marketmanager.redemption_prices(vars.marketId).mulWadDown(
     //         zcbbal), 10); 
 
     //     balbefore = collateral.balanceOf(sybal); 
@@ -638,7 +640,7 @@ contract FullCycleTest is Test {
     //     vm.prank(sybal); 
     //     marketmanager.redeem(vars.marketId); 
     //     assertEq(marketmanager.getZCB(vars.marketId).balanceOf(sybal) , 0); 
-    //     assertApproxEqAbs(collateral.balanceOf(sybal) - balbefore , marketmanager.get_redemption_price(vars.marketId).mulWadDown(
+    //     assertApproxEqAbs(collateral.balanceOf(sybal) - balbefore , marketmanager.redemption_prices(vars.marketId).mulWadDown(
     //         zcbbal), 10);  
 
     //     balbefore = collateral.balanceOf(miku); 
@@ -646,7 +648,7 @@ contract FullCycleTest is Test {
     //     vm.prank(miku); 
     //     marketmanager.redeem(vars.marketId); 
     //     assertEq(marketmanager.getZCB(vars.marketId).balanceOf(miku) , 0); 
-    //     assertApproxEqAbs(collateral.balanceOf(miku) - balbefore , marketmanager.get_redemption_price(vars.marketId).mulWadDown(
+    //     assertApproxEqAbs(collateral.balanceOf(miku) - balbefore , marketmanager.redemption_prices(vars.marketId).mulWadDown(
     //         zcbbal), 10);     
 
     //     //shorter 
@@ -674,8 +676,8 @@ contract FullCycleTest is Test {
     //     //     zcbbal), 10);  
 
     //     //invariant 1: longsupply * redemption + shortsupply * 1-redemption = difference in vault balance 
-    //     assertApproxEqAbs( longsupply.mulWadDown(marketmanager.get_redemption_price(vars.marketId)) +
-    //         shortsupply.mulWadDown(precision - marketmanager.get_redemption_price(vars.marketId)), 
+    //     assertApproxEqAbs( longsupply.mulWadDown(marketmanager.redemption_prices(vars.marketId)) +
+    //         shortsupply.mulWadDown(precision - marketmanager.redemption_prices(vars.marketId)), 
     //     vaultbalbefore - collateral.balanceOf(controller.getVaultAd(vars.marketId)), 100);
 
     //     // invariant 2: return for manager> return for LP 
@@ -713,12 +715,12 @@ contract FullCycleTest is Test {
 
     //     closeMarket(vars); 
 
-    //     uint scoreBefore1 = controller.trader_scores( jonna); 
-    //     uint scoreBefore2 = controller.trader_scores( sybal); 
-    //     uint scoreBefore3 = controller.trader_scores( miku); 
-    //     uint scoreBefore4 = controller.trader_scores( chris); 
-    //     uint scoreBefore5 = controller.trader_scores( gatdang); 
-    //     // uint scoreBefore4 = controller.trader_scores( jonna); 
+    //     uint scoreBefore1 = controller.getTraderScore( jonna); 
+    //     uint scoreBefore2 = controller.getTraderScore( sybal); 
+    //     uint scoreBefore3 = controller.getTraderScore( miku); 
+    //     uint scoreBefore4 = controller.getTraderScore( chris); 
+    //     uint scoreBefore5 = controller.getTraderScore( gatdang); 
+    //     // uint scoreBefore4 = controller.getTraderScore( jonna); 
 
     //     // Now let managers redeem, reputation score dif
     //     vm.prank(jonna); 
@@ -733,24 +735,24 @@ contract FullCycleTest is Test {
     //     marketmanager.redeem(vars.marketId);
 
     //     if (increase){
-    //     assert(controller.trader_scores(jonna)> scoreBefore1);  
-    //     assert(controller.trader_scores(sybal)> scoreBefore2);  
-    //     assert(controller.trader_scores(miku)> scoreBefore3);  
-    //     assert(controller.trader_scores(chris)== scoreBefore4);  
+    //     assert(controller.getTraderScore(jonna)> scoreBefore1);  
+    //     assert(controller.getTraderScore(sybal)> scoreBefore2);  
+    //     assert(controller.getTraderScore(miku)> scoreBefore3);  
+    //     assert(controller.getTraderScore(chris)== scoreBefore4);  
 
     //     }
     //     else{
-    //     assert(controller.trader_scores(jonna)< scoreBefore1);  
-    //     assert(controller.trader_scores(sybal)< scoreBefore2);  
-    //     assert(controller.trader_scores(miku)< scoreBefore3);  
-    //     assert(controller.trader_scores(chris)== scoreBefore4);  
+    //     assert(controller.getTraderScore(jonna)< scoreBefore1);  
+    //     assert(controller.getTraderScore(sybal)< scoreBefore2);  
+    //     assert(controller.getTraderScore(miku)< scoreBefore3);  
+    //     assert(controller.getTraderScore(chris)== scoreBefore4);  
     //     }
   
 
-    //     console.log('before after', scoreBefore1,controller.trader_scores(jonna) ); 
-    //     console.log('before after', scoreBefore2,controller.trader_scores(sybal) ); 
-    //     console.log('before after', scoreBefore3,controller.trader_scores(miku) ); 
-    //     console.log(marketmanager.getMaxLeverage( jonna)); 
+    //     console.log('before after', scoreBefore1,controller.getTraderScore(jonna) ); 
+    //     console.log('before after', scoreBefore2,controller.getTraderScore(sybal) ); 
+    //     console.log('before after', scoreBefore3,controller.getTraderScore(miku) ); 
+    //     console.log(marketmanager.getMaxLeverage(jonna)); 
     // }
 
     // function testLeverageBuyAndRedemption() public{
@@ -764,7 +766,7 @@ contract FullCycleTest is Test {
     //     vars.maxSupply = (precision - marketmanager.getPool(vars.marketId).b_initial()).divWadDown( marketmanager.getPool(vars.marketId).a_initial() ) ; 
 
     //     vars.vault_ad = controller.getVaultfromId(1); //
-    //     vars.curPrice = marketmanager.getPool(vars.marketId).pool().getCurPrice(); 
+    //     vars.curPrice = marketmanager.getPool(vars.marketId).getCurPrice(); 
     //     assertEq(vars.curPrice, marketmanager.getPool(vars.marketId).b()); 
     //     vars.principal = Vault(vars.vault_ad).fetchInstrumentData(vars.marketId).principal; 
     //     vars.amount1 = vars.principal*11/100; 
@@ -774,12 +776,12 @@ contract FullCycleTest is Test {
 
     //     bytes memory data; 
 
-    //     controller.setTraderScore(miku, precision*5); 
+    //     reputationManager.setTraderScore(miku, precision*5); 
     //     uint bal = collateral.balanceOf(miku); 
     //     doApproveCol(address(marketmanager), miku); 
     //     vm.prank(miku);
     //     marketmanager.buyBondLevered(vars.marketId, vars.amount1, vars.curPrice + precision/10, precision *leverage); 
-    //     (uint debt, uint amount) = marketmanager.getLeveragePosition(vars.marketId, miku); 
+    //     (uint debt, uint amount) = marketmanager.leveragePosition(vars.marketId, miku); 
 
     //     assertApproxEqAbs(debt , vars.amount1 - (bal - collateral.balanceOf(miku) ),10 ); 
     //     assertApproxEqAbs(marketmanager.loggedCollaterals(vars.marketId), vars.amount1, 10); 
@@ -798,10 +800,10 @@ contract FullCycleTest is Test {
     //     marketmanager.redeemLeveredBond(vars.marketId); 
     //     assertEq(marketmanager.getZCB(vars.marketId).balanceOf(address(marketmanager)) , 0); 
     //     console.log('?',  collateral.balanceOf(miku) - vars.cbalbefore, 
-    //         marketmanager.get_redemption_price(vars.marketId).mulWadDown(
+    //         marketmanager.redemption_prices(vars.marketId).mulWadDown(
     //         amount) - debt); 
     //     assertApproxEqAbs(collateral.balanceOf(miku) - vars.cbalbefore , 
-    //         marketmanager.get_redemption_price(vars.marketId).mulWadDown(
+    //         marketmanager.redemption_prices(vars.marketId).mulWadDown(
     //         amount) - debt, 10);          
         
 
@@ -820,7 +822,7 @@ contract FullCycleTest is Test {
     //     vars.maxSupply = (precision - marketmanager.getPool(vars.marketId).b_initial()).divWadDown( marketmanager.getPool(vars.marketId).a_initial() ) ; 
 
     //     vars.vault_ad = controller.getVaultfromId(1); //
-    //     vars.curPrice = marketmanager.getPool(vars.marketId).pool().getCurPrice(); 
+    //     vars.curPrice = marketmanager.getPool(vars.marketId).getCurPrice(); 
     //     assertEq(vars.curPrice, marketmanager.getPool(vars.marketId).b()); 
     //     vars.principal = Vault(vars.vault_ad).fetchInstrumentData(vars.marketId).principal; 
     //     vars.amount1 = vars.principal*11/100; 
@@ -830,12 +832,12 @@ contract FullCycleTest is Test {
 
     //     bytes memory data;
 
-    //     controller.setTraderScore(miku, precision*5); 
+    //     reputationManager.setTraderScore(miku, precision*5); 
     //     uint bal = collateral.balanceOf(miku); 
     //     doApproveCol(address(marketmanager), miku); 
     //     vm.prank(miku);
     //     marketmanager.buyBondLevered(vars.marketId, vars.amount1, vars.curPrice + precision/10, precision *leverage); 
-    //     (uint debt, uint amount) = marketmanager.getLeveragePosition(vars.marketId, miku); 
+    //     (uint debt, uint amount) = marketmanager.leveragePosition(vars.marketId, miku); 
 
     //     assertApproxEqAbs(debt , vars.amount1 - (bal - collateral.balanceOf(miku)),10 ); 
     //     assertApproxEqAbs(marketmanager.loggedCollaterals(vars.marketId), vars.amount1, 10); 
@@ -876,7 +878,7 @@ contract FullCycleTest is Test {
     //         assertEq(otc.profit(), 0); 
 
     //         closeMarket(vars); 
-    //         assertEq(marketmanager.get_redemption_price(vars.marketId), precision); 
+    //         assertEq(marketmanager.redemption_prices(vars.marketId), precision); 
 
     //     }
     //     else{
@@ -896,13 +898,14 @@ contract FullCycleTest is Test {
     //             vm.prank(vals[i]);
     //             controller.validatorResolve(vars.marketId);
     //         }
-
+    //         vm.startPrank(vals[0]); 
     //         controller.resolveMarket(vars.marketId); 
+    //         vm.stopPrank(); 
 
-    //         assert(marketmanager.get_redemption_price(vars.marketId)< precision);
+    //         assert(marketmanager.redemption_prices(vars.marketId)< precision);
     //         assertEq(collateral.balanceOf(address(otc)), 0); 
 
-    //         console.log('redemption', marketmanager.get_redemption_price(vars.marketId)); 
+    //         console.log('redemption', marketmanager.redemption_prices(vars.marketId)); 
     //     }
 
     // }

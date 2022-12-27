@@ -1,5 +1,6 @@
 pragma solidity ^0.8.4;
 
+
 import "forge-std/Test.sol";
 import "forge-std/console.sol";
 import "../contracts/protocol/controller.sol";
@@ -14,12 +15,13 @@ import {CoveredCallOTC} from "../contracts/vaults/dov.sol";
 import {ERC20} from "solmate/tokens/ERC20.sol";
 import {SimpleNFTPool} from "../contracts/vaults/nftLending.sol"; 
 import {ReputationManager} from "../contracts/protocol/reputationmanager.sol";
+import {TestBase} from "./testBase.sol"; 
 
-import {CustomTestBase} from "./testbase.sol";
-
-contract PoolInstrumentTest is CustomTestBase {
+contract FixedTest is TestBase {
     using FixedPointMath for uint256; 
     using stdStorage for StdStorage; 
+
+  
 
     function setUp() public {
 
@@ -34,8 +36,8 @@ contract PoolInstrumentTest is CustomTestBase {
             address(0),data, uint64(0)
         );
         ZCBFactory zcbfactory = new ZCBFactory(); 
-        poolFactory = new SyntheticZCBPoolFactory(address(controller), address(zcbfactory)); 
-        reputationManager = new ReputationManager(address(controller), address(marketmanager));
+        poolFactory = new SyntheticZCBPoolFactory(address(controller), address(zcbfactory));
+        reputationManager = new ReputationManager(address(controller), address(marketmanager)); 
 
         vm.startPrank(deployer); 
         controller.setMarketManager(address(marketmanager));
@@ -53,7 +55,6 @@ contract PoolInstrumentTest is CustomTestBase {
             MarketManager.MarketParameters(N, sigma, alpha, omega, delta, r, s, steak)
         ); //vaultId = 1; 
         vault_ad = controller.getVaultfromId(1); 
-
         setUsers();
 
         nftPool = new SimpleNFTPool(  vault_ad, toku, address(collateral)); 
@@ -61,292 +62,98 @@ contract PoolInstrumentTest is CustomTestBase {
 
         initiateSimpleNFTLendingPool(); 
         doInvest(vault_ad,  toku, 1e18*10000); 
-    }
-   
 
-    struct testVars1{
-        uint256 marketId;
-        address vault_ad; 
-        uint amountToBuy; 
-        uint curPrice; 
+        // instrument = new CreditLine(
+        //     vault_ad, 
+        //     jott, principal, interest, duration, faceValue, 
+        //     address(collateral ), address(collateral), principal, 2
+        //     ); 
+        // instrument.setUtilizer(jott); 
 
-        uint amountIn;
-        uint amountOut; 
+        // otc = new CoveredCallOTC(
+        //     vault_ad, toku, address(collateral2), 
+        //     strikeprice, //strikeprice 
+        //     pricePerContract, //price per contract
+        //     shortCollateral, 
+        //     longCollateral, 
+        //     address(collateral), 
+        //     address(0), 
+        //     10); 
+        // otc.setUtilizer(toku); 
 
-        uint valamountIn; 
-        uint cbalnow; 
-        uint cbalnow2; 
-    }
-
-    function testOneLongNoShortApproval() public{
-        testVars1 memory vars; 
-
-        vars.marketId = controller.getMarketId(toku); 
-
-        vars.vault_ad = controller.getVaultfromId(vars.marketId); //
-        vars.amountToBuy = Vault(vars.vault_ad).fetchInstrumentData(vars.marketId).poolData.saleAmount*3/2; 
-        vars.curPrice = marketmanager.getPool(vars.marketId).getCurPrice(); 
-        assertEq(vars.curPrice, marketmanager.getPool(vars.marketId).b()); 
-
-        // Let manager buy
-        bytes memory data; 
-        doApproveCol(address(marketmanager), jonna); 
-        vm.prank(jonna); 
-        (vars.amountIn, vars.amountOut) =
-            marketmanager.buyBond(vars.marketId, int256(vars.amountToBuy), vars.curPrice + precision/2 , data); 
-
-        assertApproxEqAbs(vars.amountIn, vars.amountToBuy, 10); 
-        assertEq(marketmanager.loggedCollaterals(vars.marketId),vars.amountIn); 
-        assert(controller.marketCondition(vars.marketId)); 
-        assert(marketmanager.getPool(vars.marketId).getCurPrice() > vars.curPrice ); 
-
-        // price needs to be at inceptionPrice
-        vars.curPrice = marketmanager.getPool(vars.marketId).getCurPrice(); 
-        assertApproxEqAbs(vars.curPrice, Vault(vars.vault_ad).fetchInstrumentData(vars.marketId).poolData.inceptionPrice, 100); 
-
-        // let validator invest to vault and approve 
-        vars.cbalnow = cBal(address(marketmanager.getPool(vars.marketId))); 
-        vars.cbalnow2 = cBal(address(nftPool)); 
-        doApprove(vars.marketId, vars.vault_ad);
-        assertApproxEqAbs(vars.cbalnow + vars.valamountIn - cBal(address(marketmanager.getPool(vars.marketId))), 
-            vars.valamountIn + vars.amountIn,10); 
-
-        // see how much is supplied to instrument 
-        console.log('?',
-        marketmanager.getZCB(vars.marketId).totalSupply().mulWadDown(Vault(vars.vault_ad).fetchInstrumentData(vars.marketId).poolData.leverageFactor)
-        .mulWadDown(Vault(vars.vault_ad).fetchInstrumentData(vars.marketId).poolData.inceptionPrice), 
-         marketmanager.loggedCollaterals(vars.marketId), cBal(address(nftPool)) - vars.cbalnow2);
-        assertApproxEqAbs(cBal(address(nftPool)) - vars.cbalnow2, 
-         marketmanager.getZCB(vars.marketId).totalSupply().mulWadDown(1e18+ Vault(vars.vault_ad).fetchInstrumentData(vars.marketId).poolData.leverageFactor)
-        .mulWadDown(Vault(vars.vault_ad).fetchInstrumentData(vars.marketId).poolData.inceptionPrice), 100);
-
-        
-        // assertEq(marketmanager.getZCB(vars.marketId).balanceOf(jonna) +
-        // marketmanager.getZCB(vars.marketId).balanceOf(gatdang), marketmanager.getZCB(vars.marketId).totalSupply()); 
-
-        // 
+        // initiateCreditMarket(); 
+        // initiateOptionsOTCMarket(); 
     }
 
-    function testPricing() public{
-        testVars1 memory vars; 
+  
 
-        vars.marketId = controller.getMarketId(toku); 
-        vars.vault_ad = controller.getVaultfromId(vars.marketId); //
+    // function testFailApproval() public{
+    //     address proxy =  instrument.getProxy(); 
+    //     borrowerContract.changeOwner(proxy); 
+    //     assertEq(borrowerContract.owner(), proxy); 
+    //     uint256 marketId = controller.getMarketId(jott); 
 
-        // After approval 
-        vars.amountToBuy = Vault(vars.vault_ad).fetchInstrumentData(vars.marketId).poolData.saleAmount*3/2; 
-        // Let manager buy
-        bytes memory data; 
-        doApproveCol(address(marketmanager), jonna); 
-        vm.prank(jonna); 
-        (vars.amountIn, vars.amountOut) =
-            marketmanager.buyBond(vars.marketId, int256(vars.amountToBuy), vars.curPrice + precision/2 , data); 
-            console.log('amountOut!!!', vars.amountOut,  marketmanager.getZCB(vars.marketId).totalSupply()); 
+    //     controller.approveMarket(marketId);
 
-        controller.getVault(vars.marketId).poolZCBValue(vars.marketId); 
-        doApprove(vars.marketId, vars.vault_ad);
+    // }
 
+    // struct testVars1{
+    //     uint256 marketId;
+    //     address vault_ad; 
+    //     uint amountToBuy; 
+    //     uint curPrice; 
 
-        (uint256 psu, uint256 pju, uint256 levFactor) = controller.getVault(vars.marketId).poolZCBValue(vars.marketId);
-        assertEq(psu, controller.getVault(vars.marketId).fetchInstrumentData(vars.marketId).poolData.inceptionPrice); 
-        assertApproxEqAbs(psu, pju, 10); 
-        console.log('psu', psu, pju); 
+    //     uint amountIn;
+    //     uint amountOut; 
 
-        //After some time.. 
-        vm.warp(block.timestamp+31536000); 
-        ( psu,  pju, ) = controller.getVault(vars.marketId).poolZCBValue(vars.marketId);
-        console.log('psu', psu, pju); 
-        assert(psu>controller.getVault(vars.marketId).fetchInstrumentData(vars.marketId).poolData.inceptionPrice ); 
-        assert(psu> pju+100); 
+    //     uint valamountIn; 
+    //     uint cbalnow; 
+    // }
 
-        // (vars.amountIn, vars.amountOut) =
-        //     marketmanager.buyBond(vars.marketId, int256(vars.amountToBuy), vars.curPrice + precision/2 , data); 
-        // marketmanager.issuePoolBond(vars.marketId, vars.amountToBuy); 
-    }
+    // function testOneLongNoShortApproval() public{
+    //     console.log('?'); 
+    //     testVars1 memory vars; 
 
-    function testPricingIsSupplyAgnostic() public{}
+    //     address proxy =  instrument.getProxy(); 
+    //     borrowerContract.changeOwner(proxy); 
+    //     borrowerContract.autoDelegate(proxy);
+    //     assertEq(borrowerContract.owner(), proxy); 
 
-    function testTwoEqualAmountTimeRedemption() public{
+    //     vars.marketId = controller.getMarketId(jott); 
 
-        // let jonna and sybal both buy and both redeem, equal amount 
-        testVars1 memory vars; 
+    //     vars.vault_ad = controller.getVaultfromId(1); //
+    //     vars.amountToBuy = Vault(vars.vault_ad).fetchInstrumentData(vars.marketId).principal/2; 
+    //     vars.curPrice = marketmanager.getPool(vars.marketId).getCurPrice(); 
+    //     assertEq(vars.curPrice, marketmanager.getPool(vars.marketId).b()); 
 
-        vars.marketId = controller.getMarketId(toku); 
-        vars.vault_ad = controller.getVaultfromId(vars.marketId); //
-        vars.amountToBuy = Vault(vars.vault_ad).fetchInstrumentData(vars.marketId).poolData.saleAmount*3/2; 
-        bytes memory data; 
-        doApproveCol(address(marketmanager), jonna); 
+    //     // Let manager buy
+    //     bytes memory data; 
+    //     doApproveCol(address(marketmanager), jonna); 
+    //     vm.prank(jonna); 
+    //     (vars.amountIn, vars.amountOut) =
+    //         marketmanager.buyBond(vars.marketId, int256(vars.amountToBuy), vars.curPrice + precision/10 , data); 
+    //     assertApproxEqAbs(vars.amountIn, vars.amountToBuy, 10); 
+    //     assertEq(marketmanager.loggedCollaterals(vars.marketId),vars.amountIn); 
+    //     assert(controller.marketCondition(vars.marketId)); 
+    //     assert(marketmanager.getPool(vars.marketId).getCurPrice() > vars.curPrice ); 
 
-        doInvest(vars.vault_ad, gatdang, precision * 100000);
-        vm.prank(jonna); 
-        (vars.amountIn, vars.amountOut) =
-            marketmanager.buyBond(vars.marketId, int256(vars.amountToBuy), vars.curPrice + precision/2 , data); 
-        // let validator invest to vault and approve 
-        doApprove(vars.marketId, vars.vault_ad);
+    //     // let validator invest to vault and approve 
+    //     vars.cbalnow = cBal(address(marketmanager.getPool(vars.marketId))); 
+    //     doApprove(vars.marketId, vars.vault_ad);
+    //     // doApproveCol(vars.vault_ad, gatdang); 
+    //     // doInvest(vars.vault_ad, gatdang, precision * 1000);
+    //     // doApproveCol(address(marketmanager), gatdang); 
+    //     // instrument.setValidator(gatdang);  
+    //     // vm.prank(gatdang);
+    //     // vars.valamountIn = controller.validatorApprove(vars.marketId); 
+    //     assertApproxEqAbs(vars.cbalnow + vars.valamountIn - cBal(address(marketmanager.getPool(vars.marketId))), 
+    //         vars.valamountIn + vars.amountIn,10); 
 
-        uint start = Vault(vars.vault_ad).UNDERLYING()
-        .balanceOf(address(Vault(vars.vault_ad).Instruments(vars.marketId))); 
-        // Let two managers buy at same time, should equal issued qty
-        doApproveCol(address(marketmanager), jonna); 
-        vm.prank(jonna); 
-        uint256 issueQTY = marketmanager.issuePoolBond(vars.marketId, vars.amountToBuy); 
-        doApproveCol(address(marketmanager), sybal); 
-        vm.prank(sybal);
-        uint256 issueQTY2 = marketmanager.issuePoolBond(vars.marketId, vars.amountToBuy); 
-        assertEq(issueQTY2, issueQTY); 
+    //    //how much bond are issued? , TODO, chooses validators randomly
+    //     // assertEq(marketmanager.getZCB(vars.marketId).balanceOf(jonna) +
+    //     // marketmanager.getZCB(vars.marketId).balanceOf(gatdang), marketmanager.getZCB(vars.marketId).totalSupply()); 
 
-        vm.warp(block.timestamp+31536000); 
-        vars.cbalnow = Vault(vars.vault_ad).UNDERLYING().balanceOf(jonna); 
-        vars.cbalnow2 = Vault(vars.vault_ad).UNDERLYING().balanceOf(sybal); 
-        vm.prank(jonna); 
-        marketmanager.redeemPoolLongZCB(vars.marketId, issueQTY );
-        vm.prank(sybal); 
-        marketmanager.redeemPoolLongZCB(vars.marketId, issueQTY2 );
-
-        assertApproxEqAbs(Vault(vars.vault_ad).UNDERLYING().balanceOf(jonna) - vars.cbalnow, 
-            Vault(vars.vault_ad).UNDERLYING().balanceOf(sybal)- vars.cbalnow2, 100); 
-        // instrument balance goes back to same 
-        assertApproxEqAbs(Vault(vars.vault_ad).UNDERLYING()
-        .balanceOf(address(Vault(vars.vault_ad).Instruments(vars.marketId))) , start, 100); 
-
-
-    }
-
-    function testMultipleEqualAmountTimeRedemption()public{}
-
-    // vault deposit goes back to same? 
-    function testSupplyWithdraw() public{
-
-    }
-
-    function testInstrumentBalance() public{}
-
-    function testVaultProfit() public{}//exchangerate should go up with instrument profit 
-
-    function testAfterApprovalSupply() public{
-        testVars1 memory vars; 
-
-        vars.marketId = controller.getMarketId(toku); 
-        vars.vault_ad = controller.getVaultfromId(vars.marketId); //
-        vars.amountToBuy = Vault(vars.vault_ad).fetchInstrumentData(vars.marketId).poolData.saleAmount*3/2; 
-
-        // Let manager buy
-        bytes memory data; 
-        doApproveCol(address(marketmanager), jonna); 
-        vm.prank(jonna); 
-        (vars.amountIn, vars.amountOut) =
-            marketmanager.buyBond(vars.marketId, int256(vars.amountToBuy), vars.curPrice + precision/2 , data); 
-        doApprove(vars.marketId, vars.vault_ad);
-
-        vm.prank(jonna); 
-        marketmanager.issuePoolBond(vars.marketId, vars.amountToBuy); 
-
-        // how much is it supplied? 
-    }
-
- 
-
-    function testPerpetualPayoff()public{
-        // test whether manager will get correct redemption amount at any time 
-        testVars1 memory vars; 
-
-        vars.marketId = controller.getMarketId(toku); 
-        vars.vault_ad = controller.getVaultfromId(vars.marketId); 
-        vars.amountToBuy = Vault(vars.vault_ad).fetchInstrumentData(vars.marketId).poolData.saleAmount*3/2; 
-        uint256 amount = Vault(vars.vault_ad).fetchInstrumentData(vars.marketId).poolData.saleAmount*3/2; 
-
-        // Let manager buy
-        bytes memory data; 
-        doApproveCol(address(marketmanager), jonna); 
-        vm.prank(jonna); 
-        (vars.amountIn, vars.amountOut) =
-            marketmanager.buyBond(vars.marketId, int256(vars.amountToBuy), vars.curPrice + precision/2 , data); 
-        // let validator invest to vault and approve 
-        doApprove(vars.marketId, vars.vault_ad);
-        doInvest(vars.vault_ad, gatdang, precision * 100000);
-
-        // Let manager buy
-        doApproveCol(address(marketmanager), jonna); 
-
-        vars.cbalnow = Vault(vars.vault_ad).UNDERLYING().balanceOf(vars.vault_ad); 
-        vm.prank(jonna); 
-
-        uint256 issueQTY = marketmanager.issuePoolBond(vars.marketId, vars.amountToBuy); 
-        uint balStart = Vault(vars.vault_ad).UNDERLYING().balanceOf(jonna); 
-        vars.cbalnow2 = Vault(vars.vault_ad).UNDERLYING().balanceOf(vars.vault_ad); 
-
-        // some time passes... supply to instrument, harvest
-        vm.warp(block.timestamp+31536000); 
-        address instrument = address(Vault(vars.vault_ad).fetchInstrument(vars.marketId)); 
-        vm.startPrank(jonna); 
-        Vault(vars.vault_ad).UNDERLYING().transfer(instrument, amount); 
-        vm.stopPrank(); 
-        Vault(vars.vault_ad).harvest(instrument); 
-
-        // pju should be same even after redemption  
-        uint balNow = Vault(vars.vault_ad).UNDERLYING().balanceOf(jonna); 
-        uint exchangeRate1 = Vault(vars.vault_ad).previewMint(1e18); 
-
-        vm.prank(jonna); 
-        marketmanager.redeemPoolLongZCB(vars.marketId, issueQTY );
-        ( uint psu, uint pju, ) = controller.getVault(vars.marketId).poolZCBValue(vars.marketId);
-        assert(pju>0); 
-        assert(psu != pju); 
-        assert(vars.cbalnow2 < vars.cbalnow); 
-        assertEq(exchangeRate1, Vault(vars.vault_ad).previewMint(1e18));
-
-        // get vault profit 
-        // assertApproxEqAbs(Vault(vars.vault_ad).UNDERLYING().balanceOf(vars.vault_ad) - vars.cbalnow,
-        //  precision * amount - pju.mulWadDown(issueQTY) , 100); 
-        assertApproxEqAbs(Vault(vars.vault_ad).UNDERLYING().balanceOf(jonna) - balNow, pju.mulWadDown(issueQTY), 1000);
-        if(pju> psu) assert(Vault(vars.vault_ad).UNDERLYING().balanceOf(jonna) > balStart); 
-
-     
-    }
-
-    //approve test
-    function testVaultExchangeRateSameAfterApprove()public {
-        // test whether manager will get correct redemption amount at any time 
-        testVars1 memory vars; 
-
-        vars.marketId = controller.getMarketId(toku); 
-        vars.vault_ad = controller.getVaultfromId(vars.marketId); 
-        vars.amountToBuy = Vault(vars.vault_ad).fetchInstrumentData(vars.marketId).poolData.saleAmount*3/2; 
-        uint256 amount = Vault(vars.vault_ad).fetchInstrumentData(vars.marketId).poolData.saleAmount*3/2; 
-
-        // Let manager buy
-        uint exchangeRate = Vault(vars.vault_ad).previewMint(1e18); 
-        bytes memory data; 
-        doApproveCol(address(marketmanager), jonna); 
-        vm.prank(jonna); 
-        (vars.amountIn, vars.amountOut) =
-            marketmanager.buyBond(vars.marketId, int256(vars.amountToBuy), vars.curPrice + precision/2 , data); 
-
-        // let validator invest to vault and approve, 
-        // After approval, should remain same exchange rate
-        uint exchangeRate1 = Vault(vars.vault_ad).previewMint(1e18); 
-        doApprove(vars.marketId, vars.vault_ad);
-        uint exchangeRate2 = Vault(vars.vault_ad).previewMint(1e18);
-        assertEq(exchangeRate, exchangeRate1);  
-        assertEq(exchangeRate1, exchangeRate2);
-
-        // even after approval, issueing bonds will not change exchange rate
-        doApproveCol(address(marketmanager), jonna); 
-        vm.prank(jonna); 
-        marketmanager.issuePoolBond(vars.marketId, vars.amountToBuy); 
-        assertEq(exchangeRate1, Vault(vars.vault_ad).previewMint(1e18));
-
-
-    }
-
-    // Redeem test 
-    function testVaultExchangeRateSameAfterRedemption() public{}
-
-    function testprofitSplit() public{}//profit split between vault and 
-    function testEveryoneRedeem() public{}
-
-
-    function testBorrowAndRepay() public{}
+    // }
 
     // struct testVars2{
     //     address utilizer; 
@@ -388,7 +195,7 @@ contract PoolInstrumentTest is CustomTestBase {
     //     vars.maxSupply = (precision - marketmanager.getPool(vars.marketId).b_initial()).divWadDown( marketmanager.getPool(vars.marketId).a_initial() ) ; 
 
     //     vars.vault_ad = controller.getVaultfromId(1); //
-    //     vars.curPrice = marketmanager.getPool(vars.marketId).pool().getCurPrice(); 
+    //     vars.curPrice = marketmanager.getPool(vars.marketId).getCurPrice(); 
     //     if(!vars.dontAssert)assertEq(vars.curPrice, marketmanager.getPool(vars.marketId).b()); 
     //     vars.principal = Vault(vars.vault_ad).fetchInstrumentData(vars.marketId).principal; 
 
@@ -432,7 +239,7 @@ contract PoolInstrumentTest is CustomTestBase {
     //     // price is ax+b for x = amount1+amount2 - amount3+amount4 
     //     assertApproxEqAbs( marketmanager.getPool(vars.marketId).a_initial()
     //         .mulWadDown(vars.amount1 + vars.amount2 + vars.amount4 - vars.amount3) 
-    //         + marketmanager.getPool(vars.marketId).b() , marketmanager.getPool(vars.marketId).pool().getCurPrice(), 100000); 
+    //         + marketmanager.getPool(vars.marketId).b() , marketmanager.getPool(vars.marketId).getCurPrice(), 100000); 
     //     // assert(!marketmanager.marketCondition(vars.marketId)); 
     //     }
     //     // now buy 
@@ -452,16 +259,17 @@ contract PoolInstrumentTest is CustomTestBase {
 
     //     }
 
-    //     console.log('collat', marketmanager.loggedCollaterals(vars.marketId), marketmanager.marketCondition(vars.marketId));
+    //     console.log('collat', marketmanager.loggedCollaterals(vars.marketId), controller.marketCondition(vars.marketId));
     // }
 
-    // function doApprove(uint256 marketId, address vault) public{
+    // function doApprove(uint256 marketId, address vault) public{ //TODO: update
     //     // validators invest and approve 
     //     address[] memory vals = controller.viewValidators(marketId);
+    //     console.log("val.length", vals.length);
     //     uint256 initialStake = controller.getInitialStake(marketId);
     //     for (uint i=0; i < vals.length; i++) {
     //         doApproveCol(vault, vals[i]);
-    //         doApproveVault(vault, vals[i], address(marketmanager));
+    //         doApproveVault(vault, vals[i], address(controller));
     //         doApproveCol(address(marketmanager), vals[i]);
     //         doMint(vault, vals[i], initialStake);
     //         vm.prank(vals[i]);
@@ -485,25 +293,25 @@ contract PoolInstrumentTest is CustomTestBase {
     //     vars.cbalbefore = marketmanager.getPool(vars.marketId).cBal(); 
     //     address[] memory vals = controller.viewValidators(vars.marketId);
     //     vm.prank(vals[0]);
-    //     marketmanager.denyMarket(vars.marketId);
+    //     controller.denyMarket(vars.marketId);
     //     // vm.prank(gatdang);
     //     // controller.denyMarket(vars.marketId); 
     //     assertEq(marketmanager.getPool(vars.marketId).cBal(), 0); 
     //     assertApproxEqAbs(collateral.balanceOf(controller.getVaultAd(vars.marketId)) - vars.vaultBal, vars.cbalbefore, 10); 
-    //     assert(!marketmanager.marketActive(vars.marketId)); 
     // }
 
     // function closeMarket(testVars2 memory vars) public {
-    //     vm.prank(gatdang); 
+    //     address[] memory vals = controller.viewValidators(vars.marketId);
+    //     for (uint i=0; i < vals.length; i++) {
+    //         vm.prank(vals[i]);
+    //         controller.validatorResolve(vars.marketId);
+    //     }
+    //     vm.startPrank(vals[0]); 
     //     controller.beforeResolve(vars.marketId); 
     //     vm.roll(block.number+1);
-    //     address[] memory vals = controller.viewValidators(vars.marketId);
-    //     for (uint256 i=0; i < vals.length; i++) {
-    //         vm.prank(vals[i]);
-    //         marketmanager.validatorResolve(vars.marketId);
-    //     }
     //     controller.resolveMarket(vars.marketId); 
     //     assertEq(collateral.balanceOf(address(instrument)),0); 
+    //     vm.stopPrank(); 
     // }
 
     // function setMaturityInstrumentResolveCondition(bool noDefault, uint256 loss) public{
@@ -543,7 +351,7 @@ contract PoolInstrumentTest is CustomTestBase {
     //         marketmanager.getPool(vars.marketId).cBal(), 10); 
 
     //     // how does liquidity change after approval, can people trade in zero liq 
-    //     assertEq(uint256(marketmanager.getPool(vars.marketId).pool().liquidity()), 0); 
+    //     assertEq(uint256(marketmanager.getPool(vars.marketId).liquidity()), 0); 
     // }
 
 
@@ -609,7 +417,7 @@ contract PoolInstrumentTest is CustomTestBase {
     //     doApprove(vars.marketId, vars.vault_ad); 
 
     //     //set bids at current price 
-    //      bytes memory data = abi.encode(uint16(uint16(marketmanager.getPool(vars.marketId).pool().getCurPrice()/1e16) -1),
+    //      bytes memory data = abi.encode(uint16(uint16(marketmanager.getPool(vars.marketId).getCurPrice()/1e16) -1),
     //        false ); 
     //     doApproveCol(address(marketmanager.getPool(vars.marketId)), jonna); 
     //     vm.prank(jonna); 
@@ -626,14 +434,14 @@ contract PoolInstrumentTest is CustomTestBase {
 
     //     // let someone close long limit 
     //     uint256 bal2 = marketmanager.getZCB(vars.marketId).balanceOf(jonna); 
-    //     bytes memory data4 = abi.encode(uint16(uint16(marketmanager.getPool(vars.marketId).pool().getCurPrice()/1e16) +1),
+    //     bytes memory data4 = abi.encode(uint16(uint16(marketmanager.getPool(vars.marketId).getCurPrice()/1e16) +1),
     //        false ); 
     //     vm.prank(jonna); 
     //     marketmanager.sellBond( vars.marketId, bal2, 0, data4); 
     //     assertEq(marketmanager.getZCB(vars.marketId).balanceOf(jonna), 0); 
 
     //      // close all short via limit or via taker. half via limit half via taker 
-    //     bytes memory data3 = abi.encode(uint16(uint16(marketmanager.getPool(vars.marketId).pool().getCurPrice()/1e16) -1),
+    //     bytes memory data3 = abi.encode(uint16(uint16(marketmanager.getPool(vars.marketId).getCurPrice()/1e16) -1),
     //        false ); 
     //     uint256 bal = marketmanager.getShortZCB(vars.marketId).balanceOf(goku); 
     //     vm.prank(goku); 
@@ -667,7 +475,7 @@ contract PoolInstrumentTest is CustomTestBase {
     //     vm.prank(jonna); 
     //     marketmanager.redeem(vars.marketId); 
     //     assertEq(marketmanager.getZCB(vars.marketId).balanceOf(jonna) , 0); 
-    //     assertApproxEqAbs(collateral.balanceOf(jonna) - balbefore , marketmanager.get_redemption_price(vars.marketId).mulWadDown(
+    //     assertApproxEqAbs(collateral.balanceOf(jonna) - balbefore , marketmanager.redemption_prices(vars.marketId).mulWadDown(
     //         zcbbal), 10); 
 
     //     balbefore = collateral.balanceOf(sybal); 
@@ -675,7 +483,7 @@ contract PoolInstrumentTest is CustomTestBase {
     //     vm.prank(sybal); 
     //     marketmanager.redeem(vars.marketId); 
     //     assertEq(marketmanager.getZCB(vars.marketId).balanceOf(sybal) , 0); 
-    //     assertApproxEqAbs(collateral.balanceOf(sybal) - balbefore , marketmanager.get_redemption_price(vars.marketId).mulWadDown(
+    //     assertApproxEqAbs(collateral.balanceOf(sybal) - balbefore , marketmanager.redemption_prices(vars.marketId).mulWadDown(
     //         zcbbal), 10);  
 
     //     balbefore = collateral.balanceOf(miku); 
@@ -683,7 +491,7 @@ contract PoolInstrumentTest is CustomTestBase {
     //     vm.prank(miku); 
     //     marketmanager.redeem(vars.marketId); 
     //     assertEq(marketmanager.getZCB(vars.marketId).balanceOf(miku) , 0); 
-    //     assertApproxEqAbs(collateral.balanceOf(miku) - balbefore , marketmanager.get_redemption_price(vars.marketId).mulWadDown(
+    //     assertApproxEqAbs(collateral.balanceOf(miku) - balbefore , marketmanager.redemption_prices(vars.marketId).mulWadDown(
     //         zcbbal), 10);     
 
     //     //shorter 
@@ -711,8 +519,8 @@ contract PoolInstrumentTest is CustomTestBase {
     //     //     zcbbal), 10);  
 
     //     //invariant 1: longsupply * redemption + shortsupply * 1-redemption = difference in vault balance 
-    //     assertApproxEqAbs( longsupply.mulWadDown(marketmanager.get_redemption_price(vars.marketId)) +
-    //         shortsupply.mulWadDown(precision - marketmanager.get_redemption_price(vars.marketId)), 
+    //     assertApproxEqAbs( longsupply.mulWadDown(marketmanager.redemption_prices(vars.marketId)) +
+    //         shortsupply.mulWadDown(precision - marketmanager.redemption_prices(vars.marketId)), 
     //     vaultbalbefore - collateral.balanceOf(controller.getVaultAd(vars.marketId)), 100);
 
     //     // invariant 2: return for manager> return for LP 
@@ -750,12 +558,12 @@ contract PoolInstrumentTest is CustomTestBase {
 
     //     closeMarket(vars); 
 
-    //     uint scoreBefore1 = controller.trader_scores( jonna); 
-    //     uint scoreBefore2 = controller.trader_scores( sybal); 
-    //     uint scoreBefore3 = controller.trader_scores( miku); 
-    //     uint scoreBefore4 = controller.trader_scores( chris); 
-    //     uint scoreBefore5 = controller.trader_scores( gatdang); 
-    //     // uint scoreBefore4 = controller.trader_scores( jonna); 
+    //     uint scoreBefore1 = controller.getTraderScore( jonna); 
+    //     uint scoreBefore2 = controller.getTraderScore( sybal); 
+    //     uint scoreBefore3 = controller.getTraderScore( miku); 
+    //     uint scoreBefore4 = controller.getTraderScore( chris); 
+    //     uint scoreBefore5 = controller.getTraderScore( gatdang); 
+    //     // uint scoreBefore4 = controller.getTraderScore( jonna); 
 
     //     // Now let managers redeem, reputation score dif
     //     vm.prank(jonna); 
@@ -770,24 +578,24 @@ contract PoolInstrumentTest is CustomTestBase {
     //     marketmanager.redeem(vars.marketId);
 
     //     if (increase){
-    //     assert(controller.trader_scores(jonna)> scoreBefore1);  
-    //     assert(controller.trader_scores(sybal)> scoreBefore2);  
-    //     assert(controller.trader_scores(miku)> scoreBefore3);  
-    //     assert(controller.trader_scores(chris)== scoreBefore4);  
+    //     assert(controller.getTraderScore(jonna)> scoreBefore1);  
+    //     assert(controller.getTraderScore(sybal)> scoreBefore2);  
+    //     assert(controller.getTraderScore(miku)> scoreBefore3);  
+    //     assert(controller.getTraderScore(chris)== scoreBefore4);  
 
     //     }
     //     else{
-    //     assert(controller.trader_scores(jonna)< scoreBefore1);  
-    //     assert(controller.trader_scores(sybal)< scoreBefore2);  
-    //     assert(controller.trader_scores(miku)< scoreBefore3);  
-    //     assert(controller.trader_scores(chris)== scoreBefore4);  
+    //     assert(controller.getTraderScore(jonna)< scoreBefore1);  
+    //     assert(controller.getTraderScore(sybal)< scoreBefore2);  
+    //     assert(controller.getTraderScore(miku)< scoreBefore3);  
+    //     assert(controller.getTraderScore(chris)== scoreBefore4);  
     //     }
   
 
-    //     console.log('before after', scoreBefore1,controller.trader_scores(jonna) ); 
-    //     console.log('before after', scoreBefore2,controller.trader_scores(sybal) ); 
-    //     console.log('before after', scoreBefore3,controller.trader_scores(miku) ); 
-    //     console.log(marketmanager.getMaxLeverage( jonna)); 
+    //     console.log('before after', scoreBefore1,controller.getTraderScore(jonna) ); 
+    //     console.log('before after', scoreBefore2,controller.getTraderScore(sybal) ); 
+    //     console.log('before after', scoreBefore3,controller.getTraderScore(miku) ); 
+    //     console.log(marketmanager.getMaxLeverage(jonna)); 
     // }
 
     // function testLeverageBuyAndRedemption() public{
@@ -801,7 +609,7 @@ contract PoolInstrumentTest is CustomTestBase {
     //     vars.maxSupply = (precision - marketmanager.getPool(vars.marketId).b_initial()).divWadDown( marketmanager.getPool(vars.marketId).a_initial() ) ; 
 
     //     vars.vault_ad = controller.getVaultfromId(1); //
-    //     vars.curPrice = marketmanager.getPool(vars.marketId).pool().getCurPrice(); 
+    //     vars.curPrice = marketmanager.getPool(vars.marketId).getCurPrice(); 
     //     assertEq(vars.curPrice, marketmanager.getPool(vars.marketId).b()); 
     //     vars.principal = Vault(vars.vault_ad).fetchInstrumentData(vars.marketId).principal; 
     //     vars.amount1 = vars.principal*11/100; 
@@ -811,12 +619,12 @@ contract PoolInstrumentTest is CustomTestBase {
 
     //     bytes memory data; 
 
-    //     controller.setTraderScore(miku, precision*5); 
+    //     reputationManager.setTraderScore(miku, precision*5); 
     //     uint bal = collateral.balanceOf(miku); 
     //     doApproveCol(address(marketmanager), miku); 
     //     vm.prank(miku);
     //     marketmanager.buyBondLevered(vars.marketId, vars.amount1, vars.curPrice + precision/10, precision *leverage); 
-    //     (uint debt, uint amount) = marketmanager.getLeveragePosition(vars.marketId, miku); 
+    //     (uint debt, uint amount) = marketmanager.leveragePosition(vars.marketId, miku); 
 
     //     assertApproxEqAbs(debt , vars.amount1 - (bal - collateral.balanceOf(miku) ),10 ); 
     //     assertApproxEqAbs(marketmanager.loggedCollaterals(vars.marketId), vars.amount1, 10); 
@@ -835,10 +643,10 @@ contract PoolInstrumentTest is CustomTestBase {
     //     marketmanager.redeemLeveredBond(vars.marketId); 
     //     assertEq(marketmanager.getZCB(vars.marketId).balanceOf(address(marketmanager)) , 0); 
     //     console.log('?',  collateral.balanceOf(miku) - vars.cbalbefore, 
-    //         marketmanager.get_redemption_price(vars.marketId).mulWadDown(
+    //         marketmanager.redemption_prices(vars.marketId).mulWadDown(
     //         amount) - debt); 
     //     assertApproxEqAbs(collateral.balanceOf(miku) - vars.cbalbefore , 
-    //         marketmanager.get_redemption_price(vars.marketId).mulWadDown(
+    //         marketmanager.redemption_prices(vars.marketId).mulWadDown(
     //         amount) - debt, 10);          
         
 
@@ -857,7 +665,7 @@ contract PoolInstrumentTest is CustomTestBase {
     //     vars.maxSupply = (precision - marketmanager.getPool(vars.marketId).b_initial()).divWadDown( marketmanager.getPool(vars.marketId).a_initial() ) ; 
 
     //     vars.vault_ad = controller.getVaultfromId(1); //
-    //     vars.curPrice = marketmanager.getPool(vars.marketId).pool().getCurPrice(); 
+    //     vars.curPrice = marketmanager.getPool(vars.marketId).getCurPrice(); 
     //     assertEq(vars.curPrice, marketmanager.getPool(vars.marketId).b()); 
     //     vars.principal = Vault(vars.vault_ad).fetchInstrumentData(vars.marketId).principal; 
     //     vars.amount1 = vars.principal*11/100; 
@@ -867,12 +675,12 @@ contract PoolInstrumentTest is CustomTestBase {
 
     //     bytes memory data;
 
-    //     controller.setTraderScore(miku, precision*5); 
+    //     reputationManager.setTraderScore(miku, precision*5); 
     //     uint bal = collateral.balanceOf(miku); 
     //     doApproveCol(address(marketmanager), miku); 
     //     vm.prank(miku);
     //     marketmanager.buyBondLevered(vars.marketId, vars.amount1, vars.curPrice + precision/10, precision *leverage); 
-    //     (uint debt, uint amount) = marketmanager.getLeveragePosition(vars.marketId, miku); 
+    //     (uint debt, uint amount) = marketmanager.leveragePosition(vars.marketId, miku); 
 
     //     assertApproxEqAbs(debt , vars.amount1 - (bal - collateral.balanceOf(miku)),10 ); 
     //     assertApproxEqAbs(marketmanager.loggedCollaterals(vars.marketId), vars.amount1, 10); 
@@ -913,7 +721,7 @@ contract PoolInstrumentTest is CustomTestBase {
     //         assertEq(otc.profit(), 0); 
 
     //         closeMarket(vars); 
-    //         assertEq(marketmanager.get_redemption_price(vars.marketId), precision); 
+    //         assertEq(marketmanager.redemption_prices(vars.marketId), precision); 
 
     //     }
     //     else{
@@ -931,15 +739,16 @@ contract PoolInstrumentTest is CustomTestBase {
     //         address[] memory vals = controller.viewValidators(vars.marketId);
     //         for (uint256 i=0; i < vals.length; i++) {
     //             vm.prank(vals[i]);
-    //             marketmanager.validatorResolve(vars.marketId);
+    //             controller.validatorResolve(vars.marketId);
     //         }
-
+    //         vm.startPrank(vals[0]); 
     //         controller.resolveMarket(vars.marketId); 
+    //         vm.stopPrank(); 
 
-    //         assert(marketmanager.get_redemption_price(vars.marketId)< precision);
+    //         assert(marketmanager.redemption_prices(vars.marketId)< precision);
     //         assertEq(collateral.balanceOf(address(otc)), 0); 
 
-    //         console.log('redemption', marketmanager.get_redemption_price(vars.marketId)); 
+    //         console.log('redemption', marketmanager.redemption_prices(vars.marketId)); 
     //     }
 
     // }

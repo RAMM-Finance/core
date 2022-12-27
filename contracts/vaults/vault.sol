@@ -193,9 +193,10 @@ contract Vault is ERC4626, Auth{
       .rpow(block.timestamp - vars.inceptionTime, BASE_UNIT));
 
     // Get total assets held by the instrument 
-    vars.totalAssetsHeld = instrumentAssetOracle(marketId); 
     vars.juniorSupply = controller.getTotalSupply(marketId); 
     vars.seniorSupply = vars.juniorSupply.mulWadDown(vars.leverageFactor); 
+    vars.totalAssetsHeld = instrumentAssetOracle(marketId, vars.juniorSupply, vars.seniorSupply); 
+
     if (vars.seniorSupply == 0) return(vars.srpPlusOne,vars.srpPlusOne,levFactor); 
     
     // Check if all seniors can redeem
@@ -209,6 +210,11 @@ contract Vault is ERC4626, Auth{
     // should be 0 otherwise 
     if(!vars.belowThreshold) pju = (vars.totalAssetsHeld 
       - vars.srpPlusOne.mulWadDown(vars.seniorSupply)).divWadDown(vars.juniorSupply); 
+
+
+    uint pju_ = (BASE_UNIT+ vars.leverageFactor).mulWadDown(previewMint(BASE_UNIT*8/10)) 
+      -  vars.srpPlusOne.mulWadDown(vars.leverageFactor);
+    assert(pju_ >= pju-10 || pju_ <= pju+10); 
     }
 
     /// @notice Harvest a trusted Instrument, records profit/loss 
@@ -267,19 +273,28 @@ contract Vault is ERC4626, Auth{
       totalInstrumentHoldings -= underlyingAmount;
       
       require(instrument.redeemUnderlying(underlyingAmount), "REDEEM_FAILED");
-      
+
       emit InstrumentWithdrawal(msg.sender, instrument, underlyingAmount);
     }
 
-    function withdrawFromInstrumentExternal(
+    function withdrawFromPoolInstrument(
       uint256 marketId, 
+      uint256 instrumentPullAmount, 
+      address pushTo, 
       uint256 underlyingAmount
       ) external
     //onlyManager
-    {
-      require(fetchInstrument( marketId).isLiquid(underlyingAmount), "!liq"); 
+    { 
+      // Send to withdrawer 
+      Instrument instrument = fetchInstrument( marketId); 
+      instrument.redeemUnderlying(instrumentPullAmount ); 
+      UNDERLYING.transfer(pushTo, instrumentPullAmount); 
+
+      require(instrument.isLiquid(underlyingAmount), "!liq");
+      //TODO instrument balance should decrease to 0 and stay solvent  
       withdrawFromInstrument(fetchInstrument(marketId), underlyingAmount);
     }
+
     /// @notice Stores a Instrument as trusted when its approved
     function trustInstrument(
       uint256 marketId,
@@ -295,21 +310,23 @@ contract Vault is ERC4626, Auth{
         instrumentData.expectedYield = data.approved_yield;
         instrumentData.faceValue = data.approved_principal + data.approved_yield; 
 
-        depositIntoInstrument(marketId, data.approved_principal);
+        depositIntoInstrument(marketId, data.approved_principal-data.managers_stake);
         
         setMaturityDate(marketId);
 
         fetchInstrument(marketId).onMarketApproval(data.approved_principal, data.approved_yield); 
 
       } else{
-        depositIntoInstrument(marketId, data.approved_principal);
+        depositIntoInstrument(marketId, data.approved_principal-data.managers_stake);
       }
     }
 
     /// @notice fetches how much asset the instrument has in underlying. 
-    function instrumentAssetOracle(uint256 marketId) public view returns(uint256){
+    function instrumentAssetOracle(uint256 marketId, uint256 juniorSupply, uint256 seniorSupply) public view returns(uint256){
       // Default balance oracle 
-      return instrument_data[Instruments[marketId]].balance; 
+      // return (juniorSupply + seniorSupply).mulWadDown(previewMint(BASE_UNIT*8/10)); 
+      return (juniorSupply + seniorSupply).mulWadDown(BASE_UNIT*8/10); 
+      //return instrument_data[Instruments[marketId]].balance; 
       //TODO custom oracle 
     }
 
