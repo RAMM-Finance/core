@@ -10,3 +10,8 @@
 [submodule "lib/contracts"]
 	path = lib/contracts
 	url = https://github.com/interep-project/contracts
+[submodule "lib/prb-math"]
+	path = lib/prb-math
+	url = https://github.com/paulrberg/prb-math
+[submodule "/Users/zekiel/Documents/GitHub/core/lib/prb-math"]
+	branch = v3

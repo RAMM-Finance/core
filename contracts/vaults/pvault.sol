@@ -1,4 +1,4 @@
-pragma solidity ^0.8.4;
+pragma solidity ^0.8.16;
 
 import {Auth} from "./auth/Auth.sol";
 import {ERC4626} from "./mixins/ERC4626.sol";

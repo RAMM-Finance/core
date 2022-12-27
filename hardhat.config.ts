@@ -63,7 +63,7 @@ const config: HardhatUserConfig = {
     cache: "./cache_hardhat",
   },
   solidity: {
-    version: "0.8.12",
+    version: "0.8.16",
     settings: {
       optimizer: {
         runs: 200,

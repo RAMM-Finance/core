@@ -1,4 +1,4 @@
-pragma solidity ^0.8.4;
+pragma solidity ^0.8.16;
 
 import {Auth} from "./auth/Auth.sol";
 import {ERC4626} from "./mixins/ERC4626.sol";
@@ -168,7 +168,7 @@ contract Vault is ERC4626, Auth{
 
     uint256 srpPlusOne; 
     uint256 totalAssetsHeld; 
-    uint256 juniorSupply; 
+    uint256 juniorSupply;
     uint256 seniorSupply; 
 
     bool belowThreshold; 
@@ -178,7 +178,7 @@ contract Vault is ERC4626, Auth{
   /// returns pju: price of junior(longZCB) vs underlying
   function poolZCBValue(uint256 marketId) 
     public 
-    view 
+    view
     returns(uint256 psu, uint256 pju, uint256 levFactor){
     localVars memory vars; 
 

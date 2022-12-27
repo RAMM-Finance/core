@@ -1,4 +1,4 @@
-pragma solidity ^0.8.4; 
+pragma solidity ^0.8.16; 
 //https://github.com/poap-xyz/poap-contracts/tree/master/contracts
 import {ERC721} from "solmate/tokens/ERC721.sol";
 import {Controller} from "./controller.sol";

@@ -76,7 +76,7 @@ contract SyntheticZCBPool is BoundedDerivativesPool{
 
         // Set initial liquidity and price 
         setLiquidity(uint128(precision.divWadDown(a_initial))); 
-        setPriceAndPoint(b); 
+        setPriceAndPoint(b);
     }
 
     /// @notice calculates initparams for pool based instruments 

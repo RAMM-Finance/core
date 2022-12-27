@@ -1,3 +1,4 @@
+pragma solidity ^0.8.17;
 import "forge-std/Test.sol";
 import "forge-std/console.sol";
 import "../contracts/protocol/controller.sol";
@@ -13,7 +14,7 @@ import {ERC20} from "solmate/tokens/ERC20.sol";
 import {SimpleNFTPool} from "../contracts/vaults/nftLending.sol"; 
 import {ReputationManager} from "../contracts/protocol/reputationmanager.sol";
 
-contract TestBase is Test {
+contract CustomTestBase is Test {
     using FixedPointMath for uint256; 
     using stdStorage for StdStorage; 
 

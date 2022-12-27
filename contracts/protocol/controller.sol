@@ -1,4 +1,4 @@
-pragma solidity ^0.8.4;
+pragma solidity ^0.8.16;
 import {MarketManager} from "./marketmanager.sol";
 // import {ReputationNFT} from "./reputationtoken.sol";
 import {Vault} from "../vaults/vault.sol";
@@ -492,7 +492,12 @@ contract Controller {
     // if there are not enough traders, set validators to all selected traders.
     if (selected.length <= N) {
       validator_data[marketId].validators = selected;
-      if (selected.length < N) marketManager.setN(marketId, selected.length);
+
+      if (selected.length < N) {
+        marketManager.setN(marketId, selected.length);
+        revert("not enough rated traders");
+      }
+      
       return;
     }
 

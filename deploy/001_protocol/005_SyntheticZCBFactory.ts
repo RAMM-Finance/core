@@ -2,8 +2,8 @@ import { HardhatRuntimeEnvironment } from "hardhat/types";
 import { DeployFunction } from "hardhat-deploy/types";
 
 const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
-  // const { deployments, getNamedAccounts } = hre;
-  // const { deployer } = await getNamedAccounts();
+  const { deployments, getNamedAccounts } = hre;
+  const { deployer } = await getNamedAccounts();
 
   // await deployments.deploy("ZCBFactory", {
   //   from: deployer,
@@ -11,22 +11,21 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   //   log: true,
   // });
 
-  // const { address: controller_addr} = await deployments.get("Controller");
-  // const {address : zcb_addr} = await deployments.get("ZCBFactory"); 
-  // const args = [controller_addr, zcb_addr];
-
-  // const linear_library = await deployments.deploy("LinearCurve", {
+  const { address: controller_addr} = await deployments.get("Controller");
+  const {address : zcb_addr} = await deployments.get("ZCBFactory"); 
+  const args = [controller_addr, zcb_addr];
+  // const linear_library = await deployments.get("LinearCurve", {
   // 	from: deployer,
   // 	log: true
   // })
-  // const{address:linearcurve_addr} = await deployments.get("LinearCurve"); 
+  const{address:linearcurve_addr} = await deployments.get("LinearCurve"); 
 
-  // await deployments.deploy("SyntheticZCBPoolFactory", {
-  //   from: deployer,
-  //   args,
-  //   log: true,
-  //   libraries: {LinearCurve: linear_library.address}
-  // });
+  await deployments.deploy("SyntheticZCBPoolFactory", {
+    from: deployer,
+    args,
+    log: true,
+    libraries: {LinearCurve: linearcurve_addr}
+  });
 };
         
 func.tags = ["SyntheticZCBFactory"];

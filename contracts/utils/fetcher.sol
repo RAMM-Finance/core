@@ -1,4 +1,4 @@
-pragma solidity ^0.8.4;
+pragma solidity ^0.8.16;
 
 import {MarketManager} from "../protocol/marketmanager.sol";
 import {Vault} from "../vaults/vault.sol";

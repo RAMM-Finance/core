@@ -1,4 +1,4 @@
-pragma solidity ^0.8.4;
+pragma solidity ^0.8.16;
 
 import "./vault.sol";
 import {ERC20} from "./tokens/ERC20.sol";

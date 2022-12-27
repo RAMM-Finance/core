@@ -15,9 +15,9 @@ import {ERC20} from "solmate/tokens/ERC20.sol";
 import {SimpleNFTPool} from "../contracts/vaults/nftLending.sol"; 
 import {ReputationManager} from "../contracts/protocol/reputationmanager.sol";
 
-import {TestBase} from "./testbase.sol";
+import {CustomTestBase} from "./testbase.sol";
 
-contract PoolInstrumentTest is TestBase {
+contract PoolInstrumentTest is CustomTestBase {
     using FixedPointMath for uint256; 
     using stdStorage for StdStorage; 
 

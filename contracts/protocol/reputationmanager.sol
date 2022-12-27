@@ -1,4 +1,4 @@
-pragma solidity ^0.8.4;
+pragma solidity ^0.8.16;
 import {config} from "../utils/helpers.sol"; 
 import {FixedPointMathLib} from "solmate/utils/FixedPointMathLib.sol";
 
@@ -15,7 +15,7 @@ contract ReputationManager {
     address deployer;
 
     modifier onlyProtocol() {
-        require(msg.sender == controller || msg.sender == marketManager || msg.sender == deployer);
+        require(msg.sender == controller || msg.sender == marketManager || msg.sender == deployer, "ReputationManager: !protocol");
         _;
     }
 
