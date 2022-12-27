@@ -285,6 +285,7 @@ contract PoolInstrumentTests is Test {
         assertEq(0,pool.userAuctionId(zeke));
     }
 
+    // liquidate + purchase collateral + close auction.
     function testERC721Auction1() public {
         setupPool();
         vm.startPrank(zeke);
@@ -305,6 +306,41 @@ contract PoolInstrumentTests is Test {
         assertEq(0,pool.userAuctionId(zeke));
 
         (bool liquidatable,) = pool._isLiquidatable(zeke);
+        assertEq(liquidatable, false);
+    }
+
+    // liquidate + repay + close auction + can't purchase collaterl
+    function testERC721Auction2() public {
+        setupPool();
+        vm.startPrank(zeke);
+        nft1.freeMint(zeke, 1);
+        nft1.approve(address(pool), 1);
+        pool.borrow(wad/4, address(nft1), 1, 0, zeke);
+        vm.warp(startTime + 500*364.24 days);
+
+        pool.addInterest();
+
+        pool.liquidate(zeke);
+
+        // test start
+
+        changePrank(toku);
+        
+        asset.faucet(100*wad);
+        asset.approve(address(pool), type(uint256).max);
+        
+        changePrank(zeke);
+        asset.approve(address(pool), type(uint256).max);
+        asset.faucet(100*wad);
+        pool.userBorrowShares(zeke);
+        pool.repay(wad/4, zeke);
+
+        vm.expectRevert("auction closed");
+        pool.purchaseERC721Collateral(1);
+    }
+
+    function testAuction1() public {
+        
     }
 
     function testCollateral1 () public {
@@ -344,11 +380,11 @@ contract PoolInstrumentTests is Test {
         vm.startPrank(zeke);
         pool.removeCollateral(address(nft1), 1, 0, zeke);
 
-        pool._canBorrow(zeke);
+        // pool._canBorrow(zeke);
 
         pool.removeCollateral(address(erc20_1), 0, wad, zeke);
-        console.log(pool._canBorrow(zeke));
-        vm.stopPrank();
+        // console.log(pool._canBorrow(zeke));
+        // vm.stopPrank();
         
     }
 

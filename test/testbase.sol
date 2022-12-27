@@ -131,8 +131,6 @@ contract CustomTestBase is Test {
         controller.testVerifyAddress();
     }
 
-   
-
     function initiateCreditMarket() public {
         Vault.InstrumentData memory data;
 

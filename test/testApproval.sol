@@ -15,9 +15,9 @@ import {CoveredCallOTC} from "../contracts/vaults/dov.sol";
 import {ERC20} from "solmate/tokens/ERC20.sol";
 import {SimpleNFTPool} from "../contracts/vaults/nftLending.sol"; 
 import {ReputationManager} from "../contracts/protocol/reputationmanager.sol";
-import {TestBase} from "./testBase.sol"; 
+import {CustomTestBase} from "./testbase.sol"; 
 
-contract FixedTest is TestBase {
+contract FixedTest is CustomTestBase {
     using FixedPointMath for uint256; 
     using stdStorage for StdStorage; 
 

@@ -147,6 +147,7 @@ contract PoolInstrument is ERC4626, Instrument, PoolConstants, ReentrancyGuard, 
     }
 
     // INTEREST RATE LOGIC
+    event InterestAdded(uint256 indexed timestamp, uint256 interestEarned, uint256 feesAmount, uint256 feesShare, uint64 newRate);
 
     function addInterest()
         external
@@ -231,6 +232,7 @@ contract PoolInstrument is ERC4626, Instrument, PoolConstants, ReentrancyGuard, 
             totalBorrow = _totalBorrow;
         }
         console.log("_interestEarned: ", _interestEarned);
+        emit InterestAdded(block.timestamp, _interestEarned, _feesAmount, _feesShare, _newRate);
         // console.log("ratePerSec: ", _currentRateInfo.ratePerSec);
     }
 
@@ -268,17 +270,19 @@ contract PoolInstrument is ERC4626, Instrument, PoolConstants, ReentrancyGuard, 
         console.log("maxBorrowableAmount", _maxBorrowableAmount);
         console.log("user debt: ", totalBorrow.toAmount(userBorrowShares[_borrower], false));
 
-        if (_maxBorrowableAmount == 0) {
-            return false;
-        }
+
         if (userBorrowShares[_borrower] == 0) {
             return true;
+        }
+        if (_maxBorrowableAmount == 0) {
+            return false;
         }
 
         return _maxBorrowableAmount >= totalBorrow.toAmount(userBorrowShares[_borrower], false);
     }
 
     // BORROW LOGIC
+    event Borrow(address indexed _borrower, uint256 _amount, uint256 _shares);
 
     /// @param _borrowAmount amount of asset to borrow
     /// @param _collateralAmount amount of collateral to add
@@ -323,6 +327,8 @@ contract PoolInstrument is ERC4626, Instrument, PoolConstants, ReentrancyGuard, 
         totalBorrow = _totalBorrow;
         userBorrowShares[msg.sender] += _shares;
 
+        emit Borrow(msg.sender, _borrowAmount, _shares);
+
         // Interactions
         if (_receiver != address(this)) {
             asset.safeTransfer(_receiver, _borrowAmount);
@@ -330,6 +336,7 @@ contract PoolInstrument is ERC4626, Instrument, PoolConstants, ReentrancyGuard, 
     }
 
     // REPAY LOGIC
+    event Repay(address indexed borrower, uint256 amount, uint256 shares);
 
     function repay(
         uint256 _shares,
@@ -359,6 +366,8 @@ contract PoolInstrument is ERC4626, Instrument, PoolConstants, ReentrancyGuard, 
         userBorrowShares[_borrower] -= _shares;
         totalBorrow = _totalBorrow;
 
+        emit Repay(_borrower, _amountToRepay, _shares);
+
         // Interactions
         if (_payer != address(this)) {
             asset.safeTransferFrom(_payer, address(this), _amountToRepay);
@@ -367,6 +376,8 @@ contract PoolInstrument is ERC4626, Instrument, PoolConstants, ReentrancyGuard, 
 
 
     // ADD/REMOVE COLLATERAL LOGIC
+    event AddCollateral(address indexed borrower, address collateral, uint256 tokenId, uint256 amount);
+    event RemoveCollateral(address indexed borrower, address collateral, uint256 tokenId, uint256 amount);
 
     
     /// @notice The ```addCollateral``` function allows the caller to add Collateral Token to a borrowers position
@@ -404,6 +415,7 @@ contract PoolInstrument is ERC4626, Instrument, PoolConstants, ReentrancyGuard, 
                 ERC721(_collateral).safeTransferFrom(_sender, address(this), _tokenId);
             }
         }
+        emit AddCollateral(_borrower, _collateral, _tokenId, _collateralAmount);
     }
 
     function removeCollateral(
@@ -442,6 +454,7 @@ contract PoolInstrument is ERC4626, Instrument, PoolConstants, ReentrancyGuard, 
                 ERC721(_collateral).safeTransferFrom(address(this), _receiver, _tokenId);
             }
         }
+        emit RemoveCollateral(_borrower, _collateral, _tokenId, _collateralAmount);
     }
 
     // liquidation logic
@@ -474,6 +487,12 @@ contract PoolInstrument is ERC4626, Instrument, PoolConstants, ReentrancyGuard, 
         );
     }
 
+    /// AUCTION LOGIC
+
+    event AuctionCreated(uint256 indexed id, address indexed borrower, address indexed collateral, uint256 tokenId);
+    event AuctionClosed(uint256 indexed id, address indexed borrower, address indexed collateral, uint256 tokenId);
+    event CollateralPurchased(uint256 indexed id, address indexed buyer, address indexed collateral, uint256 tokenId, uint256 amount);
+
     function liquidate(
         address _borrower
     ) external nonReentrant returns (CollateralLabel memory _collateral, uint256 _auctionId){
@@ -483,12 +502,12 @@ contract PoolInstrument is ERC4626, Instrument, PoolConstants, ReentrancyGuard, 
         require(_liquidatable, "borrower is not liquidatable");
         require(userAuctionId[_borrower] == 0, "auction already exists");
         // _accountLiq < 0 if _liquidatable.
-        (_collateral, _auctionId) = _triggerAuction(_borrower, uint256(-_accountLiq));
+        (_collateral, _auctionId) = _createAuction(_borrower, uint256(-_accountLiq));
     }
 
     // since we don't know the price of the collateral, will just use largest maxAmount collateral, presumably the most "liquid"
     /// @dev _accountLiq in wad.
-    function _triggerAuction(address _borrower, uint256 _accountLiq) internal returns (CollateralLabel memory _collateral, uint256 _auctionId) {
+    function _createAuction(address _borrower, uint256 _accountLiq) internal returns (CollateralLabel memory _collateral, uint256 _auctionId) {
         CollateralLabel[] memory _collaterals = collaterals;
 
         uint256 maxBorrowableAmount;
@@ -556,6 +575,8 @@ contract PoolInstrument is ERC4626, Instrument, PoolConstants, ReentrancyGuard, 
         numAuctions = numAuctions + 1;
         _auctionId = _id;
         userAuctionId[_borrower] = _auctionId;
+
+        emit AuctionCreated(_id, _borrower, _collateral.tokenAddress, _collateral.tokenId);
     }
 
     
@@ -563,20 +584,17 @@ contract PoolInstrument is ERC4626, Instrument, PoolConstants, ReentrancyGuard, 
         uint256 _id = userAuctionId[_borrower];
         (bool _liquidatable, ) = _isLiquidatable(auctions[_id].borrower);
         require(_id != 0, "no auction exists");
+
         if (!_liquidatable) {
-            delete userAuctionId[_borrower];
-            delete auctions[_id];
+            _closeAuction(_id);
         }
     }
 
-    function closeAuction(uint256 _id) public {
+    function _closeAuction(uint256 _id) internal {
         address _borrower = auctions[_id].borrower;
-        (bool _liquidatable, ) = _isLiquidatable(_borrower);
-        require(_id != 0, "no auction exists");
-        if (!_liquidatable) {
-            delete userAuctionId[_borrower];
-            delete auctions[_id];
-        }
+        emit AuctionClosed(_id, _borrower, auctions[_id].collateral, auctions[_id].tokenId);
+        delete userAuctionId[_borrower];
+        delete auctions[_id];
     }
 
     function purchaseERC20Collateral(uint256 _id, uint256 _amount) external returns (uint256 _totalCost) {
@@ -584,9 +602,7 @@ contract PoolInstrument is ERC4626, Instrument, PoolConstants, ReentrancyGuard, 
 
         (bool _liquidatable, ) = _isLiquidatable(_auction.borrower);
         if (!_liquidatable) {
-            _auction.alive = false;
-            auctions[_id] = _auction;
-            delete userAuctionId[_auction.borrower];
+            _closeAuction(_id);
             revert("auction closed");
         }
         
@@ -601,9 +617,7 @@ contract PoolInstrument is ERC4626, Instrument, PoolConstants, ReentrancyGuard, 
 
         (_liquidatable, ) = _isLiquidatable(_auction.borrower);
         if (!_liquidatable) {
-            _auction.alive = false;
-            auctions[_id] = _auction;
-            delete userAuctionId[_auction.borrower];
+            _closeAuction(_id);
         }
         if (userCollateralERC20[_auction.collateral][_auction.borrower] == 0) {
             delete userAuctionId[_auction.borrower];
@@ -623,23 +637,6 @@ contract PoolInstrument is ERC4626, Instrument, PoolConstants, ReentrancyGuard, 
         SD59x18 _price = SD59x18.unwrap(_auction.initialPrice) > SD59x18.unwrap(_auction.minimumPrice.add(_discount)) // is initial price > minimum price + discount => initial price - discount > minimum price
             ? _auction.initialPrice.sub(_discount) : _auction.minimumPrice;
         totalCost = uint256(SD59x18.unwrap(_price.mul(_quantity)));
-
-        // uint256 _d = ERC20(_auction.collateral).decimals(); 
-        // SD59x18 _quantity = sd(int256(_numTokens * (10 ** (18 - _d))));
-        // console.log("quantity: ", uint256(SD59x18.unwrap(_quantity)));
-        // SD59x18 _timeSinceLastAuctionStart = toSD59x18(int256(block.timestamp)).sub(_auction.startTime);
-        // console.log("timeSinceLastAuctionStart: ", uint256(SD59x18.unwrap(_timeSinceLastAuctionStart)));
-        // SD59x18 _num1 = _auction.initialPrice.div(_auction.decayConstant);
-        // console.log("num1: ", uint256(SD59x18.unwrap(_num1)));
-        // console.log("emissionRate: ", uint256(SD59x18.unwrap(_auction.emissionRate)));
-        // console.log("decayConstant: ", uint256(SD59x18.unwrap(_auction.decayConstant)));
-        // SD59x18 _num2 = _auction.decayConstant.mul(_quantity).div(_auction.emissionRate).exp().sub(toSD59x18(1));
-        // console.log("num2: ", uint256(SD59x18.unwrap(_num2)));
-        // SD59x18 _den = _auction.decayConstant.mul(_timeSinceLastAuctionStart).exp();
-        // console.log("den: ", uint256(SD59x18.unwrap(_den)));
-        // SD59x18 _totalCost = _num1.mul(_num2).div(_den);
-        // console.log("totalCost: ", uint256(SD59x18.unwrap(_totalCost)) / 10**18);
-        // totalCost = uint256(SD59x18.unwrap(_totalCost));
     }
 
     /// @param _id is the auction id to purchase the collateral from
@@ -664,8 +661,7 @@ contract PoolInstrument is ERC4626, Instrument, PoolConstants, ReentrancyGuard, 
 
         (_liquidatable, ) = _isLiquidatable(_auction.borrower);
         if (!_liquidatable) {
-            delete auctions[_id];
-            delete userAuctionId[_auction.borrower];
+            _closeAuction(_id);
         }
         if (userCollateralNFTs[_auction.collateral][_auction.tokenId] == address(0)) {
             delete userAuctionId[_auction.borrower];
@@ -715,6 +711,36 @@ contract PoolInstrument is ERC4626, Instrument, PoolConstants, ReentrancyGuard, 
         _totalAsset.shares += shares.safeCastTo128();
 
         totalAsset = _totalAsset;
+    }
+
+    function getUserSnapshot(address _address)
+        external
+        view
+        returns (
+            uint256 _userAssetShares,
+            uint256 _userBorrowShares,
+            int256 _userAccountLiquidity
+        )
+    {
+        _userAssetShares = balanceOf[_address];
+        _userBorrowShares = userBorrowShares[_address];
+        (, _userAccountLiquidity) = _isLiquidatable(_address);
+    }
+
+    function toBorrowShares(uint256 _amount, bool _roundUp) external view returns (uint256) {
+        return totalBorrow.toShares(_amount, _roundUp);
+    }
+
+    function toBorrowAmount(uint256 _shares, bool _roundUp) external view returns (uint256) {
+        return totalBorrow.toAmount(_shares, _roundUp);
+    }
+
+    function toAssetAmount(uint256 _shares, bool _roundUp) external view returns (uint256) {
+        return totalAsset.toAmount(_shares, _roundUp);
+    }
+
+    function toAssetShares(uint256 _amount, bool _roundUp) external view returns (uint256) {
+        return totalAsset.toShares(_amount, _roundUp);
     }
 
     function totalAssets() public view override virtual returns (uint256) {
