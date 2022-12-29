@@ -88,7 +88,7 @@ contract SyntheticZCBPool is BoundedDerivativesPool{
         uint256 sigma
         ) external returns(uint256 managementFee){
         require(msg.sender == controller, "unauthorized"); 
-
+        //TODO these fails at some inputs
         uint256 saleAmountQty = (2*saleAmount).divWadDown(initPrice +endPrice); 
         uint256 a = (endPrice - initPrice).divWadDown(saleAmountQty); 
         

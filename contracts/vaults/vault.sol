@@ -15,7 +15,7 @@ import "openzeppelin-contracts/utils/math/Math.sol";
 import "forge-std/console.sol";
 
 
-contract Vault is ERC4626, Auth{
+contract Vault is ERC4626{
     using SafeCastLib for uint256; 
     using SafeTransferLib for ERC20;
     using FixedPointMathLib for uint256;
@@ -95,11 +95,11 @@ contract Vault is ERC4626, Auth{
         uint256 endBlock; 
         bool isPrepared; 
     }
-
+    address public owner; 
     constructor(
         address _UNDERLYING,
         address _controller, 
-        address owner, 
+        address _owner, 
 
         bool _onlyVerified, //
         uint256 _r, //reputation ranking
@@ -112,11 +112,13 @@ contract Vault is ERC4626, Auth{
             ERC20(_UNDERLYING),
             string(abi.encodePacked("debita ", ERC20(_UNDERLYING).name(), " Vault")),
             string(abi.encodePacked("db", ERC20(_UNDERLYING).symbol()))
-        )  Auth(owner)
+        )  
 
-    {
+    {   
+        owner = _owner; 
         UNDERLYING = ERC20(_UNDERLYING);
-        BASE_UNIT = 10**18; 
+        require(UNDERLYING.decimals() == 18, "decimals"); 
+        BASE_UNIT = 1e18; 
         controller = Controller(_controller);
         set_minting_conditions( _onlyVerified,  _r, _asset_limit, _total_asset_limit); 
         default_params = _default_params; 

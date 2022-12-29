@@ -11,12 +11,12 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   // })
   const{address:linearcurve_addr} = await deployments.get("LinearCurve"); 
 
-  await deployments.deploy("Fetcher", {
-    from: deployer,
-    args: [],
-    log: true,
-    libraries: {LinearCurve: linearcurve_addr}
-  });
+  // await deployments.deploy("Fetcher", {
+  //   from: deployer,
+  //   args: [],
+  //   log: true,
+  //   libraries: {LinearCurve: linearcurve_addr}
+  // });
 };
         
 func.tags = ["Fetcher"];

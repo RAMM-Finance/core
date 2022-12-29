@@ -1,9 +1,9 @@
 {
   "_format": "hh-sol-cache-2",
   "files": {
-    "/Users/zekiel/Documents/GitHub/core/contracts/bonds/GBC.sol": {
-      "lastModificationDate": 1671505275579,
-      "contentHash": "7d49195554bd862670e4573f3dc5ffe2",
+    "/Users/parkjeongwon/Desktop/core/contracts/bonds/GBC.sol": {
+      "lastModificationDate": 1672151861159,
+      "contentHash": "4669ac0fcea7ed615f9ba6b85430136a",
       "sourceName": "contracts/bonds/GBC.sol",
       "solcConfig": {
         "version": "0.8.16",
@@ -35,7 +35,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363731373934303938323232"
+              "__CACHE_BREAKER__": "0x0000000000000031363732323332333834303830"
             }
           }
         }
@@ -55,8 +55,8 @@
         "Tick"
       ]
     },
-    "/Users/zekiel/Documents/GitHub/core/contracts/bonds/libraries.sol": {
-      "lastModificationDate": 1671019151768,
+    "/Users/parkjeongwon/Desktop/core/contracts/bonds/libraries.sol": {
+      "lastModificationDate": 1671070656405,
       "contentHash": "bb053156f67690b0cea24f0a3fe3d170",
       "sourceName": "contracts/bonds/libraries.sol",
       "solcConfig": {
@@ -89,7 +89,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363731373934303938323232"
+              "__CACHE_BREAKER__": "0x0000000000000031363732323332333834303830"
             }
           }
         }
@@ -104,8 +104,8 @@
         "SafeCast"
       ]
     },
-    "/Users/zekiel/Documents/GitHub/core/lib/forge-std/src/console.sol": {
-      "lastModificationDate": 1664051454537,
+    "/Users/parkjeongwon/Desktop/core/lib/forge-std/src/console.sol": {
+      "lastModificationDate": 1665455514517,
       "contentHash": "100b8a33b917da1147740d7ab8b0ded3",
       "sourceName": "lib/forge-std/src/console.sol",
       "solcConfig": {
@@ -138,7 +138,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363731373934303938323232"
+              "__CACHE_BREAKER__": "0x0000000000000031363732323332333834303830"
             }
           }
         }
@@ -151,10 +151,10 @@
         "console"
       ]
     },
-    "/Users/zekiel/Documents/GitHub/core/contracts/bonds/synthetic.sol": {
-      "lastModificationDate": 1671788010715,
-      "contentHash": "f03de6fb518e25ee20a2be4752c34392",
-      "sourceName": "contracts/bonds/synthetic.sol",
+    "/Users/parkjeongwon/Desktop/core/contracts/utils/fetcher.sol": {
+      "lastModificationDate": 1672149992885,
+      "contentHash": "5b9b070df467d5ad7d08f100065b4771",
+      "sourceName": "contracts/utils/fetcher.sol",
       "solcConfig": {
         "version": "0.8.16",
         "settings": {
@@ -185,130 +185,31 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363731373934303938323232"
+              "__CACHE_BREAKER__": "0x0000000000000031363732323332333834303830"
             }
           }
         }
       },
       "imports": [
-        "./GBC.sol",
-        "./boundedDerivatives.sol",
+        "../protocol/marketmanager.sol",
+        "../vaults/vault.sol",
+        "../protocol/factories.sol",
+        "../protocol/controller.sol",
+        "../vaults/tokens/ERC20.sol",
+        "../bonds/synthetic.sol",
         "lib/solmate/src/utils/FixedPointMathLib.sol",
-        "./libraries.sol",
-        "lib/forge-std/src/console.sol"
+        "../bonds/GBC.sol"
       ],
       "versionPragmas": [
-        "^0.8.9"
+        "^0.8.16"
       ],
       "artifacts": [
-        "SyntheticZCBPool",
-        "SyntheticZCBPoolFactory",
-        "ZCBFactory"
+        "Fetcher"
       ]
     },
-    "/Users/zekiel/Documents/GitHub/core/contracts/bonds/boundedDerivatives.sol": {
-      "lastModificationDate": 1671505275579,
-      "contentHash": "88af90f8c88dc12fb658d85f36f9c6b0",
-      "sourceName": "contracts/bonds/boundedDerivatives.sol",
-      "solcConfig": {
-        "version": "0.8.16",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 200
-          },
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata",
-                "devdoc",
-                "userdoc",
-                "storageLayout",
-                "evm.gasEstimates"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          },
-          "metadata": {
-            "useLiteralContent": true
-          },
-          "libraries": {
-            "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363731373934303938323232"
-            }
-          }
-        }
-      },
-      "imports": [
-        "./GBC.sol",
-        "lib/solmate/src/utils/FixedPointMathLib.sol",
-        "./libraries.sol",
-        "lib/forge-std/src/console.sol"
-      ],
-      "versionPragmas": [
-        "^0.8.9"
-      ],
-      "artifacts": [
-        "BoundedDerivativesPool",
-        "iTradeCallBack"
-      ]
-    },
-    "/Users/zekiel/Documents/GitHub/core/lib/solmate/src/utils/FixedPointMathLib.sol": {
-      "lastModificationDate": 1664052236533,
-      "contentHash": "ff0a49d9a7f651401310e1368ce46733",
-      "sourceName": "lib/solmate/src/utils/FixedPointMathLib.sol",
-      "solcConfig": {
-        "version": "0.8.16",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 200
-          },
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata",
-                "devdoc",
-                "userdoc",
-                "storageLayout",
-                "evm.gasEstimates"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          },
-          "metadata": {
-            "useLiteralContent": true
-          },
-          "libraries": {
-            "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363731373934303938323232"
-            }
-          }
-        }
-      },
-      "imports": [],
-      "versionPragmas": [
-        ">=0.8.0"
-      ],
-      "artifacts": [
-        "FixedPointMathLib"
-      ]
-    },
-    "/Users/zekiel/Documents/GitHub/core/contracts/protocol/marketmanager.sol": {
-      "lastModificationDate": 1671697660288,
-      "contentHash": "ba65b9bfc4aaeaca0280bed9724cafc0",
+    "/Users/parkjeongwon/Desktop/core/contracts/protocol/marketmanager.sol": {
+      "lastModificationDate": 1672231658925,
+      "contentHash": "8f07af08b74a3beefc940b1a1558d092",
       "sourceName": "contracts/protocol/marketmanager.sol",
       "solcConfig": {
         "version": "0.8.16",
@@ -340,7 +241,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363731373934303938323232"
+              "__CACHE_BREAKER__": "0x0000000000000031363732323332333834303830"
             }
           }
         }
@@ -360,208 +261,15 @@
         "../vaults/vault.sol"
       ],
       "versionPragmas": [
-        "^0.8.4"
+        "^0.8.16"
       ],
       "artifacts": [
         "MarketManager"
       ]
     },
-    "/Users/zekiel/Documents/GitHub/core/contracts/chainlink/VRFConsumerBaseV2.sol": {
-      "lastModificationDate": 1671019151768,
-      "contentHash": "76eea23466389efd525c5667b2f7898c",
-      "sourceName": "contracts/chainlink/VRFConsumerBaseV2.sol",
-      "solcConfig": {
-        "version": "0.8.16",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 200
-          },
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata",
-                "devdoc",
-                "userdoc",
-                "storageLayout",
-                "evm.gasEstimates"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          },
-          "metadata": {
-            "useLiteralContent": true
-          },
-          "libraries": {
-            "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363731373934303938323232"
-            }
-          }
-        }
-      },
-      "imports": [],
-      "versionPragmas": [
-        "^0.8.4"
-      ],
-      "artifacts": [
-        "VRFConsumerBaseV2"
-      ]
-    },
-    "/Users/zekiel/Documents/GitHub/core/contracts/chainlink/VRFCoordinatorV2Interface.sol": {
-      "lastModificationDate": 1671019151768,
-      "contentHash": "12fb5397da2ca2dbe35365d08d9d9303",
-      "sourceName": "contracts/chainlink/VRFCoordinatorV2Interface.sol",
-      "solcConfig": {
-        "version": "0.8.16",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 200
-          },
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata",
-                "devdoc",
-                "userdoc",
-                "storageLayout",
-                "evm.gasEstimates"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          },
-          "metadata": {
-            "useLiteralContent": true
-          },
-          "libraries": {
-            "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363731373934303938323232"
-            }
-          }
-        }
-      },
-      "imports": [],
-      "versionPragmas": [
-        "^0.8.0"
-      ],
-      "artifacts": [
-        "VRFCoordinatorV2Interface"
-      ]
-    },
-    "/Users/zekiel/Documents/GitHub/core/contracts/utils/helpers.sol": {
-      "lastModificationDate": 1671019151770,
-      "contentHash": "692b75a3f3c8da6bbbe03f4e900fd607",
-      "sourceName": "contracts/utils/helpers.sol",
-      "solcConfig": {
-        "version": "0.8.16",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 200
-          },
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata",
-                "devdoc",
-                "userdoc",
-                "storageLayout",
-                "evm.gasEstimates"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          },
-          "metadata": {
-            "useLiteralContent": true
-          },
-          "libraries": {
-            "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363731373934303938323232"
-            }
-          }
-        }
-      },
-      "imports": [],
-      "versionPragmas": [
-        "^0.8.4"
-      ],
-      "artifacts": [
-        "config"
-      ]
-    },
-    "/Users/zekiel/Documents/GitHub/core/contracts/vaults/mixins/ERC4626.sol": {
-      "lastModificationDate": 1671019151771,
-      "contentHash": "1132a91f1cd2f19e4c7647c36d5e3819",
-      "sourceName": "contracts/vaults/mixins/ERC4626.sol",
-      "solcConfig": {
-        "version": "0.8.16",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 200
-          },
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata",
-                "devdoc",
-                "userdoc",
-                "storageLayout",
-                "evm.gasEstimates"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          },
-          "metadata": {
-            "useLiteralContent": true
-          },
-          "libraries": {
-            "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363731373934303938323232"
-            }
-          }
-        }
-      },
-      "imports": [
-        "../tokens/ERC20.sol",
-        "lib/forge-std/src/console.sol",
-        "../utils/SafeTransferLib.sol",
-        "../utils/FixedPointMathLib.sol"
-      ],
-      "versionPragmas": [
-        ">=0.8.0"
-      ],
-      "artifacts": [
-        "ERC4626"
-      ]
-    },
-    "/Users/zekiel/Documents/GitHub/core/contracts/vaults/vault.sol": {
-      "lastModificationDate": 1671730835442,
-      "contentHash": "c5cc8a5e16c565d657915da831de4090",
+    "/Users/parkjeongwon/Desktop/core/contracts/vaults/vault.sol": {
+      "lastModificationDate": 1672231834042,
+      "contentHash": "faf4b4ffc40b3b6a91c879a43566aaf2",
       "sourceName": "contracts/vaults/vault.sol",
       "solcConfig": {
         "version": "0.8.16",
@@ -593,7 +301,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363731373934303938323232"
+              "__CACHE_BREAKER__": "0x0000000000000031363732323332333834303830"
             }
           }
         }
@@ -612,565 +320,14 @@
         "lib/forge-std/src/console.sol"
       ],
       "versionPragmas": [
-        "^0.8.4"
+        "^0.8.16"
       ],
       "artifacts": [
         "Vault"
       ]
     },
-    "/Users/zekiel/Documents/GitHub/core/contracts/protocol/reputationtoken.sol": {
-      "lastModificationDate": 1671019151769,
-      "contentHash": "cccc4876d0d4d4194fdab27904847246",
-      "sourceName": "contracts/protocol/reputationtoken.sol",
-      "solcConfig": {
-        "version": "0.8.16",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 200
-          },
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata",
-                "devdoc",
-                "userdoc",
-                "storageLayout",
-                "evm.gasEstimates"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          },
-          "metadata": {
-            "useLiteralContent": true
-          },
-          "libraries": {
-            "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363731373934303938323232"
-            }
-          }
-        }
-      },
-      "imports": [
-        "lib/solmate/src/tokens/ERC721.sol",
-        "./controller.sol",
-        "lib/forge-std/src/console.sol"
-      ],
-      "versionPragmas": [
-        "^0.8.4"
-      ],
-      "artifacts": [
-        "ReputationNFT"
-      ]
-    },
-    "/Users/zekiel/Documents/GitHub/core/contracts/protocol/controller.sol": {
-      "lastModificationDate": 1671789271773,
-      "contentHash": "45d575b564780ec4585c0b0cfbbdc2d0",
-      "sourceName": "contracts/protocol/controller.sol",
-      "solcConfig": {
-        "version": "0.8.16",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 200
-          },
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata",
-                "devdoc",
-                "userdoc",
-                "storageLayout",
-                "evm.gasEstimates"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          },
-          "metadata": {
-            "useLiteralContent": true
-          },
-          "libraries": {
-            "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363731373934303938323232"
-            }
-          }
-        }
-      },
-      "imports": [
-        "./marketmanager.sol",
-        "../vaults/vault.sol",
-        "../vaults/instrument.sol",
-        "lib/openzeppelin-contracts/contracts/utils/Strings.sol",
-        "lib/solmate/src/utils/FixedPointMathLib.sol",
-        "./factories.sol",
-        "lib/forge-std/src/console.sol",
-        "../utils/helpers.sol",
-        "lib/openzeppelin-contracts/contracts/utils/math/SafeMath.sol",
-        "lib/solmate/src/tokens/ERC20.sol",
-        "../vaults/mixins/ERC4626.sol",
-        "../vaults/vault.sol",
-        "../bonds/synthetic.sol",
-        "lib/solmate/src/utils/SafeTransferLib.sol",
-        "./reputationmanager.sol"
-      ],
-      "versionPragmas": [
-        "^0.8.4"
-      ],
-      "artifacts": [
-        "Controller"
-      ]
-    },
-    "/Users/zekiel/Documents/GitHub/core/lib/solmate/src/tokens/ERC20.sol": {
-      "lastModificationDate": 1664052236532,
-      "contentHash": "0c7c7ada139062536af09d69d96d395c",
-      "sourceName": "lib/solmate/src/tokens/ERC20.sol",
-      "solcConfig": {
-        "version": "0.8.16",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 200
-          },
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata",
-                "devdoc",
-                "userdoc",
-                "storageLayout",
-                "evm.gasEstimates"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          },
-          "metadata": {
-            "useLiteralContent": true
-          },
-          "libraries": {
-            "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363731373934303938323232"
-            }
-          }
-        }
-      },
-      "imports": [],
-      "versionPragmas": [
-        ">=0.8.0"
-      ],
-      "artifacts": [
-        "ERC20"
-      ]
-    },
-    "/Users/zekiel/Documents/GitHub/core/lib/solmate/src/utils/SafeTransferLib.sol": {
-      "lastModificationDate": 1664052236533,
-      "contentHash": "db5e8a3ee2df4fb8eb2d552a01753920",
-      "sourceName": "lib/solmate/src/utils/SafeTransferLib.sol",
-      "solcConfig": {
-        "version": "0.8.16",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 200
-          },
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata",
-                "devdoc",
-                "userdoc",
-                "storageLayout",
-                "evm.gasEstimates"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          },
-          "metadata": {
-            "useLiteralContent": true
-          },
-          "libraries": {
-            "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363731373934303938323232"
-            }
-          }
-        }
-      },
-      "imports": [
-        "../tokens/ERC20.sol"
-      ],
-      "versionPragmas": [
-        ">=0.8.0"
-      ],
-      "artifacts": [
-        "SafeTransferLib"
-      ]
-    },
-    "/Users/zekiel/Documents/GitHub/core/contracts/vaults/tokens/ERC20.sol": {
-      "lastModificationDate": 1671019151771,
-      "contentHash": "0c7c7ada139062536af09d69d96d395c",
-      "sourceName": "contracts/vaults/tokens/ERC20.sol",
-      "solcConfig": {
-        "version": "0.8.16",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 200
-          },
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata",
-                "devdoc",
-                "userdoc",
-                "storageLayout",
-                "evm.gasEstimates"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          },
-          "metadata": {
-            "useLiteralContent": true
-          },
-          "libraries": {
-            "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363731373934303938323232"
-            }
-          }
-        }
-      },
-      "imports": [],
-      "versionPragmas": [
-        ">=0.8.0"
-      ],
-      "artifacts": [
-        "ERC20"
-      ]
-    },
-    "/Users/zekiel/Documents/GitHub/core/contracts/vaults/utils/SafeTransferLib.sol": {
-      "lastModificationDate": 1671019151772,
-      "contentHash": "db5e8a3ee2df4fb8eb2d552a01753920",
-      "sourceName": "contracts/vaults/utils/SafeTransferLib.sol",
-      "solcConfig": {
-        "version": "0.8.16",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 200
-          },
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata",
-                "devdoc",
-                "userdoc",
-                "storageLayout",
-                "evm.gasEstimates"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          },
-          "metadata": {
-            "useLiteralContent": true
-          },
-          "libraries": {
-            "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363731373934303938323232"
-            }
-          }
-        }
-      },
-      "imports": [
-        "../tokens/ERC20.sol"
-      ],
-      "versionPragmas": [
-        ">=0.8.0"
-      ],
-      "artifacts": [
-        "SafeTransferLib"
-      ]
-    },
-    "/Users/zekiel/Documents/GitHub/core/contracts/vaults/utils/FixedPointMathLib.sol": {
-      "lastModificationDate": 1671019151772,
-      "contentHash": "a325f1ebf8e23098b8a8c882f84609d4",
-      "sourceName": "contracts/vaults/utils/FixedPointMathLib.sol",
-      "solcConfig": {
-        "version": "0.8.16",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 200
-          },
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata",
-                "devdoc",
-                "userdoc",
-                "storageLayout",
-                "evm.gasEstimates"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          },
-          "metadata": {
-            "useLiteralContent": true
-          },
-          "libraries": {
-            "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363731373934303938323232"
-            }
-          }
-        }
-      },
-      "imports": [],
-      "versionPragmas": [
-        ">=0.8.0"
-      ],
-      "artifacts": [
-        "FixedPointMathLib"
-      ]
-    },
-    "/Users/zekiel/Documents/GitHub/core/contracts/vaults/auth/Auth.sol": {
-      "lastModificationDate": 1671019151770,
-      "contentHash": "bbfd0f6ec403ed7c4e51c43d5be0622a",
-      "sourceName": "contracts/vaults/auth/Auth.sol",
-      "solcConfig": {
-        "version": "0.8.16",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 200
-          },
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata",
-                "devdoc",
-                "userdoc",
-                "storageLayout",
-                "evm.gasEstimates"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          },
-          "metadata": {
-            "useLiteralContent": true
-          },
-          "libraries": {
-            "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363731373934303938323232"
-            }
-          }
-        }
-      },
-      "imports": [],
-      "versionPragmas": [
-        ">=0.8.0"
-      ],
-      "artifacts": [
-        "Auth",
-        "Authority"
-      ]
-    },
-    "/Users/zekiel/Documents/GitHub/core/contracts/vaults/utils/SafeCastLib.sol": {
-      "lastModificationDate": 1671019151772,
-      "contentHash": "953f72b4ea32f20010447a524ab4ff7d",
-      "sourceName": "contracts/vaults/utils/SafeCastLib.sol",
-      "solcConfig": {
-        "version": "0.8.16",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 200
-          },
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata",
-                "devdoc",
-                "userdoc",
-                "storageLayout",
-                "evm.gasEstimates"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          },
-          "metadata": {
-            "useLiteralContent": true
-          },
-          "libraries": {
-            "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363731373934303938323232"
-            }
-          }
-        }
-      },
-      "imports": [],
-      "versionPragmas": [
-        ">=0.8.0"
-      ],
-      "artifacts": [
-        "SafeCastLib"
-      ]
-    },
-    "/Users/zekiel/Documents/GitHub/core/contracts/vaults/instrument.sol": {
-      "lastModificationDate": 1671136503973,
-      "contentHash": "3ebfce7270968d2cf952904a86ddec23",
-      "sourceName": "contracts/vaults/instrument.sol",
-      "solcConfig": {
-        "version": "0.8.16",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 200
-          },
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata",
-                "devdoc",
-                "userdoc",
-                "storageLayout",
-                "evm.gasEstimates"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          },
-          "metadata": {
-            "useLiteralContent": true
-          },
-          "libraries": {
-            "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363731373934303938323232"
-            }
-          }
-        }
-      },
-      "imports": [
-        "./vault.sol",
-        "./tokens/ERC20.sol",
-        "lib/openzeppelin-contracts/contracts/utils/math/Math.sol",
-        "./utils/FixedPointMathLib.sol",
-        "lib/forge-std/src/console.sol"
-      ],
-      "versionPragmas": [
-        "^0.8.4"
-      ],
-      "artifacts": [
-        "CreditLine",
-        "Instrument",
-        "MockBorrowerContract",
-        "Proxy"
-      ]
-    },
-    "/Users/zekiel/Documents/GitHub/core/lib/openzeppelin-contracts/contracts/utils/math/Math.sol": {
-      "lastModificationDate": 1664052089645,
-      "contentHash": "0330d7606b25d35159d0fdfa345ae87f",
-      "sourceName": "lib/openzeppelin-contracts/contracts/utils/math/Math.sol",
-      "solcConfig": {
-        "version": "0.8.16",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 200
-          },
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata",
-                "devdoc",
-                "userdoc",
-                "storageLayout",
-                "evm.gasEstimates"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          },
-          "metadata": {
-            "useLiteralContent": true
-          },
-          "libraries": {
-            "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363731373934303938323232"
-            }
-          }
-        }
-      },
-      "imports": [],
-      "versionPragmas": [
-        "^0.8.0"
-      ],
-      "artifacts": [
-        "Math"
-      ]
-    },
-    "/Users/zekiel/Documents/GitHub/core/contracts/protocol/factories.sol": {
-      "lastModificationDate": 1671019151769,
+    "/Users/parkjeongwon/Desktop/core/contracts/protocol/factories.sol": {
+      "lastModificationDate": 1671070656406,
       "contentHash": "cbb5ea0e03c5d4c32718735fddd291b3",
       "sourceName": "contracts/protocol/factories.sol",
       "solcConfig": {
@@ -1203,7 +360,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363731373934303938323232"
+              "__CACHE_BREAKER__": "0x0000000000000031363732323332333834303830"
             }
           }
         }
@@ -1220,9 +377,958 @@
         "VaultFactory"
       ]
     },
-    "/Users/zekiel/Documents/GitHub/core/lib/openzeppelin-contracts/contracts/utils/Strings.sol": {
-      "lastModificationDate": 1664052089644,
-      "contentHash": "a0c595fbbddc5c8b4f45c5f496ad90ff",
+    "/Users/parkjeongwon/Desktop/core/contracts/protocol/controller.sol": {
+      "lastModificationDate": 1672228327514,
+      "contentHash": "5c445d3ad69751892ccdf76f100d12ef",
+      "sourceName": "contracts/protocol/controller.sol",
+      "solcConfig": {
+        "version": "0.8.16",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata",
+                "devdoc",
+                "userdoc",
+                "storageLayout",
+                "evm.gasEstimates"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          },
+          "metadata": {
+            "useLiteralContent": true
+          },
+          "libraries": {
+            "": {
+              "__CACHE_BREAKER__": "0x0000000000000031363732323332333834303830"
+            }
+          }
+        }
+      },
+      "imports": [
+        "./marketmanager.sol",
+        "../vaults/vault.sol",
+        "../vaults/instrument.sol",
+        "lib/openzeppelin-contracts/contracts/utils/Strings.sol",
+        "lib/solmate/src/utils/FixedPointMathLib.sol",
+        "./factories.sol",
+        "lib/forge-std/src/console.sol",
+        "../utils/helpers.sol",
+        "lib/openzeppelin-contracts/contracts/utils/math/SafeMath.sol",
+        "lib/solmate/src/tokens/ERC20.sol",
+        "../vaults/mixins/ERC4626.sol",
+        "../vaults/vault.sol",
+        "../bonds/synthetic.sol",
+        "lib/solmate/src/utils/SafeTransferLib.sol",
+        "./reputationmanager.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.16"
+      ],
+      "artifacts": [
+        "Controller"
+      ]
+    },
+    "/Users/parkjeongwon/Desktop/core/contracts/vaults/tokens/ERC20.sol": {
+      "lastModificationDate": 1671070656408,
+      "contentHash": "0c7c7ada139062536af09d69d96d395c",
+      "sourceName": "contracts/vaults/tokens/ERC20.sol",
+      "solcConfig": {
+        "version": "0.8.16",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata",
+                "devdoc",
+                "userdoc",
+                "storageLayout",
+                "evm.gasEstimates"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          },
+          "metadata": {
+            "useLiteralContent": true
+          },
+          "libraries": {
+            "": {
+              "__CACHE_BREAKER__": "0x0000000000000031363732323332333834303830"
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        ">=0.8.0"
+      ],
+      "artifacts": [
+        "ERC20"
+      ]
+    },
+    "/Users/parkjeongwon/Desktop/core/contracts/bonds/synthetic.sol": {
+      "lastModificationDate": 1672227808946,
+      "contentHash": "04e0aa896ed06076511ddae1eab1ccc5",
+      "sourceName": "contracts/bonds/synthetic.sol",
+      "solcConfig": {
+        "version": "0.8.16",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata",
+                "devdoc",
+                "userdoc",
+                "storageLayout",
+                "evm.gasEstimates"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          },
+          "metadata": {
+            "useLiteralContent": true
+          },
+          "libraries": {
+            "": {
+              "__CACHE_BREAKER__": "0x0000000000000031363732323332333834303830"
+            }
+          }
+        }
+      },
+      "imports": [
+        "./GBC.sol",
+        "./boundedDerivatives.sol",
+        "lib/solmate/src/utils/FixedPointMathLib.sol",
+        "./libraries.sol",
+        "lib/forge-std/src/console.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.9"
+      ],
+      "artifacts": [
+        "SyntheticZCBPool",
+        "SyntheticZCBPoolFactory",
+        "ZCBFactory"
+      ]
+    },
+    "/Users/parkjeongwon/Desktop/core/lib/solmate/src/utils/FixedPointMathLib.sol": {
+      "lastModificationDate": 1672228849389,
+      "contentHash": "3945241174f1c8fdcd51c2571f8ec92e",
+      "sourceName": "lib/solmate/src/utils/FixedPointMathLib.sol",
+      "solcConfig": {
+        "version": "0.8.16",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata",
+                "devdoc",
+                "userdoc",
+                "storageLayout",
+                "evm.gasEstimates"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          },
+          "metadata": {
+            "useLiteralContent": true
+          },
+          "libraries": {
+            "": {
+              "__CACHE_BREAKER__": "0x0000000000000031363732323332333834303830"
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        ">=0.8.0"
+      ],
+      "artifacts": [
+        "FixedPointMathLib"
+      ]
+    },
+    "/Users/parkjeongwon/Desktop/core/contracts/chainlink/VRFConsumerBaseV2.sol": {
+      "lastModificationDate": 1671070656405,
+      "contentHash": "76eea23466389efd525c5667b2f7898c",
+      "sourceName": "contracts/chainlink/VRFConsumerBaseV2.sol",
+      "solcConfig": {
+        "version": "0.8.16",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata",
+                "devdoc",
+                "userdoc",
+                "storageLayout",
+                "evm.gasEstimates"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          },
+          "metadata": {
+            "useLiteralContent": true
+          },
+          "libraries": {
+            "": {
+              "__CACHE_BREAKER__": "0x0000000000000031363732323332333834303830"
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.4"
+      ],
+      "artifacts": [
+        "VRFConsumerBaseV2"
+      ]
+    },
+    "/Users/parkjeongwon/Desktop/core/contracts/chainlink/VRFCoordinatorV2Interface.sol": {
+      "lastModificationDate": 1671070656405,
+      "contentHash": "12fb5397da2ca2dbe35365d08d9d9303",
+      "sourceName": "contracts/chainlink/VRFCoordinatorV2Interface.sol",
+      "solcConfig": {
+        "version": "0.8.16",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata",
+                "devdoc",
+                "userdoc",
+                "storageLayout",
+                "evm.gasEstimates"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          },
+          "metadata": {
+            "useLiteralContent": true
+          },
+          "libraries": {
+            "": {
+              "__CACHE_BREAKER__": "0x0000000000000031363732323332333834303830"
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.0"
+      ],
+      "artifacts": [
+        "VRFCoordinatorV2Interface"
+      ]
+    },
+    "/Users/parkjeongwon/Desktop/core/contracts/utils/helpers.sol": {
+      "lastModificationDate": 1671070656406,
+      "contentHash": "692b75a3f3c8da6bbbe03f4e900fd607",
+      "sourceName": "contracts/utils/helpers.sol",
+      "solcConfig": {
+        "version": "0.8.16",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata",
+                "devdoc",
+                "userdoc",
+                "storageLayout",
+                "evm.gasEstimates"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          },
+          "metadata": {
+            "useLiteralContent": true
+          },
+          "libraries": {
+            "": {
+              "__CACHE_BREAKER__": "0x0000000000000031363732323332333834303830"
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.4"
+      ],
+      "artifacts": [
+        "config"
+      ]
+    },
+    "/Users/parkjeongwon/Desktop/core/contracts/vaults/mixins/ERC4626.sol": {
+      "lastModificationDate": 1671070656407,
+      "contentHash": "1132a91f1cd2f19e4c7647c36d5e3819",
+      "sourceName": "contracts/vaults/mixins/ERC4626.sol",
+      "solcConfig": {
+        "version": "0.8.16",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata",
+                "devdoc",
+                "userdoc",
+                "storageLayout",
+                "evm.gasEstimates"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          },
+          "metadata": {
+            "useLiteralContent": true
+          },
+          "libraries": {
+            "": {
+              "__CACHE_BREAKER__": "0x0000000000000031363732323332333834303830"
+            }
+          }
+        }
+      },
+      "imports": [
+        "../tokens/ERC20.sol",
+        "lib/forge-std/src/console.sol",
+        "../utils/SafeTransferLib.sol",
+        "../utils/FixedPointMathLib.sol"
+      ],
+      "versionPragmas": [
+        ">=0.8.0"
+      ],
+      "artifacts": [
+        "ERC4626"
+      ]
+    },
+    "/Users/parkjeongwon/Desktop/core/contracts/protocol/reputationtoken.sol": {
+      "lastModificationDate": 1672149992885,
+      "contentHash": "bc2b2a57a2c38e0fbf6f8a0f6534f1cc",
+      "sourceName": "contracts/protocol/reputationtoken.sol",
+      "solcConfig": {
+        "version": "0.8.16",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata",
+                "devdoc",
+                "userdoc",
+                "storageLayout",
+                "evm.gasEstimates"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          },
+          "metadata": {
+            "useLiteralContent": true
+          },
+          "libraries": {
+            "": {
+              "__CACHE_BREAKER__": "0x0000000000000031363732323332333834303830"
+            }
+          }
+        }
+      },
+      "imports": [
+        "lib/solmate/src/tokens/ERC721.sol",
+        "./controller.sol",
+        "lib/forge-std/src/console.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.16"
+      ],
+      "artifacts": [
+        "ReputationNFT"
+      ]
+    },
+    "/Users/parkjeongwon/Desktop/core/lib/solmate/src/tokens/ERC20.sol": {
+      "lastModificationDate": 1665455825753,
+      "contentHash": "0c7c7ada139062536af09d69d96d395c",
+      "sourceName": "lib/solmate/src/tokens/ERC20.sol",
+      "solcConfig": {
+        "version": "0.8.16",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata",
+                "devdoc",
+                "userdoc",
+                "storageLayout",
+                "evm.gasEstimates"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          },
+          "metadata": {
+            "useLiteralContent": true
+          },
+          "libraries": {
+            "": {
+              "__CACHE_BREAKER__": "0x0000000000000031363732323332333834303830"
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        ">=0.8.0"
+      ],
+      "artifacts": [
+        "ERC20"
+      ]
+    },
+    "/Users/parkjeongwon/Desktop/core/lib/solmate/src/utils/SafeTransferLib.sol": {
+      "lastModificationDate": 1672228849390,
+      "contentHash": "668dd0a8a175344c51036ae7fcb01d36",
+      "sourceName": "lib/solmate/src/utils/SafeTransferLib.sol",
+      "solcConfig": {
+        "version": "0.8.16",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata",
+                "devdoc",
+                "userdoc",
+                "storageLayout",
+                "evm.gasEstimates"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          },
+          "metadata": {
+            "useLiteralContent": true
+          },
+          "libraries": {
+            "": {
+              "__CACHE_BREAKER__": "0x0000000000000031363732323332333834303830"
+            }
+          }
+        }
+      },
+      "imports": [
+        "../tokens/ERC20.sol"
+      ],
+      "versionPragmas": [
+        ">=0.8.0"
+      ],
+      "artifacts": [
+        "SafeTransferLib"
+      ]
+    },
+    "/Users/parkjeongwon/Desktop/core/contracts/bonds/boundedDerivatives.sol": {
+      "lastModificationDate": 1671270087419,
+      "contentHash": "88af90f8c88dc12fb658d85f36f9c6b0",
+      "sourceName": "contracts/bonds/boundedDerivatives.sol",
+      "solcConfig": {
+        "version": "0.8.16",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata",
+                "devdoc",
+                "userdoc",
+                "storageLayout",
+                "evm.gasEstimates"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          },
+          "metadata": {
+            "useLiteralContent": true
+          },
+          "libraries": {
+            "": {
+              "__CACHE_BREAKER__": "0x0000000000000031363732323332333834303830"
+            }
+          }
+        }
+      },
+      "imports": [
+        "./GBC.sol",
+        "lib/solmate/src/utils/FixedPointMathLib.sol",
+        "./libraries.sol",
+        "lib/forge-std/src/console.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.9"
+      ],
+      "artifacts": [
+        "BoundedDerivativesPool",
+        "iTradeCallBack"
+      ]
+    },
+    "/Users/parkjeongwon/Desktop/core/contracts/vaults/utils/SafeTransferLib.sol": {
+      "lastModificationDate": 1671070656409,
+      "contentHash": "db5e8a3ee2df4fb8eb2d552a01753920",
+      "sourceName": "contracts/vaults/utils/SafeTransferLib.sol",
+      "solcConfig": {
+        "version": "0.8.16",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata",
+                "devdoc",
+                "userdoc",
+                "storageLayout",
+                "evm.gasEstimates"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          },
+          "metadata": {
+            "useLiteralContent": true
+          },
+          "libraries": {
+            "": {
+              "__CACHE_BREAKER__": "0x0000000000000031363732323332333834303830"
+            }
+          }
+        }
+      },
+      "imports": [
+        "../tokens/ERC20.sol"
+      ],
+      "versionPragmas": [
+        ">=0.8.0"
+      ],
+      "artifacts": [
+        "SafeTransferLib"
+      ]
+    },
+    "/Users/parkjeongwon/Desktop/core/contracts/vaults/utils/FixedPointMathLib.sol": {
+      "lastModificationDate": 1671070656408,
+      "contentHash": "a325f1ebf8e23098b8a8c882f84609d4",
+      "sourceName": "contracts/vaults/utils/FixedPointMathLib.sol",
+      "solcConfig": {
+        "version": "0.8.16",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata",
+                "devdoc",
+                "userdoc",
+                "storageLayout",
+                "evm.gasEstimates"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          },
+          "metadata": {
+            "useLiteralContent": true
+          },
+          "libraries": {
+            "": {
+              "__CACHE_BREAKER__": "0x0000000000000031363732323332333834303830"
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        ">=0.8.0"
+      ],
+      "artifacts": [
+        "FixedPointMathLib"
+      ]
+    },
+    "/Users/parkjeongwon/Desktop/core/contracts/vaults/auth/Auth.sol": {
+      "lastModificationDate": 1671070656407,
+      "contentHash": "bbfd0f6ec403ed7c4e51c43d5be0622a",
+      "sourceName": "contracts/vaults/auth/Auth.sol",
+      "solcConfig": {
+        "version": "0.8.16",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata",
+                "devdoc",
+                "userdoc",
+                "storageLayout",
+                "evm.gasEstimates"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          },
+          "metadata": {
+            "useLiteralContent": true
+          },
+          "libraries": {
+            "": {
+              "__CACHE_BREAKER__": "0x0000000000000031363732323332333834303830"
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        ">=0.8.0"
+      ],
+      "artifacts": [
+        "Auth",
+        "Authority"
+      ]
+    },
+    "/Users/parkjeongwon/Desktop/core/contracts/vaults/instrument.sol": {
+      "lastModificationDate": 1672149992886,
+      "contentHash": "2b3a71123708b91a00c4666b0c10fc87",
+      "sourceName": "contracts/vaults/instrument.sol",
+      "solcConfig": {
+        "version": "0.8.16",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata",
+                "devdoc",
+                "userdoc",
+                "storageLayout",
+                "evm.gasEstimates"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          },
+          "metadata": {
+            "useLiteralContent": true
+          },
+          "libraries": {
+            "": {
+              "__CACHE_BREAKER__": "0x0000000000000031363732323332333834303830"
+            }
+          }
+        }
+      },
+      "imports": [
+        "./vault.sol",
+        "./tokens/ERC20.sol",
+        "lib/openzeppelin-contracts/contracts/utils/math/Math.sol",
+        "./utils/FixedPointMathLib.sol",
+        "lib/forge-std/src/console.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.16"
+      ],
+      "artifacts": [
+        "CreditLine",
+        "Instrument",
+        "MockBorrowerContract",
+        "Proxy"
+      ]
+    },
+    "/Users/parkjeongwon/Desktop/core/contracts/vaults/utils/SafeCastLib.sol": {
+      "lastModificationDate": 1671070656409,
+      "contentHash": "953f72b4ea32f20010447a524ab4ff7d",
+      "sourceName": "contracts/vaults/utils/SafeCastLib.sol",
+      "solcConfig": {
+        "version": "0.8.16",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata",
+                "devdoc",
+                "userdoc",
+                "storageLayout",
+                "evm.gasEstimates"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          },
+          "metadata": {
+            "useLiteralContent": true
+          },
+          "libraries": {
+            "": {
+              "__CACHE_BREAKER__": "0x0000000000000031363732323332333834303830"
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        ">=0.8.0"
+      ],
+      "artifacts": [
+        "SafeCastLib"
+      ]
+    },
+    "/Users/parkjeongwon/Desktop/core/lib/openzeppelin-contracts/contracts/utils/math/Math.sol": {
+      "lastModificationDate": 1672228844962,
+      "contentHash": "9b9c46d95d66bf292b687c71a75caaf8",
+      "sourceName": "lib/openzeppelin-contracts/contracts/utils/math/Math.sol",
+      "solcConfig": {
+        "version": "0.8.16",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata",
+                "devdoc",
+                "userdoc",
+                "storageLayout",
+                "evm.gasEstimates"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          },
+          "metadata": {
+            "useLiteralContent": true
+          },
+          "libraries": {
+            "": {
+              "__CACHE_BREAKER__": "0x0000000000000031363732323332333834303830"
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.0"
+      ],
+      "artifacts": [
+        "Math"
+      ]
+    },
+    "/Users/parkjeongwon/Desktop/core/contracts/protocol/reputationmanager.sol": {
+      "lastModificationDate": 1672149992885,
+      "contentHash": "153d8256cb52898dc0e16688de130b98",
+      "sourceName": "contracts/protocol/reputationmanager.sol",
+      "solcConfig": {
+        "version": "0.8.16",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata",
+                "devdoc",
+                "userdoc",
+                "storageLayout",
+                "evm.gasEstimates"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          },
+          "metadata": {
+            "useLiteralContent": true
+          },
+          "libraries": {
+            "": {
+              "__CACHE_BREAKER__": "0x0000000000000031363732323332333834303830"
+            }
+          }
+        }
+      },
+      "imports": [
+        "../utils/helpers.sol",
+        "lib/solmate/src/utils/FixedPointMathLib.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.16"
+      ],
+      "artifacts": [
+        "ReputationManager"
+      ]
+    },
+    "/Users/parkjeongwon/Desktop/core/lib/openzeppelin-contracts/contracts/utils/Strings.sol": {
+      "lastModificationDate": 1672228844961,
+      "contentHash": "396031251978f8febfd90cb62cb240ec",
       "sourceName": "lib/openzeppelin-contracts/contracts/utils/Strings.sol",
       "solcConfig": {
         "version": "0.8.16",
@@ -1254,7 +1360,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363731373934303938323232"
+              "__CACHE_BREAKER__": "0x0000000000000031363732323332333834303830"
             }
           }
         }
@@ -1269,9 +1375,9 @@
         "Strings"
       ]
     },
-    "/Users/zekiel/Documents/GitHub/core/lib/openzeppelin-contracts/contracts/utils/math/SafeMath.sol": {
-      "lastModificationDate": 1664052089645,
-      "contentHash": "2337f0279507b5edf14a07067adf0d05",
+    "/Users/parkjeongwon/Desktop/core/lib/openzeppelin-contracts/contracts/utils/math/SafeMath.sol": {
+      "lastModificationDate": 1672228844963,
+      "contentHash": "ddc8de099bf33e1a01831ad72f9ef47d",
       "sourceName": "lib/openzeppelin-contracts/contracts/utils/math/SafeMath.sol",
       "solcConfig": {
         "version": "0.8.16",
@@ -1303,7 +1409,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363731373934303938323232"
+              "__CACHE_BREAKER__": "0x0000000000000031363732323332333834303830"
             }
           }
         }
@@ -1316,8 +1422,8 @@
         "SafeMath"
       ]
     },
-    "/Users/zekiel/Documents/GitHub/core/lib/solmate/src/tokens/ERC721.sol": {
-      "lastModificationDate": 1664052236532,
+    "/Users/parkjeongwon/Desktop/core/lib/solmate/src/tokens/ERC721.sol": {
+      "lastModificationDate": 1665455825753,
       "contentHash": "ecc06cefc5404b9e1adbc2e459d5757e",
       "sourceName": "lib/solmate/src/tokens/ERC721.sol",
       "solcConfig": {
@@ -1350,7 +1456,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363731373934303938323232"
+              "__CACHE_BREAKER__": "0x0000000000000031363732323332333834303830"
             }
           }
         }
@@ -1364,10 +1470,10 @@
         "ERC721TokenReceiver"
       ]
     },
-    "/Users/zekiel/Documents/GitHub/core/contracts/vaults/pvault.sol": {
-      "lastModificationDate": 1671685752282,
-      "contentHash": "c10cef1b00e97261d6a975904c352b79",
-      "sourceName": "contracts/vaults/pvault.sol",
+    "/Users/parkjeongwon/Desktop/core/lib/solmate/src/mixins/ERC4626.sol": {
+      "lastModificationDate": 1665455825749,
+      "contentHash": "b3b17f857a7cdf1ebd62b5c46e700f12",
+      "sourceName": "lib/solmate/src/mixins/ERC4626.sol",
       "solcConfig": {
         "version": "0.8.16",
         "settings": {
@@ -1398,35 +1504,27 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363731373934303938323232"
+              "__CACHE_BREAKER__": "0x0000000000000031363732323332333834303830"
             }
           }
         }
       },
       "imports": [
-        "./auth/Auth.sol",
-        "./mixins/ERC4626.sol",
-        "./utils/SafeCastLib.sol",
-        "./utils/SafeTransferLib.sol",
-        "./utils/FixedPointMathLib.sol",
-        "./tokens/ERC20.sol",
-        "./instrument.sol",
-        "../protocol/controller.sol",
-        "../protocol/marketmanager.sol",
-        "lib/openzeppelin-contracts/contracts/utils/math/Math.sol",
-        "lib/forge-std/src/console.sol"
+        "../tokens/ERC20.sol",
+        "../utils/SafeTransferLib.sol",
+        "../utils/FixedPointMathLib.sol"
       ],
       "versionPragmas": [
-        "^0.8.4"
+        ">=0.8.0"
       ],
       "artifacts": [
-        "Vault"
+        "ERC4626"
       ]
     },
-    "/Users/zekiel/Documents/GitHub/core/contracts/vaults/nftLending.sol": {
-      "lastModificationDate": 1671019563253,
-      "contentHash": "5685ac22ac5ffdd38149df7c923fb5a8",
-      "sourceName": "contracts/vaults/nftLending.sol",
+    "/Users/parkjeongwon/Desktop/core/contracts/utils/TestNFT.sol": {
+      "lastModificationDate": 1672149992885,
+      "contentHash": "363b4d86407c27d327f5262286b9ae11",
+      "sourceName": "contracts/utils/TestNFT.sol",
       "solcConfig": {
         "version": "0.8.16",
         "settings": {
@@ -1457,31 +1555,88 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363731373934303938323232"
+              "__CACHE_BREAKER__": "0x0000000000000031363732323332333834303830"
             }
           }
         }
       },
       "imports": [
-        "./vault.sol",
-        "./tokens/ERC20.sol",
-        "lib/openzeppelin-contracts/contracts/utils/math/Math.sol",
-        "./utils/FixedPointMathLib.sol",
+        "lib/solmate/src/tokens/ERC721.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.16"
+      ],
+      "artifacts": [
+        "TestNFT"
+      ]
+    },
+    "/Users/parkjeongwon/Desktop/core/contracts/instruments/poolInstrument.sol": {
+      "lastModificationDate": 1672228877203,
+      "contentHash": "b72b92dbcb6e3cbc79421bf41d47deeb",
+      "sourceName": "contracts/instruments/poolInstrument.sol",
+      "solcConfig": {
+        "version": "0.8.16",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata",
+                "devdoc",
+                "userdoc",
+                "storageLayout",
+                "evm.gasEstimates"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          },
+          "metadata": {
+            "useLiteralContent": true
+          },
+          "libraries": {
+            "": {
+              "__CACHE_BREAKER__": "0x0000000000000031363732323332333834303830"
+            }
+          }
+        }
+      },
+      "imports": [
+        "../vaults/instrument.sol",
+        "lib/solmate/src/tokens/ERC20.sol",
+        "lib/solmate/src/tokens/ERC721.sol",
+        "lib/solmate/src/utils/SafeTransferLib.sol",
+        "./poolConstants.sol",
+        "./VaultAccount.sol",
+        "lib/solmate/src/utils/SafeCastLib.sol",
+        "./IRateCalculator.sol",
+        "lib/solmate/src/utils/ReentrancyGuard.sol",
+        "lib/solmate/src/utils/FixedPointMathLib.sol",
+        "lib/openzeppelin-contracts/contracts/security/Pausable.sol",
+        "lib/solmate/src/mixins/ERC4626.sol",
+        "lib/solmate/src/tokens/ERC721.sol",
         "lib/forge-std/src/console.sol",
-        "./instrument.sol",
-        "./tokens/ERC721.sol"
+        "lib/prb-math/src/SD59x18.sol"
       ],
       "versionPragmas": [
-        "^0.8.4"
+        "^0.8.16"
       ],
       "artifacts": [
-        "SimpleNFTPool"
+        "PoolInstrument"
       ]
     },
-    "/Users/zekiel/Documents/GitHub/core/contracts/vaults/tokens/ERC721.sol": {
-      "lastModificationDate": 1671019151771,
-      "contentHash": "ecc06cefc5404b9e1adbc2e459d5757e",
-      "sourceName": "contracts/vaults/tokens/ERC721.sol",
+    "/Users/parkjeongwon/Desktop/core/contracts/instruments/poolConstants.sol": {
+      "lastModificationDate": 1672149992883,
+      "contentHash": "6226059e993449107aa145862c94c59d",
+      "sourceName": "contracts/instruments/poolConstants.sol",
       "solcConfig": {
         "version": "0.8.16",
         "settings": {
@@ -1512,24 +1667,23 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363731373934303938323232"
+              "__CACHE_BREAKER__": "0x0000000000000031363732323332333834303830"
             }
           }
         }
       },
       "imports": [],
       "versionPragmas": [
-        ">=0.8.0"
+        "^0.8.16"
       ],
       "artifacts": [
-        "ERC721",
-        "ERC721TokenReceiver"
+        "PoolConstants"
       ]
     },
-    "/Users/zekiel/Documents/GitHub/core/contracts/vaults/tokens/WETH.sol": {
-      "lastModificationDate": 1671019151771,
-      "contentHash": "69e323c35e4dc91027eab887117aa765",
-      "sourceName": "contracts/vaults/tokens/WETH.sol",
+    "/Users/parkjeongwon/Desktop/core/contracts/instruments/VaultAccount.sol": {
+      "lastModificationDate": 1672149992883,
+      "contentHash": "dab599cbe7fa518aa58cdd7408d3f3aa",
+      "sourceName": "contracts/instruments/VaultAccount.sol",
       "solcConfig": {
         "version": "0.8.16",
         "settings": {
@@ -1560,1184 +1714,21 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363731373934303938323232"
-            }
-          }
-        }
-      },
-      "imports": [
-        "./ERC20.sol",
-        "../utils/SafeTransferLib.sol"
-      ],
-      "versionPragmas": [
-        ">=0.8.0"
-      ],
-      "artifacts": [
-        "WETH"
-      ]
-    },
-    "/Users/zekiel/Documents/GitHub/core/contracts/vaults/dov.sol": {
-      "lastModificationDate": 1671019151770,
-      "contentHash": "3182947b0d14e0859edd444af697da2b",
-      "sourceName": "contracts/vaults/dov.sol",
-      "solcConfig": {
-        "version": "0.8.16",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 200
-          },
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata",
-                "devdoc",
-                "userdoc",
-                "storageLayout",
-                "evm.gasEstimates"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          },
-          "metadata": {
-            "useLiteralContent": true
-          },
-          "libraries": {
-            "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363731373934303938323232"
-            }
-          }
-        }
-      },
-      "imports": [
-        "./vault.sol",
-        "./tokens/ERC20.sol",
-        "lib/openzeppelin-contracts/contracts/utils/math/Math.sol",
-        "./utils/FixedPointMathLib.sol",
-        "lib/forge-std/src/console.sol",
-        "./instrument.sol"
-      ],
-      "versionPragmas": [
-        "^0.8.4"
-      ],
-      "artifacts": [
-        "CoveredCallOTC"
-      ]
-    },
-    "/Users/zekiel/Documents/GitHub/core/contracts/vaults/auth/authorities/RolesAuthority.sol": {
-      "lastModificationDate": 1671019151770,
-      "contentHash": "1581da4a20e9629f10d923289909cc31",
-      "sourceName": "contracts/vaults/auth/authorities/RolesAuthority.sol",
-      "solcConfig": {
-        "version": "0.8.16",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 200
-          },
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata",
-                "devdoc",
-                "userdoc",
-                "storageLayout",
-                "evm.gasEstimates"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          },
-          "metadata": {
-            "useLiteralContent": true
-          },
-          "libraries": {
-            "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363731373934303938323232"
-            }
-          }
-        }
-      },
-      "imports": [
-        "../Auth.sol"
-      ],
-      "versionPragmas": [
-        ">=0.8.0"
-      ],
-      "artifacts": [
-        "RolesAuthority"
-      ]
-    },
-    "/Users/zekiel/Documents/GitHub/core/contracts/vaults/auth/authorities/MultiRolesAuthority.sol": {
-      "lastModificationDate": 1671019151770,
-      "contentHash": "e7cca1c2e6ef71feced7f5e912809cd4",
-      "sourceName": "contracts/vaults/auth/authorities/MultiRolesAuthority.sol",
-      "solcConfig": {
-        "version": "0.8.16",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 200
-          },
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata",
-                "devdoc",
-                "userdoc",
-                "storageLayout",
-                "evm.gasEstimates"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          },
-          "metadata": {
-            "useLiteralContent": true
-          },
-          "libraries": {
-            "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363731373934303938323232"
-            }
-          }
-        }
-      },
-      "imports": [
-        "../Auth.sol"
-      ],
-      "versionPragmas": [
-        ">=0.8.0"
-      ],
-      "artifacts": [
-        "MultiRolesAuthority"
-      ]
-    },
-    "/Users/zekiel/Documents/GitHub/core/contracts/chainlink/VRFConsumer.sol": {
-      "lastModificationDate": 1671019151768,
-      "contentHash": "6e25ccb99886ff1e06da2b3eb3f621b9",
-      "sourceName": "contracts/chainlink/VRFConsumer.sol",
-      "solcConfig": {
-        "version": "0.8.16",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 200
-          },
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata",
-                "devdoc",
-                "userdoc",
-                "storageLayout",
-                "evm.gasEstimates"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          },
-          "metadata": {
-            "useLiteralContent": true
-          },
-          "libraries": {
-            "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363731373934303938323232"
-            }
-          }
-        }
-      },
-      "imports": [
-        "../chainlink/VRFConsumerBaseV2.sol",
-        "../chainlink/VRFCoordinatorV2Interface.sol"
-      ],
-      "versionPragmas": [
-        "^0.8.4"
-      ],
-      "artifacts": [
-        "ChainlinkClient"
-      ]
-    },
-    "/Users/zekiel/Documents/GitHub/core/contracts/protocol/minstrument.sol": {
-      "lastModificationDate": 1671505275581,
-      "contentHash": "b86ca307b74179bcd09ff3da02fa72e7",
-      "sourceName": "contracts/protocol/minstrument.sol",
-      "solcConfig": {
-        "version": "0.8.16",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 200
-          },
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata",
-                "devdoc",
-                "userdoc",
-                "storageLayout",
-                "evm.gasEstimates"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          },
-          "metadata": {
-            "useLiteralContent": true
-          },
-          "libraries": {
-            "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363731373934303938323232"
+              "__CACHE_BREAKER__": "0x0000000000000031363732323332333834303830"
             }
           }
         }
       },
       "imports": [],
       "versionPragmas": [
-        "^0.8.9"
-      ],
-      "artifacts": []
-    },
-    "/Users/zekiel/Documents/GitHub/core/contracts/utils/Address.sol": {
-      "lastModificationDate": 1671019151769,
-      "contentHash": "49bbced1b4bdcfc932cf08422759a56a",
-      "sourceName": "contracts/utils/Address.sol",
-      "solcConfig": {
-        "version": "0.8.16",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 200
-          },
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata",
-                "devdoc",
-                "userdoc",
-                "storageLayout",
-                "evm.gasEstimates"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          },
-          "metadata": {
-            "useLiteralContent": true
-          },
-          "libraries": {
-            "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363731373934303938323232"
-            }
-          }
-        }
-      },
-      "imports": [],
-      "versionPragmas": [
-        "^0.8.4"
+        "^0.8.16"
       ],
       "artifacts": [
-        "Address"
+        "VaultAccountingLibrary"
       ]
     },
-    "/Users/zekiel/Documents/GitHub/core/contracts/utils/AggregatorV3Interface.sol": {
-      "lastModificationDate": 1671019151769,
-      "contentHash": "0e0bd558c1a20abff37c0d4fbd5e828e",
-      "sourceName": "contracts/utils/AggregatorV3Interface.sol",
-      "solcConfig": {
-        "version": "0.8.16",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 200
-          },
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata",
-                "devdoc",
-                "userdoc",
-                "storageLayout",
-                "evm.gasEstimates"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          },
-          "metadata": {
-            "useLiteralContent": true
-          },
-          "libraries": {
-            "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363731373934303938323232"
-            }
-          }
-        }
-      },
-      "imports": [],
-      "versionPragmas": [
-        "^0.8.0"
-      ],
-      "artifacts": [
-        "AggregatorV3Interface"
-      ]
-    },
-    "/Users/zekiel/Documents/GitHub/core/contracts/utils/Cash.sol": {
-      "lastModificationDate": 1671019151769,
-      "contentHash": "621cd813ef0d90a06e8995f99bf018d1",
-      "sourceName": "contracts/utils/Cash.sol",
-      "solcConfig": {
-        "version": "0.8.16",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 200
-          },
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata",
-                "devdoc",
-                "userdoc",
-                "storageLayout",
-                "evm.gasEstimates"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          },
-          "metadata": {
-            "useLiteralContent": true
-          },
-          "libraries": {
-            "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363731373934303938323232"
-            }
-          }
-        }
-      },
-      "imports": [
-        "lib/openzeppelin-contracts/contracts/token/ERC20/ERC20.sol"
-      ],
-      "versionPragmas": [
-        "^0.8.4"
-      ],
-      "artifacts": [
-        "Cash"
-      ]
-    },
-    "/Users/zekiel/Documents/GitHub/core/lib/openzeppelin-contracts/contracts/token/ERC20/ERC20.sol": {
-      "lastModificationDate": 1664052089639,
-      "contentHash": "92cc1aad41bdb18ca20f6e03f461de7d",
-      "sourceName": "lib/openzeppelin-contracts/contracts/token/ERC20/ERC20.sol",
-      "solcConfig": {
-        "version": "0.8.16",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 200
-          },
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata",
-                "devdoc",
-                "userdoc",
-                "storageLayout",
-                "evm.gasEstimates"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          },
-          "metadata": {
-            "useLiteralContent": true
-          },
-          "libraries": {
-            "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363731373934303938323232"
-            }
-          }
-        }
-      },
-      "imports": [
-        "./IERC20.sol",
-        "./extensions/IERC20Metadata.sol",
-        "../../utils/Context.sol"
-      ],
-      "versionPragmas": [
-        "^0.8.0"
-      ],
-      "artifacts": [
-        "ERC20"
-      ]
-    },
-    "/Users/zekiel/Documents/GitHub/core/lib/openzeppelin-contracts/contracts/utils/Context.sol": {
-      "lastModificationDate": 1664052089644,
-      "contentHash": "5f2c5c4b6af2dd4551027144797bc8be",
-      "sourceName": "lib/openzeppelin-contracts/contracts/utils/Context.sol",
-      "solcConfig": {
-        "version": "0.8.16",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 200
-          },
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata",
-                "devdoc",
-                "userdoc",
-                "storageLayout",
-                "evm.gasEstimates"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          },
-          "metadata": {
-            "useLiteralContent": true
-          },
-          "libraries": {
-            "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363731373934303938323232"
-            }
-          }
-        }
-      },
-      "imports": [],
-      "versionPragmas": [
-        "^0.8.0"
-      ],
-      "artifacts": [
-        "Context"
-      ]
-    },
-    "/Users/zekiel/Documents/GitHub/core/lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol": {
-      "lastModificationDate": 1664052089639,
-      "contentHash": "ad7c2d0af148c8f9f097d65deeb4da6b",
-      "sourceName": "lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol",
-      "solcConfig": {
-        "version": "0.8.16",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 200
-          },
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata",
-                "devdoc",
-                "userdoc",
-                "storageLayout",
-                "evm.gasEstimates"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          },
-          "metadata": {
-            "useLiteralContent": true
-          },
-          "libraries": {
-            "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363731373934303938323232"
-            }
-          }
-        }
-      },
-      "imports": [],
-      "versionPragmas": [
-        "^0.8.0"
-      ],
-      "artifacts": [
-        "IERC20"
-      ]
-    },
-    "/Users/zekiel/Documents/GitHub/core/lib/openzeppelin-contracts/contracts/token/ERC20/extensions/IERC20Metadata.sol": {
-      "lastModificationDate": 1664052089640,
-      "contentHash": "909ab67fc5c25033fe6cd364f8c056f9",
-      "sourceName": "lib/openzeppelin-contracts/contracts/token/ERC20/extensions/IERC20Metadata.sol",
-      "solcConfig": {
-        "version": "0.8.16",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 200
-          },
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata",
-                "devdoc",
-                "userdoc",
-                "storageLayout",
-                "evm.gasEstimates"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          },
-          "metadata": {
-            "useLiteralContent": true
-          },
-          "libraries": {
-            "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363731373934303938323232"
-            }
-          }
-        }
-      },
-      "imports": [
-        "../IERC20.sol"
-      ],
-      "versionPragmas": [
-        "^0.8.0"
-      ],
-      "artifacts": [
-        "IERC20Metadata"
-      ]
-    },
-    "/Users/zekiel/Documents/GitHub/core/contracts/utils/Strings.sol": {
-      "lastModificationDate": 1671019151769,
-      "contentHash": "a8a7853e4b0ce6c74bda6f0fc7f45d10",
-      "sourceName": "contracts/utils/Strings.sol",
-      "solcConfig": {
-        "version": "0.8.16",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 200
-          },
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata",
-                "devdoc",
-                "userdoc",
-                "storageLayout",
-                "evm.gasEstimates"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          },
-          "metadata": {
-            "useLiteralContent": true
-          },
-          "libraries": {
-            "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363731373934303938323232"
-            }
-          }
-        }
-      },
-      "imports": [],
-      "versionPragmas": [
-        "^0.8.4"
-      ],
-      "artifacts": [
-        "Strings"
-      ]
-    },
-    "/Users/zekiel/Documents/GitHub/core/contracts/utils/TransferHelper.sol": {
-      "lastModificationDate": 1671019151769,
-      "contentHash": "9cb9f74f035df164e034762f46e25ae0",
-      "sourceName": "contracts/utils/TransferHelper.sol",
-      "solcConfig": {
-        "version": "0.8.16",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 200
-          },
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata",
-                "devdoc",
-                "userdoc",
-                "storageLayout",
-                "evm.gasEstimates"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          },
-          "metadata": {
-            "useLiteralContent": true
-          },
-          "libraries": {
-            "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363731373934303938323232"
-            }
-          }
-        }
-      },
-      "imports": [],
-      "versionPragmas": [
-        "^0.8.4"
-      ],
-      "artifacts": [
-        "TransferHelper"
-      ]
-    },
-    "/Users/zekiel/Documents/GitHub/core/contracts/utils/common/Uint.sol": {
-      "lastModificationDate": 1671019151770,
-      "contentHash": "cb20e06b4f64d8aa09c67e53a2969101",
-      "sourceName": "contracts/utils/common/Uint.sol",
-      "solcConfig": {
-        "version": "0.8.16",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 200
-          },
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata",
-                "devdoc",
-                "userdoc",
-                "storageLayout",
-                "evm.gasEstimates"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          },
-          "metadata": {
-            "useLiteralContent": true
-          },
-          "libraries": {
-            "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363731373934303938323232"
-            }
-          }
-        }
-      },
-      "imports": [],
-      "versionPragmas": [
-        "^0.8.4"
-      ],
-      "artifacts": []
-    },
-    "/Users/zekiel/Documents/GitHub/core/contracts/utils/owned.sol": {
-      "lastModificationDate": 1671019151770,
-      "contentHash": "2da86690e3f2fd96c5823a09c74f53f5",
-      "sourceName": "contracts/utils/owned.sol",
-      "solcConfig": {
-        "version": "0.8.16",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 200
-          },
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata",
-                "devdoc",
-                "userdoc",
-                "storageLayout",
-                "evm.gasEstimates"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          },
-          "metadata": {
-            "useLiteralContent": true
-          },
-          "libraries": {
-            "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363731373934303938323232"
-            }
-          }
-        }
-      },
-      "imports": [],
-      "versionPragmas": [
-        "^0.8.4"
-      ],
-      "artifacts": [
-        "Owned"
-      ]
-    },
-    "/Users/zekiel/Documents/GitHub/core/contracts/vaults/auth/Owned.sol": {
-      "lastModificationDate": 1671019151770,
-      "contentHash": "cbb684ea20bea675b7d97397da4bfd95",
-      "sourceName": "contracts/vaults/auth/Owned.sol",
-      "solcConfig": {
-        "version": "0.8.16",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 200
-          },
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata",
-                "devdoc",
-                "userdoc",
-                "storageLayout",
-                "evm.gasEstimates"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          },
-          "metadata": {
-            "useLiteralContent": true
-          },
-          "libraries": {
-            "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363731373934303938323232"
-            }
-          }
-        }
-      },
-      "imports": [],
-      "versionPragmas": [
-        ">=0.8.0"
-      ],
-      "artifacts": [
-        "Owned"
-      ]
-    },
-    "/Users/zekiel/Documents/GitHub/core/contracts/vaults/tokens/ERC1155.sol": {
-      "lastModificationDate": 1671019151771,
-      "contentHash": "558676409e429f6c4f2deef39106e3c0",
-      "sourceName": "contracts/vaults/tokens/ERC1155.sol",
-      "solcConfig": {
-        "version": "0.8.16",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 200
-          },
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata",
-                "devdoc",
-                "userdoc",
-                "storageLayout",
-                "evm.gasEstimates"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          },
-          "metadata": {
-            "useLiteralContent": true
-          },
-          "libraries": {
-            "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363731373934303938323232"
-            }
-          }
-        }
-      },
-      "imports": [],
-      "versionPragmas": [
-        ">=0.8.0"
-      ],
-      "artifacts": [
-        "ERC1155",
-        "ERC1155TokenReceiver"
-      ]
-    },
-    "/Users/zekiel/Documents/GitHub/core/contracts/vaults/utils/Bytes32AddressLib.sol": {
-      "lastModificationDate": 1671019151771,
-      "contentHash": "8a05c8576a41e44d3e96a6e169162327",
-      "sourceName": "contracts/vaults/utils/Bytes32AddressLib.sol",
-      "solcConfig": {
-        "version": "0.8.16",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 200
-          },
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata",
-                "devdoc",
-                "userdoc",
-                "storageLayout",
-                "evm.gasEstimates"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          },
-          "metadata": {
-            "useLiteralContent": true
-          },
-          "libraries": {
-            "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363731373934303938323232"
-            }
-          }
-        }
-      },
-      "imports": [],
-      "versionPragmas": [
-        ">=0.8.0"
-      ],
-      "artifacts": [
-        "Bytes32AddressLib"
-      ]
-    },
-    "/Users/zekiel/Documents/GitHub/core/contracts/vaults/utils/CREATE3.sol": {
-      "lastModificationDate": 1671019151772,
-      "contentHash": "0714614c146b2eeb737405c770da9f8a",
-      "sourceName": "contracts/vaults/utils/CREATE3.sol",
-      "solcConfig": {
-        "version": "0.8.16",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 200
-          },
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata",
-                "devdoc",
-                "userdoc",
-                "storageLayout",
-                "evm.gasEstimates"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          },
-          "metadata": {
-            "useLiteralContent": true
-          },
-          "libraries": {
-            "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363731373934303938323232"
-            }
-          }
-        }
-      },
-      "imports": [
-        "./Bytes32AddressLib.sol"
-      ],
-      "versionPragmas": [
-        ">=0.8.0"
-      ],
-      "artifacts": [
-        "CREATE3"
-      ]
-    },
-    "/Users/zekiel/Documents/GitHub/core/contracts/vaults/utils/ReentrancyGuard.sol": {
-      "lastModificationDate": 1671019151772,
-      "contentHash": "cf9480663950b4091d14b174c3ec0414",
-      "sourceName": "contracts/vaults/utils/ReentrancyGuard.sol",
-      "solcConfig": {
-        "version": "0.8.16",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 200
-          },
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata",
-                "devdoc",
-                "userdoc",
-                "storageLayout",
-                "evm.gasEstimates"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          },
-          "metadata": {
-            "useLiteralContent": true
-          },
-          "libraries": {
-            "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363731373934303938323232"
-            }
-          }
-        }
-      },
-      "imports": [],
-      "versionPragmas": [
-        ">=0.8.0"
-      ],
-      "artifacts": [
-        "ReentrancyGuard"
-      ]
-    },
-    "/Users/zekiel/Documents/GitHub/core/contracts/vaults/utils/SSTORE2.sol": {
-      "lastModificationDate": 1671019151772,
-      "contentHash": "1d1602fc0f17496c555ded0b5cb70365",
-      "sourceName": "contracts/vaults/utils/SSTORE2.sol",
-      "solcConfig": {
-        "version": "0.8.16",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 200
-          },
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata",
-                "devdoc",
-                "userdoc",
-                "storageLayout",
-                "evm.gasEstimates"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          },
-          "metadata": {
-            "useLiteralContent": true
-          },
-          "libraries": {
-            "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363731373934303938323232"
-            }
-          }
-        }
-      },
-      "imports": [],
-      "versionPragmas": [
-        ">=0.8.0"
-      ],
-      "artifacts": [
-        "SSTORE2"
-      ]
-    },
-    "/Users/zekiel/Documents/GitHub/core/contracts/utils/fetcher.sol": {
-      "lastModificationDate": 1671693271701,
-      "contentHash": "6f0d4f7f4753617e48cc9d3509397de1",
-      "sourceName": "contracts/utils/fetcher.sol",
-      "solcConfig": {
-        "version": "0.8.16",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 200
-          },
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata",
-                "devdoc",
-                "userdoc",
-                "storageLayout",
-                "evm.gasEstimates"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          },
-          "metadata": {
-            "useLiteralContent": true
-          },
-          "libraries": {
-            "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363731373934303938323232"
-            }
-          }
-        }
-      },
-      "imports": [
-        "../protocol/marketmanager.sol",
-        "../vaults/vault.sol",
-        "../protocol/factories.sol",
-        "../protocol/controller.sol",
-        "../vaults/tokens/ERC20.sol",
-        "../bonds/synthetic.sol",
-        "lib/solmate/src/utils/FixedPointMathLib.sol"
-      ],
-      "versionPragmas": [
-        "^0.8.4"
-      ],
-      "artifacts": [
-        "Fetcher"
-      ]
-    },
-    "/Users/zekiel/Documents/GitHub/core/contracts/protocol/reputationmanager.sol": {
-      "lastModificationDate": 1671789503825,
-      "contentHash": "057a2211bd247958dcc895b48c4d18fd",
-      "sourceName": "contracts/protocol/reputationmanager.sol",
-      "solcConfig": {
-        "version": "0.8.16",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 200
-          },
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata",
-                "devdoc",
-                "userdoc",
-                "storageLayout",
-                "evm.gasEstimates"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          },
-          "metadata": {
-            "useLiteralContent": true
-          },
-          "libraries": {
-            "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363731373934303938323232"
-            }
-          }
-        }
-      },
-      "imports": [
-        "../utils/helpers.sol",
-        "lib/solmate/src/utils/FixedPointMathLib.sol"
-      ],
-      "versionPragmas": [
-        "^0.8.4"
-      ],
-      "artifacts": [
-        "ReputationManager"
-      ]
-    },
-    "/Users/zekiel/Documents/GitHub/core/contracts/instruments/IRateCalculator.sol": {
-      "lastModificationDate": 1671780209549,
+    "/Users/parkjeongwon/Desktop/core/contracts/instruments/IRateCalculator.sol": {
+      "lastModificationDate": 1672149992883,
       "contentHash": "07b162b6a2bfd993327c125413a90d6e",
       "sourceName": "contracts/instruments/IRateCalculator.sol",
       "solcConfig": {
@@ -2770,7 +1761,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363731373934303938323232"
+              "__CACHE_BREAKER__": "0x0000000000000031363732323332333834303830"
             }
           }
         }
@@ -2783,10 +1774,10 @@
         "IRateCalculator"
       ]
     },
-    "/Users/zekiel/Documents/GitHub/core/contracts/instruments/poolConstants.sol": {
-      "lastModificationDate": 1671762327827,
-      "contentHash": "25996808c5cf4c9d64977610d7f98256",
-      "sourceName": "contracts/instruments/poolConstants.sol",
+    "/Users/parkjeongwon/Desktop/core/lib/prb-math/src/SD59x18.sol": {
+      "lastModificationDate": 1672228845968,
+      "contentHash": "a7de030b5369f2ebbf88bb542c7dd6ad",
+      "sourceName": "lib/prb-math/src/SD59x18.sol",
       "solcConfig": {
         "version": "0.8.16",
         "settings": {
@@ -2817,7 +1808,981 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363731373934303938323232"
+              "__CACHE_BREAKER__": "0x0000000000000031363732323332333834303830"
+            }
+          }
+        }
+      },
+      "imports": [
+        "./Core.sol"
+      ],
+      "versionPragmas": [
+        ">=0.8.13"
+      ],
+      "artifacts": []
+    },
+    "/Users/parkjeongwon/Desktop/core/lib/solmate/src/utils/ReentrancyGuard.sol": {
+      "lastModificationDate": 1665455825753,
+      "contentHash": "cf9480663950b4091d14b174c3ec0414",
+      "sourceName": "lib/solmate/src/utils/ReentrancyGuard.sol",
+      "solcConfig": {
+        "version": "0.8.16",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata",
+                "devdoc",
+                "userdoc",
+                "storageLayout",
+                "evm.gasEstimates"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          },
+          "metadata": {
+            "useLiteralContent": true
+          },
+          "libraries": {
+            "": {
+              "__CACHE_BREAKER__": "0x0000000000000031363732323332333834303830"
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        ">=0.8.0"
+      ],
+      "artifacts": [
+        "ReentrancyGuard"
+      ]
+    },
+    "/Users/parkjeongwon/Desktop/core/lib/solmate/src/utils/SafeCastLib.sol": {
+      "lastModificationDate": 1665455825753,
+      "contentHash": "99fd762f92be95d730a50cf30215d3a9",
+      "sourceName": "lib/solmate/src/utils/SafeCastLib.sol",
+      "solcConfig": {
+        "version": "0.8.16",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata",
+                "devdoc",
+                "userdoc",
+                "storageLayout",
+                "evm.gasEstimates"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          },
+          "metadata": {
+            "useLiteralContent": true
+          },
+          "libraries": {
+            "": {
+              "__CACHE_BREAKER__": "0x0000000000000031363732323332333834303830"
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        ">=0.8.0"
+      ],
+      "artifacts": [
+        "SafeCastLib"
+      ]
+    },
+    "/Users/parkjeongwon/Desktop/core/lib/openzeppelin-contracts/contracts/security/Pausable.sol": {
+      "lastModificationDate": 1665455515492,
+      "contentHash": "25c8108f36fdd472bc78d4c4af240c11",
+      "sourceName": "lib/openzeppelin-contracts/contracts/security/Pausable.sol",
+      "solcConfig": {
+        "version": "0.8.16",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata",
+                "devdoc",
+                "userdoc",
+                "storageLayout",
+                "evm.gasEstimates"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          },
+          "metadata": {
+            "useLiteralContent": true
+          },
+          "libraries": {
+            "": {
+              "__CACHE_BREAKER__": "0x0000000000000031363732323332333834303830"
+            }
+          }
+        }
+      },
+      "imports": [
+        "../utils/Context.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.0"
+      ],
+      "artifacts": [
+        "Pausable"
+      ]
+    },
+    "/Users/parkjeongwon/Desktop/core/lib/prb-math/src/Core.sol": {
+      "lastModificationDate": 1672228845967,
+      "contentHash": "f26a6ce9616186985cf8990b1764f288",
+      "sourceName": "lib/prb-math/src/Core.sol",
+      "solcConfig": {
+        "version": "0.8.16",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata",
+                "devdoc",
+                "userdoc",
+                "storageLayout",
+                "evm.gasEstimates"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          },
+          "metadata": {
+            "useLiteralContent": true
+          },
+          "libraries": {
+            "": {
+              "__CACHE_BREAKER__": "0x0000000000000031363732323332333834303830"
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        ">=0.8.13"
+      ],
+      "artifacts": []
+    },
+    "/Users/parkjeongwon/Desktop/core/lib/openzeppelin-contracts/contracts/utils/Context.sol": {
+      "lastModificationDate": 1665455515497,
+      "contentHash": "5f2c5c4b6af2dd4551027144797bc8be",
+      "sourceName": "lib/openzeppelin-contracts/contracts/utils/Context.sol",
+      "solcConfig": {
+        "version": "0.8.16",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata",
+                "devdoc",
+                "userdoc",
+                "storageLayout",
+                "evm.gasEstimates"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          },
+          "metadata": {
+            "useLiteralContent": true
+          },
+          "libraries": {
+            "": {
+              "__CACHE_BREAKER__": "0x0000000000000031363732323332333834303830"
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.0"
+      ],
+      "artifacts": [
+        "Context"
+      ]
+    },
+    "/Users/parkjeongwon/Desktop/core/lib/openzeppelin-contracts/contracts/token/ERC20/ERC20.sol": {
+      "lastModificationDate": 1672228844957,
+      "contentHash": "b7ba3b58ecb8d63dec61ada2409e4619",
+      "sourceName": "lib/openzeppelin-contracts/contracts/token/ERC20/ERC20.sol",
+      "solcConfig": {
+        "version": "0.8.16",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata",
+                "devdoc",
+                "userdoc",
+                "storageLayout",
+                "evm.gasEstimates"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          },
+          "metadata": {
+            "useLiteralContent": true
+          },
+          "libraries": {
+            "": {
+              "__CACHE_BREAKER__": "0x0000000000000031363732323332333834303830"
+            }
+          }
+        }
+      },
+      "imports": [
+        "./IERC20.sol",
+        "./extensions/IERC20Metadata.sol",
+        "../../utils/Context.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.0"
+      ],
+      "artifacts": [
+        "ERC20"
+      ]
+    },
+    "/Users/parkjeongwon/Desktop/core/lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol": {
+      "lastModificationDate": 1672228844957,
+      "contentHash": "d3f395dc838796643e7a71419900ab23",
+      "sourceName": "lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol",
+      "solcConfig": {
+        "version": "0.8.16",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata",
+                "devdoc",
+                "userdoc",
+                "storageLayout",
+                "evm.gasEstimates"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          },
+          "metadata": {
+            "useLiteralContent": true
+          },
+          "libraries": {
+            "": {
+              "__CACHE_BREAKER__": "0x0000000000000031363732323332333834303830"
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.0"
+      ],
+      "artifacts": [
+        "IERC20"
+      ]
+    },
+    "/Users/parkjeongwon/Desktop/core/lib/openzeppelin-contracts/contracts/token/ERC20/extensions/IERC20Metadata.sol": {
+      "lastModificationDate": 1665455515494,
+      "contentHash": "909ab67fc5c25033fe6cd364f8c056f9",
+      "sourceName": "lib/openzeppelin-contracts/contracts/token/ERC20/extensions/IERC20Metadata.sol",
+      "solcConfig": {
+        "version": "0.8.16",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata",
+                "devdoc",
+                "userdoc",
+                "storageLayout",
+                "evm.gasEstimates"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          },
+          "metadata": {
+            "useLiteralContent": true
+          },
+          "libraries": {
+            "": {
+              "__CACHE_BREAKER__": "0x0000000000000031363732323332333834303830"
+            }
+          }
+        }
+      },
+      "imports": [
+        "../IERC20.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.0"
+      ],
+      "artifacts": [
+        "IERC20Metadata"
+      ]
+    },
+    "/Users/parkjeongwon/Desktop/core/contracts/utils/Cash.sol": {
+      "lastModificationDate": 1671070656406,
+      "contentHash": "621cd813ef0d90a06e8995f99bf018d1",
+      "sourceName": "contracts/utils/Cash.sol",
+      "solcConfig": {
+        "version": "0.8.16",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata",
+                "devdoc",
+                "userdoc",
+                "storageLayout",
+                "evm.gasEstimates"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          },
+          "metadata": {
+            "useLiteralContent": true
+          },
+          "libraries": {
+            "": {
+              "__CACHE_BREAKER__": "0x0000000000000031363732323332333834303830"
+            }
+          }
+        }
+      },
+      "imports": [
+        "lib/openzeppelin-contracts/contracts/token/ERC20/ERC20.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.4"
+      ],
+      "artifacts": [
+        "Cash"
+      ]
+    },
+    "/Users/parkjeongwon/Desktop/core/contracts/instruments/VariableInterestRate.sol": {
+      "lastModificationDate": 1672149992883,
+      "contentHash": "e510b8e8efefcd70cde9cd1a8729354f",
+      "sourceName": "contracts/instruments/VariableInterestRate.sol",
+      "solcConfig": {
+        "version": "0.8.16",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata",
+                "devdoc",
+                "userdoc",
+                "storageLayout",
+                "evm.gasEstimates"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          },
+          "metadata": {
+            "useLiteralContent": true
+          },
+          "libraries": {
+            "": {
+              "__CACHE_BREAKER__": "0x0000000000000031363732323332333834303830"
+            }
+          }
+        }
+      },
+      "imports": [
+        "./IRateCalculator.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.16"
+      ],
+      "artifacts": [
+        "VariableInterestRate"
+      ]
+    },
+    "/Users/parkjeongwon/Desktop/core/contracts/instruments/LinearInterestRate.sol": {
+      "lastModificationDate": 1672149992883,
+      "contentHash": "4a27f079fe22a424ec74b15fc8defc42",
+      "sourceName": "contracts/instruments/LinearInterestRate.sol",
+      "solcConfig": {
+        "version": "0.8.16",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata",
+                "devdoc",
+                "userdoc",
+                "storageLayout",
+                "evm.gasEstimates"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          },
+          "metadata": {
+            "useLiteralContent": true
+          },
+          "libraries": {
+            "": {
+              "__CACHE_BREAKER__": "0x0000000000000031363732323332333834303830"
+            }
+          }
+        }
+      },
+      "imports": [
+        "./IRateCalculator.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.16"
+      ],
+      "artifacts": [
+        "LinearInterestRate"
+      ]
+    },
+    "/Users/parkjeongwon/Desktop/core/contracts/vaults/nftLending.sol": {
+      "lastModificationDate": 1672149992886,
+      "contentHash": "273c88055cdf12ec0657555ae2bdddcc",
+      "sourceName": "contracts/vaults/nftLending.sol",
+      "solcConfig": {
+        "version": "0.8.16",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata",
+                "devdoc",
+                "userdoc",
+                "storageLayout",
+                "evm.gasEstimates"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          },
+          "metadata": {
+            "useLiteralContent": true
+          },
+          "libraries": {
+            "": {
+              "__CACHE_BREAKER__": "0x0000000000000031363732323332333834303830"
+            }
+          }
+        }
+      },
+      "imports": [
+        "./vault.sol",
+        "./tokens/ERC20.sol",
+        "lib/openzeppelin-contracts/contracts/utils/math/Math.sol",
+        "./utils/FixedPointMathLib.sol",
+        "lib/forge-std/src/console.sol",
+        "./instrument.sol",
+        "./tokens/ERC721.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.16"
+      ],
+      "artifacts": [
+        "SimpleNFTPool"
+      ]
+    },
+    "/Users/parkjeongwon/Desktop/core/contracts/vaults/tokens/ERC721.sol": {
+      "lastModificationDate": 1671070656408,
+      "contentHash": "ecc06cefc5404b9e1adbc2e459d5757e",
+      "sourceName": "contracts/vaults/tokens/ERC721.sol",
+      "solcConfig": {
+        "version": "0.8.16",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata",
+                "devdoc",
+                "userdoc",
+                "storageLayout",
+                "evm.gasEstimates"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          },
+          "metadata": {
+            "useLiteralContent": true
+          },
+          "libraries": {
+            "": {
+              "__CACHE_BREAKER__": "0x0000000000000031363732323332333834303830"
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        ">=0.8.0"
+      ],
+      "artifacts": [
+        "ERC721",
+        "ERC721TokenReceiver"
+      ]
+    },
+    "/Users/parkjeongwon/Desktop/core/contracts/vaults/tokens/WETH.sol": {
+      "lastModificationDate": 1671070656408,
+      "contentHash": "69e323c35e4dc91027eab887117aa765",
+      "sourceName": "contracts/vaults/tokens/WETH.sol",
+      "solcConfig": {
+        "version": "0.8.16",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata",
+                "devdoc",
+                "userdoc",
+                "storageLayout",
+                "evm.gasEstimates"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          },
+          "metadata": {
+            "useLiteralContent": true
+          },
+          "libraries": {
+            "": {
+              "__CACHE_BREAKER__": "0x0000000000000031363732323332333834303830"
+            }
+          }
+        }
+      },
+      "imports": [
+        "./ERC20.sol",
+        "../utils/SafeTransferLib.sol"
+      ],
+      "versionPragmas": [
+        ">=0.8.0"
+      ],
+      "artifacts": [
+        "WETH"
+      ]
+    },
+    "/Users/parkjeongwon/Desktop/core/contracts/vaults/dov.sol": {
+      "lastModificationDate": 1672149992886,
+      "contentHash": "91b8c10086f40f5fbd8c1011c540304f",
+      "sourceName": "contracts/vaults/dov.sol",
+      "solcConfig": {
+        "version": "0.8.16",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata",
+                "devdoc",
+                "userdoc",
+                "storageLayout",
+                "evm.gasEstimates"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          },
+          "metadata": {
+            "useLiteralContent": true
+          },
+          "libraries": {
+            "": {
+              "__CACHE_BREAKER__": "0x0000000000000031363732323332333834303830"
+            }
+          }
+        }
+      },
+      "imports": [
+        "./vault.sol",
+        "./tokens/ERC20.sol",
+        "lib/openzeppelin-contracts/contracts/utils/math/Math.sol",
+        "./utils/FixedPointMathLib.sol",
+        "lib/forge-std/src/console.sol",
+        "./instrument.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.16"
+      ],
+      "artifacts": [
+        "CoveredCallOTC"
+      ]
+    },
+    "/Users/parkjeongwon/Desktop/core/contracts/vaults/auth/authorities/RolesAuthority.sol": {
+      "lastModificationDate": 1671070656407,
+      "contentHash": "1581da4a20e9629f10d923289909cc31",
+      "sourceName": "contracts/vaults/auth/authorities/RolesAuthority.sol",
+      "solcConfig": {
+        "version": "0.8.16",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata",
+                "devdoc",
+                "userdoc",
+                "storageLayout",
+                "evm.gasEstimates"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          },
+          "metadata": {
+            "useLiteralContent": true
+          },
+          "libraries": {
+            "": {
+              "__CACHE_BREAKER__": "0x0000000000000031363732323332333834303830"
+            }
+          }
+        }
+      },
+      "imports": [
+        "../Auth.sol"
+      ],
+      "versionPragmas": [
+        ">=0.8.0"
+      ],
+      "artifacts": [
+        "RolesAuthority"
+      ]
+    },
+    "/Users/parkjeongwon/Desktop/core/contracts/vaults/auth/authorities/MultiRolesAuthority.sol": {
+      "lastModificationDate": 1671070656407,
+      "contentHash": "e7cca1c2e6ef71feced7f5e912809cd4",
+      "sourceName": "contracts/vaults/auth/authorities/MultiRolesAuthority.sol",
+      "solcConfig": {
+        "version": "0.8.16",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata",
+                "devdoc",
+                "userdoc",
+                "storageLayout",
+                "evm.gasEstimates"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          },
+          "metadata": {
+            "useLiteralContent": true
+          },
+          "libraries": {
+            "": {
+              "__CACHE_BREAKER__": "0x0000000000000031363732323332333834303830"
+            }
+          }
+        }
+      },
+      "imports": [
+        "../Auth.sol"
+      ],
+      "versionPragmas": [
+        ">=0.8.0"
+      ],
+      "artifacts": [
+        "MultiRolesAuthority"
+      ]
+    },
+    "/Users/parkjeongwon/Desktop/core/contracts/chainlink/VRFConsumer.sol": {
+      "lastModificationDate": 1671070656405,
+      "contentHash": "6e25ccb99886ff1e06da2b3eb3f621b9",
+      "sourceName": "contracts/chainlink/VRFConsumer.sol",
+      "solcConfig": {
+        "version": "0.8.16",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata",
+                "devdoc",
+                "userdoc",
+                "storageLayout",
+                "evm.gasEstimates"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          },
+          "metadata": {
+            "useLiteralContent": true
+          },
+          "libraries": {
+            "": {
+              "__CACHE_BREAKER__": "0x0000000000000031363732323332333834303830"
+            }
+          }
+        }
+      },
+      "imports": [
+        "../chainlink/VRFConsumerBaseV2.sol",
+        "../chainlink/VRFCoordinatorV2Interface.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.4"
+      ],
+      "artifacts": [
+        "ChainlinkClient"
+      ]
+    },
+    "/Users/parkjeongwon/Desktop/core/contracts/protocol/LeverageModule.sol": {
+      "lastModificationDate": 1671717092958,
+      "contentHash": "f647ea5076fe13bc5edeaf27459e3b92",
+      "sourceName": "contracts/protocol/LeverageModule.sol",
+      "solcConfig": {
+        "version": "0.8.16",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata",
+                "devdoc",
+                "userdoc",
+                "storageLayout",
+                "evm.gasEstimates"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          },
+          "metadata": {
+            "useLiteralContent": true
+          },
+          "libraries": {
+            "": {
+              "__CACHE_BREAKER__": "0x0000000000000031363732323332333834303830"
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [],
+      "artifacts": []
+    },
+    "/Users/parkjeongwon/Desktop/core/contracts/utils/Address.sol": {
+      "lastModificationDate": 1671070656406,
+      "contentHash": "49bbced1b4bdcfc932cf08422759a56a",
+      "sourceName": "contracts/utils/Address.sol",
+      "solcConfig": {
+        "version": "0.8.16",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata",
+                "devdoc",
+                "userdoc",
+                "storageLayout",
+                "evm.gasEstimates"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          },
+          "metadata": {
+            "useLiteralContent": true
+          },
+          "libraries": {
+            "": {
+              "__CACHE_BREAKER__": "0x0000000000000031363732323332333834303830"
             }
           }
         }
@@ -2827,13 +2792,13 @@
         "^0.8.4"
       ],
       "artifacts": [
-        "PoolConstants"
+        "Address"
       ]
     },
-    "/Users/zekiel/Documents/GitHub/core/contracts/instruments/poolInstrument.sol": {
-      "lastModificationDate": 1671780977188,
-      "contentHash": "830c777e4be5cbb205bee244b2180243",
-      "sourceName": "contracts/instruments/poolInstrument.sol",
+    "/Users/parkjeongwon/Desktop/core/contracts/utils/AggregatorV3Interface.sol": {
+      "lastModificationDate": 1671070656406,
+      "contentHash": "0e0bd558c1a20abff37c0d4fbd5e828e",
+      "sourceName": "contracts/utils/AggregatorV3Interface.sol",
       "solcConfig": {
         "version": "0.8.16",
         "settings": {
@@ -2864,7 +2829,287 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363731373934303938323232"
+              "__CACHE_BREAKER__": "0x0000000000000031363732323332333834303830"
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.0"
+      ],
+      "artifacts": [
+        "AggregatorV3Interface"
+      ]
+    },
+    "/Users/parkjeongwon/Desktop/core/contracts/utils/Strings.sol": {
+      "lastModificationDate": 1671070656406,
+      "contentHash": "a8a7853e4b0ce6c74bda6f0fc7f45d10",
+      "sourceName": "contracts/utils/Strings.sol",
+      "solcConfig": {
+        "version": "0.8.16",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata",
+                "devdoc",
+                "userdoc",
+                "storageLayout",
+                "evm.gasEstimates"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          },
+          "metadata": {
+            "useLiteralContent": true
+          },
+          "libraries": {
+            "": {
+              "__CACHE_BREAKER__": "0x0000000000000031363732323332333834303830"
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.4"
+      ],
+      "artifacts": [
+        "Strings"
+      ]
+    },
+    "/Users/parkjeongwon/Desktop/core/contracts/utils/TransferHelper.sol": {
+      "lastModificationDate": 1671070656406,
+      "contentHash": "9cb9f74f035df164e034762f46e25ae0",
+      "sourceName": "contracts/utils/TransferHelper.sol",
+      "solcConfig": {
+        "version": "0.8.16",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata",
+                "devdoc",
+                "userdoc",
+                "storageLayout",
+                "evm.gasEstimates"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          },
+          "metadata": {
+            "useLiteralContent": true
+          },
+          "libraries": {
+            "": {
+              "__CACHE_BREAKER__": "0x0000000000000031363732323332333834303830"
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.4"
+      ],
+      "artifacts": [
+        "TransferHelper"
+      ]
+    },
+    "/Users/parkjeongwon/Desktop/core/contracts/utils/common/Uint.sol": {
+      "lastModificationDate": 1671070656406,
+      "contentHash": "cb20e06b4f64d8aa09c67e53a2969101",
+      "sourceName": "contracts/utils/common/Uint.sol",
+      "solcConfig": {
+        "version": "0.8.16",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata",
+                "devdoc",
+                "userdoc",
+                "storageLayout",
+                "evm.gasEstimates"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          },
+          "metadata": {
+            "useLiteralContent": true
+          },
+          "libraries": {
+            "": {
+              "__CACHE_BREAKER__": "0x0000000000000031363732323332333834303830"
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.4"
+      ],
+      "artifacts": []
+    },
+    "/Users/parkjeongwon/Desktop/core/contracts/utils/owned.sol": {
+      "lastModificationDate": 1671070656407,
+      "contentHash": "2da86690e3f2fd96c5823a09c74f53f5",
+      "sourceName": "contracts/utils/owned.sol",
+      "solcConfig": {
+        "version": "0.8.16",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata",
+                "devdoc",
+                "userdoc",
+                "storageLayout",
+                "evm.gasEstimates"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          },
+          "metadata": {
+            "useLiteralContent": true
+          },
+          "libraries": {
+            "": {
+              "__CACHE_BREAKER__": "0x0000000000000031363732323332333834303830"
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.4"
+      ],
+      "artifacts": [
+        "Owned"
+      ]
+    },
+    "/Users/parkjeongwon/Desktop/core/contracts/vaults/auth/Owned.sol": {
+      "lastModificationDate": 1671070656407,
+      "contentHash": "cbb684ea20bea675b7d97397da4bfd95",
+      "sourceName": "contracts/vaults/auth/Owned.sol",
+      "solcConfig": {
+        "version": "0.8.16",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata",
+                "devdoc",
+                "userdoc",
+                "storageLayout",
+                "evm.gasEstimates"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          },
+          "metadata": {
+            "useLiteralContent": true
+          },
+          "libraries": {
+            "": {
+              "__CACHE_BREAKER__": "0x0000000000000031363732323332333834303830"
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        ">=0.8.0"
+      ],
+      "artifacts": [
+        "Owned"
+      ]
+    },
+    "/Users/parkjeongwon/Desktop/core/contracts/vaults/pvault.sol": {
+      "lastModificationDate": 1671717160668,
+      "contentHash": "e495aad7f3e07fc562cb80ab9d7d6596",
+      "sourceName": "contracts/vaults/pvault.sol",
+      "solcConfig": {
+        "version": "0.8.16",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata",
+                "devdoc",
+                "userdoc",
+                "storageLayout",
+                "evm.gasEstimates"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          },
+          "metadata": {
+            "useLiteralContent": true
+          },
+          "libraries": {
+            "": {
+              "__CACHE_BREAKER__": "0x0000000000000031363732323332333834303830"
             }
           }
         }
@@ -2873,10 +3118,10 @@
       "versionPragmas": [],
       "artifacts": []
     },
-    "/Users/zekiel/Documents/GitHub/core/contracts/utils/VaultAccount.sol": {
-      "lastModificationDate": 1671762551399,
-      "contentHash": "dab599cbe7fa518aa58cdd7408d3f3aa",
-      "sourceName": "contracts/utils/VaultAccount.sol",
+    "/Users/parkjeongwon/Desktop/core/contracts/vaults/tokens/ERC1155.sol": {
+      "lastModificationDate": 1671070656408,
+      "contentHash": "558676409e429f6c4f2deef39106e3c0",
+      "sourceName": "contracts/vaults/tokens/ERC1155.sol",
       "solcConfig": {
         "version": "0.8.16",
         "settings": {
@@ -2907,17 +3152,208 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363731373934303938323232"
+              "__CACHE_BREAKER__": "0x0000000000000031363732323332333834303830"
             }
           }
         }
       },
       "imports": [],
       "versionPragmas": [
-        "^0.8.16"
+        ">=0.8.0"
       ],
       "artifacts": [
-        "VaultAccountingLibrary"
+        "ERC1155",
+        "ERC1155TokenReceiver"
+      ]
+    },
+    "/Users/parkjeongwon/Desktop/core/contracts/vaults/utils/Bytes32AddressLib.sol": {
+      "lastModificationDate": 1671070656408,
+      "contentHash": "8a05c8576a41e44d3e96a6e169162327",
+      "sourceName": "contracts/vaults/utils/Bytes32AddressLib.sol",
+      "solcConfig": {
+        "version": "0.8.16",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata",
+                "devdoc",
+                "userdoc",
+                "storageLayout",
+                "evm.gasEstimates"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          },
+          "metadata": {
+            "useLiteralContent": true
+          },
+          "libraries": {
+            "": {
+              "__CACHE_BREAKER__": "0x0000000000000031363732323332333834303830"
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        ">=0.8.0"
+      ],
+      "artifacts": [
+        "Bytes32AddressLib"
+      ]
+    },
+    "/Users/parkjeongwon/Desktop/core/contracts/vaults/utils/CREATE3.sol": {
+      "lastModificationDate": 1671070656408,
+      "contentHash": "0714614c146b2eeb737405c770da9f8a",
+      "sourceName": "contracts/vaults/utils/CREATE3.sol",
+      "solcConfig": {
+        "version": "0.8.16",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata",
+                "devdoc",
+                "userdoc",
+                "storageLayout",
+                "evm.gasEstimates"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          },
+          "metadata": {
+            "useLiteralContent": true
+          },
+          "libraries": {
+            "": {
+              "__CACHE_BREAKER__": "0x0000000000000031363732323332333834303830"
+            }
+          }
+        }
+      },
+      "imports": [
+        "./Bytes32AddressLib.sol"
+      ],
+      "versionPragmas": [
+        ">=0.8.0"
+      ],
+      "artifacts": [
+        "CREATE3"
+      ]
+    },
+    "/Users/parkjeongwon/Desktop/core/contracts/vaults/utils/ReentrancyGuard.sol": {
+      "lastModificationDate": 1671070656408,
+      "contentHash": "cf9480663950b4091d14b174c3ec0414",
+      "sourceName": "contracts/vaults/utils/ReentrancyGuard.sol",
+      "solcConfig": {
+        "version": "0.8.16",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata",
+                "devdoc",
+                "userdoc",
+                "storageLayout",
+                "evm.gasEstimates"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          },
+          "metadata": {
+            "useLiteralContent": true
+          },
+          "libraries": {
+            "": {
+              "__CACHE_BREAKER__": "0x0000000000000031363732323332333834303830"
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        ">=0.8.0"
+      ],
+      "artifacts": [
+        "ReentrancyGuard"
+      ]
+    },
+    "/Users/parkjeongwon/Desktop/core/contracts/vaults/utils/SSTORE2.sol": {
+      "lastModificationDate": 1671070656409,
+      "contentHash": "1d1602fc0f17496c555ded0b5cb70365",
+      "sourceName": "contracts/vaults/utils/SSTORE2.sol",
+      "solcConfig": {
+        "version": "0.8.16",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata",
+                "devdoc",
+                "userdoc",
+                "storageLayout",
+                "evm.gasEstimates"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          },
+          "metadata": {
+            "useLiteralContent": true
+          },
+          "libraries": {
+            "": {
+              "__CACHE_BREAKER__": "0x0000000000000031363732323332333834303830"
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        ">=0.8.0"
+      ],
+      "artifacts": [
+        "SSTORE2"
       ]
     }
   }

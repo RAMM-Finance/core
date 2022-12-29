@@ -250,25 +250,25 @@ contract PoolInstrument is ERC4626, Instrument, PoolConstants, ReentrancyGuard, 
     /// @dev will return true if the borrower has no collateral and also has no borrower shares.
     /// @dev 0 addr cannot borrow.
     function _canBorrow(address _borrower) public view returns (bool) {
-        uint256 _maxBorrowableAmount;
+        uint256 _maxBorrowableAmount = getMaxBorrow(_borrower);
 
-        for (uint256 i; i < collaterals.length; i++) {
-            CollateralLabel memory _collateral = collaterals[i];
-            Collateral memory _collateralData = collateralData[_collateral.tokenAddress][_collateral.tokenId];
-            if (_collateralData.isERC20 && userCollateralERC20[_collateral.tokenAddress][_borrower] > 0) {
-                uint256 _d = ERC20(_collateral.tokenAddress).decimals();
-                // console.log("d", _d);
-                // console.log("userERC20", userCollateralERC20[_collateral.tokenAddress][_borrower]);
-                // console.log("maxBorrow", _collateralData.maxBorrowAmount);
-                _maxBorrowableAmount += userCollateralERC20[_collateral.tokenAddress][_borrower] * _collateralData.maxBorrowAmount / (10**_d); // <= precision of collateral.
-            } else {
-                if (userCollateralNFTs[_collateral.tokenAddress][_collateral.tokenId] == _borrower) {
-                    _maxBorrowableAmount += _collateralData.maxBorrowAmount;
-                }
-            }
-        }
-        console.log("maxBorrowableAmount", _maxBorrowableAmount);
-        console.log("user debt: ", totalBorrow.toAmount(userBorrowShares[_borrower], false));
+        // for (uint256 i; i < collaterals.length; i++) {
+        //     CollateralLabel memory _collateral = collaterals[i];
+        //     Collateral memory _collateralData = collateralData[_collateral.tokenAddress][_collateral.tokenId];
+        //     if (_collateralData.isERC20 && userCollateralERC20[_collateral.tokenAddress][_borrower] > 0) {
+        //         uint256 _d = ERC20(_collateral.tokenAddress).decimals();
+        //         // console.log("d", _d);
+        //         // console.log("userERC20", userCollateralERC20[_collateral.tokenAddress][_borrower]);
+        //         // console.log("maxBorrow", _collateralData.maxBorrowAmount);
+        //         _maxBorrowableAmount += userCollateralERC20[_collateral.tokenAddress][_borrower] * _collateralData.maxBorrowAmount / (10**_d); // <= precision of collateral.
+        //     } else {
+        //         if (userCollateralNFTs[_collateral.tokenAddress][_collateral.tokenId] == _borrower) {
+        //             _maxBorrowableAmount += _collateralData.maxBorrowAmount;
+        //         }
+        //     }
+        // }
+        // console.log("maxBorrowableAmount", _maxBorrowableAmount);
+        // console.log("user debt: ", totalBorrow.toAmount(userBorrowShares[_borrower], false));
 
 
         if (userBorrowShares[_borrower] == 0) {
@@ -277,9 +277,35 @@ contract PoolInstrument is ERC4626, Instrument, PoolConstants, ReentrancyGuard, 
         if (_maxBorrowableAmount == 0) {
             return false;
         }
-
         return _maxBorrowableAmount >= totalBorrow.toAmount(userBorrowShares[_borrower], false);
     }
+
+    function getMaxBorrow(address _borrower) public view returns(uint256 _maxBorrowableAmount){
+
+        for (uint256 i; i < collaterals.length; i++) {
+            CollateralLabel memory _collateral = collaterals[i];
+            Collateral memory _collateralData = collateralData[_collateral.tokenAddress][_collateral.tokenId];
+            if (_collateralData.isERC20 && userCollateralERC20[_collateral.tokenAddress][_borrower] > 0) {
+                uint256 _d = ERC20(_collateral.tokenAddress).decimals();
+                _maxBorrowableAmount += userCollateralERC20[_collateral.tokenAddress][_borrower] * _collateralData.maxBorrowAmount / (10**_d); // <= precision of collateral.
+            } else {
+                if (userCollateralNFTs[_collateral.tokenAddress][_collateral.tokenId] == _borrower) {
+                    _maxBorrowableAmount += _collateralData.maxBorrowAmount;
+                }
+            }
+        }
+    }
+
+    /// @notice returns how much collateral can be removed, given the borrower's current debt condition
+    function removeableCollateral(address _borrower, uint256 tokenId, address collateral) public view returns(uint256){
+        //800 borrowable = 800 * 1, 600borrowed (800-x)*1 - 600 = 0 x=? 
+        //800*1-x*1-600 , x = (800*1 - 600)/1
+        uint256 _maxBorrowableAmount = getMaxBorrow(_borrower); 
+        uint256 perUnitMaxBorrowAmount = collateralData[collateral][tokenId].maxBorrowAmount; 
+        //check solvency
+        return (_maxBorrowableAmount - totalBorrow.toAmount(userBorrowShares[_borrower], true)) 
+            * 1e18/ perUnitMaxBorrowAmount; 
+    }  
 
     // BORROW LOGIC
     event Borrow(address indexed _borrower, uint256 _amount, uint256 _shares);
@@ -337,6 +363,15 @@ contract PoolInstrument is ERC4626, Instrument, PoolConstants, ReentrancyGuard, 
 
     // REPAY LOGIC
     event Repay(address indexed borrower, uint256 amount, uint256 shares);
+
+    function repayWithAmount(
+        uint256 _amount, 
+        address _borrower
+        )   external nonReentrant returns (uint256 _sharesToRepay){
+        VaultAccount memory _totalBorrow = totalBorrow;
+        _sharesToRepay = _totalBorrow.toShares(_amount, true); 
+        _repay(_totalBorrow, _amount.safeCastTo128(), _sharesToRepay.safeCastTo128(), msg.sender, _borrower);
+    }
 
     function repay(
         uint256 _shares,
@@ -418,6 +453,20 @@ contract PoolInstrument is ERC4626, Instrument, PoolConstants, ReentrancyGuard, 
         emit AddCollateral(_borrower, _collateral, _tokenId, _collateralAmount);
     }
 
+    function removeAvailableCollateral(
+        address _collateral, 
+        uint256 _tokenId,
+        address _receiver
+    ) external nonReentrant canBorrow(msg.sender) onlyApprovedCollateral(_collateral, _tokenId) returns(uint256 removeable){
+        _addInterest();
+
+        removeable = removeableCollateral(msg.sender,  _tokenId,  _collateral); 
+
+        _removeCollateral(_collateral, 
+            removeable,
+            _tokenId, msg.sender, _receiver);
+    }
+
     function removeCollateral(
         address _collateral, 
         uint256 _tokenId,
@@ -425,6 +474,7 @@ contract PoolInstrument is ERC4626, Instrument, PoolConstants, ReentrancyGuard, 
         address _receiver
     ) external nonReentrant canBorrow(msg.sender) onlyApprovedCollateral(_collateral, _tokenId) {
         _addInterest();
+
         // Note: exchange rate is irrelevant when borrower has no debt shares
         _removeCollateral(_collateral, _collateralAmount, _tokenId, msg.sender, _receiver);
     }
@@ -460,8 +510,7 @@ contract PoolInstrument is ERC4626, Instrument, PoolConstants, ReentrancyGuard, 
     // liquidation logic
 
     /// @notice collateral should be auctioned off at a minimum price chosen by the managers
-    
-    // underlying balance, collateral balance, what do we know about the user?
+    /// underlying balance, collateral balance, what do we know about the user?
     /// if the user's borrow shares are equal to an amount of asset that is greater than the maximum amount they can borrow, 
     /// they are suceptible to liquidation
     /// how to determine what collateral should be auctioned off?
@@ -481,6 +530,7 @@ contract PoolInstrument is ERC4626, Instrument, PoolConstants, ReentrancyGuard, 
                 }
             }
         }
+
 
         return (_maxBorrowableAmount < totalBorrow.toAmount(userBorrowShares[_borrower], false), 
             int256(_maxBorrowableAmount) - int256(totalBorrow.toAmount(userBorrowShares[_borrower], false))
@@ -683,6 +733,20 @@ contract PoolInstrument is ERC4626, Instrument, PoolConstants, ReentrancyGuard, 
     // instrument functions
     function instrumentApprovalCondition() public override virtual view returns (bool) {
         return true;
+    }
+
+    function borrowLiquidityAvailable(uint256 _borrowAmount) public view returns (bool){
+        VaultAccount memory _totalBorrow = totalBorrow;
+
+        uint256 _assetsAvailable = _totalAssetAvailable(totalAsset, _totalBorrow);
+        if (_assetsAvailable < _borrowAmount) {
+            return false;
+        }
+        return true; 
+    }
+
+    function totalAssetAvailable() public view returns(uint256){
+        return _totalAssetAvailable(totalAsset, totalBorrow); 
     }
 
 

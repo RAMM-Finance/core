@@ -320,7 +320,7 @@ contract GranularBondingCurve{
         uint128 amount,
         bool isAsk  
         ) public onlyEntry _lock_ returns(uint256 amountToEscrow, uint128 numCross ){   
-
+        //TODO mint NFT 
         // Should only accept asks for price above the current point range
         if(isAsk && pointToPrice(point) <= slot0.curPrice) revert("ask below prie"); 
         else if(!isAsk && pointToPrice(point) >= slot0.curPrice) revert("bids above prie"); 

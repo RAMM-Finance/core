@@ -177,6 +177,8 @@ contract Controller {
               = poolFactory.newPool(address(vaults[vaultId].UNDERLYING()), address(marketManager)); 
 
     if (instrumentData.isPool){
+      instrumentData.poolData.inceptionTime = block.timestamp; 
+
       instrumentData.poolData.managementFee = pool.calculateInitCurveParamsPool(
         instrumentData.poolData.saleAmount, instrumentData.poolData.initPrice, 
         instrumentData.poolData.inceptionPrice, marketManager.getParameters(marketId).sigma); 

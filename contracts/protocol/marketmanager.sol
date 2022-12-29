@@ -123,7 +123,7 @@ contract MarketManager
 
     owner = msg.sender; 
   }
-
+//TODO setcontroller
   function makeEmptyMarketData() public pure returns (CoreMarketData memory) {
     return CoreMarketData(
         SyntheticZCBPool(address(0)),
@@ -353,7 +353,7 @@ contract MarketManager
 
     // TODO: check if this is correct
     // require(controller.getVault(marketId).fetchInstrumentData(marketId).maturityDate > block.timestamp, "market maturity reached");
-
+    // TODO: check if enough liquidity 
     bool _duringMarketAssessment = restriction_data[marketId].duringAssessment;
     bool _onlyReputable =  restriction_data[marketId].onlyReputable;
 
@@ -465,10 +465,10 @@ contract MarketManager
     ) external returns(uint256 claimedAmount){
     SyntheticZCBPool bondPool = markets[marketId].bondPool; 
 
-    if (funnel == 1) claimedAmount = bondPool.makerClaimOpen(point,true, msg.sender); 
-    else if (funnel == 2) claimedAmount = bondPool.makerClaimClose(point,true, msg.sender);
-    else if (funnel == 3) claimedAmount = bondPool.makerClaimOpen(point,false, msg.sender); 
-    else if (funnel == 4) claimedAmount = bondPool.makerClaimClose(point,false, msg.sender); 
+    // if (funnel == 1) claimedAmount = bondPool.makerClaimOpen(point,true, msg.sender); 
+    // else if (funnel == 2) claimedAmount = bondPool.makerClaimClose(point,true, msg.sender);
+    // else if (funnel == 3) claimedAmount = bondPool.makerClaimOpen(point,false, msg.sender); 
+    // else if (funnel == 4) claimedAmount = bondPool.makerClaimClose(point,false, msg.sender); 
   }
 
   /// @notice called by pool when buying, transfers funds from trader to pool 
@@ -550,7 +550,7 @@ contract MarketManager
     ) external _lock_ returns(uint256 amountIn, uint256 amountOut){
     require(!restriction_data[_marketId].resolved, "!resolved");
     _canBuy(msg.sender, _amountIn, _marketId);
-
+    //TODO return readable error on why it reverts
     CoreMarketData memory marketData = markets[_marketId]; 
     SyntheticZCBPool bondPool = marketData.bondPool; 
     

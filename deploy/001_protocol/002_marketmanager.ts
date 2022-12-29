@@ -16,11 +16,11 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     "1713"
   ];
 
-  // await deployments.deploy("MarketManager", {
-  //   from: deployer,
-  //   args,
-  //   log: true,
-  // });
+  await deployments.deploy("MarketManager", {
+    from: deployer,
+    args,
+    log: true,
+  });
 };
   
 func.tags = ["marketManager"];

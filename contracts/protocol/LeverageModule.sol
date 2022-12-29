@@ -5,272 +5,228 @@
 // import "forge-std/console.sol";
 // import {Vault} from "../vaults/vault.sol";
 // import {FixedPointMathLib} from "solmate/utils/FixedPointMathLib.sol";
+// import {PoolInstrument} from "../instruments/poolInstrument.sol"; 
+// import {SafeCastLib} from "solmate/utils/SafeCastLib.sol";
+
 
 
 // /// @notice borrow from leverageVault to leverage mint vaults
 // contract LeverageModule is ERC721{
 //   	using FixedPointMathLib for uint256;
+//     using SafeCastLib for uint256;
 
-// 	Vault leverageVault; 
+// 	Vault vault; 
 // 	address UNDERLYING; 
 // 	uint256 constant precision =1e18; 
 // 	/// param leverageVault is where the capital is for borrowing
 // 	constructor(
+// 		address controller, 
 // 		address leverageVault_ad
 // 		)ERC721("LeverageVaultPosition", "RAMMLV") {
-// 		leverageVault = Vault(leverageVault_ad); 
+// 		controller = Controller(_controller); 
 // 		UNDERLYING = leverageVault.UNDERLYING(); 
 // 	}
 
+// 	mapping(uint256=> _positions) Position; 
+// 	mapping(uint256=> address)  leveragePools; 
+
 // 	struct Position{
+// 		address vaultAd; 
+// 		uint256 totalShares; 
+
 // 		uint256 suppliedCapital; 
 // 		uint256 borrowedCapital; 
-// 		uint32 borrowTimeStamp;
 
+// 		uint32 borrowTimeStamp;
+// 		uint192 endStateBalance; 
 // 	}
 
+//     /// @dev The ID of the next token that will be minted. Skips 0
+//     uint176 private _nextId = 1;
+//     /// @dev The ID of the next pool that is used for the first time. Skips 0
+//     uint80 private _nextPoolId = 1;
+
+//     function addLeveragePool(uint256 vaultId, address pool) public 
+//     //onlyowner
+//     {
+//     	leveragePools[vaultId] = pool; 
+//     }
 // 	/// @notice Allow people to borrow from leverageVault and use that to
 // 	/// create leveraged Vault positions 
 // 	/// @dev Step is 1. borrow to this address, 2. mint vault(invest) to this address
 // 	/// 3. mint position nft for the caller 
 // 	/// param leverageFactor in WAD is percentage of suppliedCapital 
+// 	// 0. transfer to this address
+// 	// 1. mint vault to this address
+// 	// 2. borrow to this address,
+// 	// 3. mint new vault to this address 
+// 	// 4. borrow new vault to this 
+// 	function _mintWithLeverage(
+// 		uint256 vaultId, 
+// 		uint256 borrowAmount, 
+// 		uint256 collateralAmount, 
+// 		Vault vault) 
+// 		internal returns(
+// 			uint256 shares, 
+// 			uint256 maxBorrowAmount, 
+// 			bool noMoreLiq
+// 		){
+// 		PoolInstrument leveragePool = PoolInstrument(leveragePools[vaultId]); 
+// 		ERC20 underlying = vault.UNDERLYING(); 
+
+// 		// TODO add collateral
+
+// 		uint256 maxBorrowableAmount_ = min(
+// 			borrowAmount, 
+// 			leveragePool.collateralData(address(vault),0).maxBorrowAmount.mulWadDown(collateralAmount) 
+// 			); 
+
+// 		maxBorrowableAmount = min(
+// 			maxBorrowableAmount_, 
+// 			leveragePool.totalAssetAvailable()
+// 			); 
+
+// 		noMoreLiq = maxBorrowAmount < maxBorrowableAmount_; 
+
+// 		vault.approve(address(leveragePool), collateralAmount); 
+
+// 		leveragePool.borrow(
+// 			maxBorrowableAmount, address(vault), 
+// 			0, collateralAmount, address(this) 
+// 			); 
+
+// 		shares = vault.deposit(suppliedCapital, address(this)); 		
+// 	}
+
+// 	struct MintLocalVars{
+// 		Vault vault; 
+// 		uint256 totalBorrowAmount; 
+// 		uint256 maxBorrowAmount; 
+// 		bool noMoreLiq; 
+// 		uint256 shares, 
+// 		uint256 mintedShares; 
+// 		uint256 borrowedAmount; 
+// 	}
+
+// 	/// @notice Implements a leverage loop 
+// 	// TODO implement with flash minting, maybe more gas efficient 
 // 	function mintWithLeverage(
+// 		uint256 vaultId, 
 // 		uint256 suppliedCapital, 
-// 		uint256 leverageFactor) public {
-// 		// 1. borrow to this address,
-// 		// 2. mint new vault to this address 
-// 		// 3. borrow new vault to this 
+// 		uint256 leverageFactor) public returns(uint256 tokenId) {
+// 		MintLocalVars memory vars; 
+// 		vars.vault = controller.vaults(vaultId); 
 
-// 		leverageVault.requestLoan(leverageFactor.mulWadDown(suppliedCapital)); 
-		
+// 		underlying.tranferFrom(msg.sender, address(this), suppliedCapital); 
+// 		underlying.approve(address(vault), suppliedCapital.mulWadDown(precision + leverageFactor)); 
+
+// 		// Initial minting 
+// 		vars.shares = vault.deposit(suppliedCapital, address(this));
+
+// 		// borrow until leverage is met, 
+// 		vars.totalBorrowAmount = suppliedCapital.mulWadDown(leverageFactor); 
+
+// 		while(vars.totalBorrowAmount != 0 || !vars.noMoreLiq){
+// 			vars.mintedShares += vars.shares; 
+
+// 			(vars.shares, vars.maxBorrowAmount, vars.noMoreLiq) 
+// 				= _mintWithLeverage(
+// 					vaultId, 
+// 					vars.totalBorrowAmount, 
+// 					vars.shares,
+// 					vars.vault
+// 					); 
+
+// 			vars.borrowedAmount += vars.maxBorrowAmount; 
+
+// 			if(vars.totalBorrowAmount>= vars.maxBorrowAmount)
+// 				(vars.totalBorrowAmount) -= vars.maxBorrowAmount;
+
+// 			else vars.totalBorrowAmount = 0; 
+// 		}
+
+// 		_mint(to,  (tokenId = _nextId++)); 
+
+// 		_positions[tokenId] = Position(
+// 			address(vault),
+// 			vars.mintedShares, 
+// 			suppliedCapital, 
+// 			borrowedAmount, 
+// 			block.timestamp, 
+// 			vars.shares.safeCastTo192(); 
+
+// 		); // everything is minted to 
 // 	}
 
-// 	/// @notice Allows leverage minters to close their positions, and share profit with the 
-// 	/// leverageVault
-// 	function withdrawLeverage() public{
+// 	struct RewindLocalVars{
+
+// 	}
+// 		address vaultAd; 
+// 		uint256 totalShares; 
+
+// 		uint256 suppliedCapital; 
+// 		uint256 borrowedCapital; 
+
+// 		uint32 borrowTimeStamp;
+// 		uint192 endStateBalance; 
+// 	/// @notice Allows leverage minters to close their positions, and share profit with the leverageVault
+// 	/// @dev step goes 1. repay to instrument,  
+// 	function rewindPartialLeverage(
+// 		uint256 vaultId, 
+// 		uint256 tokenId, 
+// 		uint256 withdrawAmount) public{
+// 		//0. redeem 
+// 		//1. repay to leverage pool
+// 		//2. get vault collateral back 
+// 		//3. redeem
+// 		//4. repay to leverage pool 
+// 		RewindLocalVars memory vars; 
+
+// 		Positions memory position = _positions[tokenId]; 
+// 		require(position.totalShares >= withdrawAmount, "larger than position"); 
+
+// 		ERC20 underlying = vault.UNDERLYING(); 
+// 		Vault vault = controller.vaults(vaultId); 
+// 		PoolInstrument leveragePool = PoolInstrument(leveragePools[vaultId]); 
+
+// 		vars.withdrawAmount = withdrawAmount; 
+
+// 		// Begin with initial redeem 
+// 		vars.assetReturned = vault.redeem(position.endStateBalance, address(this), address(this)); 
+//     	// vars.redeemedShares = position.endStateBalance; 
+
+// 		while(vars.withdrawAmount!=0 ){
+
+// 			leveragePool.repayWithAmount(vars.assetReturned, address(this)); 
+
+// 			vars.removed = leveragePool.removeAvailableCollateral(address(vault), 0, address(this)); 
+
+// 			vars.assetReturned = vault.redeem(vars.removed, address(this), address(this)); 
+
+// 			if(vars.withdrawAmount> vars.removed) vars.withdrawAmount -= vars.removed; 
+//         	else vars.withdrawAmount = vars.removed; 
+
+//         	vars.totalAssetReturned += vars.assetReturned; 
+
+// 		}
+// 		position.totalShares -= withdrawAmount; 
+// 		if(position.borrowedCapital >= vars.totalAssetReturned)
+// 			position.borrowedCapital -= vars.totalAssetReturned;
+
+// 		else position.borrowedAmount == 0; 
+
+
+// 	}
+	
+
+// 	function rewindFull(
+
+// 		)public{}
+// 	function min() internal pure returns(bool){
+
+// 	}
+// 	function max() internal pure returns(bool){
 
 // 	}
 
 
-
-// }
-
-// contract ReputationNFT is ERC721 {
-//   mapping(uint256 => ReputationData) internal _reputation; // id to reputation
-//   mapping(address => uint256) internal _ownerToId;
-//   mapping(uint256 => TraderData[]) internal _marketData; // **MarketId to Market's data needed for calculating brier score.
-
-//   uint256 private nonce = 1;
-//   Controller controller;
-//   uint256 SCALE = 1e18;
-
-
-//   struct ReputationData {
-//     uint256 n; // number of markets participated in => regular uint256
-//     uint256 score; 
-//   }
-
-//   struct TraderData { // for each market
-//     address trader;
-//     uint256 tokensBought;
-//   }
-
-//   struct TopReputation{
-//     address trader; 
-//     uint256 score; 
-//   }
-
-//   uint256 private constant topRep = 100; 
-//   TopReputation[topRep] topReputations; 
-
-//   mapping(uint256=>mapping(address=>bool)) canTrade; //marketID-> address-> cantrade
-//   mapping(uint256=>bool) allowAll; 
-//   mapping(address=>bool) isUnique; 
-//   address[] unique_traders; 
-//   mapping(uint256=>mapping(address=>uint256)) public balances; // marketId => market manager address => how much collateral already bought.
-
-//   modifier onlyController() {
-//     require(msg.sender == address(controller));
-//     _;
-//   }
-
-//   constructor (
-//     address _controller
-//   ) ERC721("Debita Reputation Token", "DRT") {
-//     controller = Controller(_controller);
-//   }
-
-//   /**
-//    @notice incrementBalance
-//    */
-//   function incrementBalance(uint256 marketId, address trader, uint256 amount) external onlyController {
-//     balances[marketId][trader] += amount;
-//   }
-
-//   /**
-//    @notice called post reputation update
-//    */
-//   function removeBalance(uint256 marketId, address trader) external onlyController {
-//     delete balances[marketId][trader];
-//   }
-
-//   function _baseURI() internal pure returns (string memory baseURI) {
-//     baseURI = "";
-//   }
-
-//   function tokenURI(uint256 id) public view override returns (string memory) {
-//     require(_ownerOf[id] != address(0), "Invalid Identifier");
-
-//     string memory baseURI = _baseURI();
-//     return bytes(baseURI).length > 0 ? string(abi.encodePacked(baseURI, id)) : "";
-//   }
-
-//   function mint(address to) external {
-//     require(_ownerToId[to] == uint256(0), "can only mint one reputation token");
-//     super._mint(to, nonce);
-//     _ownerToId[to] = nonce;
-
-//     // Set default score, if this goes to 0 cannot trade
-//     _reputation[_ownerToId[to]].score = 1e18; 
-
-//     nonce++;
-//   }
-
-//   function getReputationScore(address owner) view external returns (uint256){
-//     require(_ownerToId[owner] != uint256(0), "No Id found");
-//     return _reputation[_ownerToId[owner]].score;
-//   }
-
-//   function setReputationScore(address owner, uint256 score) external returns (uint256) 
-//   //onlyOwner
-//   {
-//     require(_ownerToId[owner] != uint256(0), "No Id found");
-//     return _reputation[_ownerToId[owner]].score = score;
-//   }
-
-
-//   function updateScore(address to, int256 score) external onlyController{
-//     require(_ownerToId[to] != uint256(0), "No Id found");
-
-//     ReputationData storage data = _reputation[_ownerToId[to]];
-//     if (score > 0) data.score = data.score + uint256(score);
-//     else{
-//         if (data.score <= uint256(-score)) data.score = 0; 
-//         else data.score = data.score - uint256(-score);
-//       } 
-
-//     storeTopX(data.score, to); 
-//   }
-
-
-//   function addScore(address to, uint256 score) external onlyController
-//    {
-//     require(_ownerToId[to] != uint256(0), "No Id found");
-
-//     ReputationData storage data = _reputation[_ownerToId[to]];
-//     data.score = data.score + score; 
-
-//     storeTopX(data.score, to); 
-//   }
-
-//   function decrementScore(address to, uint256 score) external onlyController
-//    {
-//     require(_ownerToId[to] != uint256(0), "No Id found");
-
-//     ReputationData storage data = _reputation[_ownerToId[to]];
-//     if (data.score <= score) data.score = 0; 
-//     else data.score = data.score - score; 
-
-//     storeTopX(data.score, to); 
-//   }
-
-//   function addAverageScore(address to, uint256 score) external onlyController
-
-//    {
-//     require(_ownerToId[to] != uint256(0), "No Id found");
-
-//     ReputationData storage data = _reputation[_ownerToId[to]];
-    
-//     if (data.n == 0) {
-//       data.score = score;
-//     } else {
-//       data.score = (data.score / data.n + score) / (data.n + 1);
-//     }
-
-//     data.n++;
-//   }
-
-//   /**
-//    @notice reset scores
-//    */
-//   function resetScore(address to) external {
-//     require(_ownerToId[to] != uint256(0), "No Id found");
-//     delete _reputation[_ownerToId[to]];
-//   }
-
-//   /// @notice called by controller when initiating market,
-//   function storeTopReputation(uint256 topX, uint256 marketId) external onlyController{
-//     if (getAvailableTopX() < topX) {
-//       allowAll[marketId] =true; 
-//       return; 
-//     }
-
-//     for (uint256 i; i<topX; i++){
-//       canTrade[marketId][topReputations[i].trader] = true;
-//     }
-
-//   }
-
-//   /// @notice gets the x's ranked score from all reputation scores 
-//   /// @dev returns 0 if topX is greater then avaiable nonzero rep scores-> everyone is allowed
-//   /// during reputation constraint periods 
-//   function getMinRepScore(uint256 topX) public view returns(uint256) {
-//     if (getAvailableTopX() < topX) {
-//       return 0; 
-//     }
-//     return topReputations[topX].score;
-//   }
-
-//   function getAvailableTopX() public view returns(uint256){
-//     return unique_traders.length; 
-//   }
-
-//   function getAvailableTraderNum() public view returns(uint256){
-//     return nonce -1; 
-//   }
-
-//   /// @notice whether trader is above reputation threshold 
-//   function traderCanTrade(uint256 marketId, address trader) external returns(bool){
-//     return allowAll[marketId]? true : canTrade[marketId][trader]; 
-//   }
-
-//   /// @notice called whenever a score is incremented   
-//   function storeTopX(uint256 score, address trader) internal {
-//     uint256 i = 0;
-
-//     for(i; i < topReputations.length; i++) {
-//       if(topReputations[i].score < score) {
-//         break;
-//       }
-//     }
-//     // shifting the array of position (getting rid of the last element) 
-//     for(uint j = topReputations.length - 1; j > i; j--) {
-//         topReputations[j].score = topReputations[j - 1].score;
-//         topReputations[j].trader = topReputations[j - 1].trader;
-//     }
-//     // update the new max element 
-//     topReputations[i].score = score;
-//     topReputations[i].trader = trader;
-
-//     if (isUnique[trader]) return; 
-//     isUnique[trader] = true; 
-//     unique_traders.push(trader);
-
-//   }
-
-//   function testStore() public view {
-//     for (uint i=0; i<10; i++){
-//       console.log('score', topReputations[i].score); 
-//     }
-//   }  
-// }

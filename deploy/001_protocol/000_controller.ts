@@ -23,12 +23,12 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   //       args: ["USDC", "USDC", 18],
   //       log: true,
   //     });
-    // await deployments.deploy("Controller", {
-    //   contract: "Controller",
-    //   from: deployer,
-    //   args,
-    //   log: true,
-    // });
+    await deployments.deploy("Controller", {
+      contract: "Controller",
+      from: deployer,
+      args,
+      log: true,
+    });
   };
   
   func.tags = ["Controller"];
