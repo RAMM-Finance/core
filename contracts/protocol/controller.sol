@@ -276,14 +276,15 @@ contract Controller {
         vaults[id_parent[marketId]].beforeResolve(marketId);
     }
 
-    function testBeforeResolve(uint256 marketId) external {
-      (bool duringMarketAssessment, , , bool alive, , ) = marketManager
-            .restriction_data(marketId);
-        require(!duringMarketAssessment && alive, "market conditions not met");
-        vaults[id_parent[marketId]].beforeResolve(marketId);
-    }
+    // function testBeforeResolve(uint256 marketId) external {
+    //   (bool duringMarketAssessment, , , bool alive, , ) = marketManager
+    //         .restriction_data(marketId);
+    //     require(!duringMarketAssessment && alive, "market conditions not met");
+    //     vaults[id_parent[marketId]].beforeResolve(marketId);
+    // }
 
     function testResolveMarket(uint256 marketId) external {
+      vaults[id_parent[marketId]].beforeResolve(marketId);
       (
             bool atLoss,
             uint256 extra_gain,
