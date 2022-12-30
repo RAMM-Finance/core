@@ -208,6 +208,8 @@ abstract contract Instrument {
         return balanceOfUnderlying(address(this)) >= amount; 
     }
 
+    // function beforeApprove(Vault.InstrumentData memory _instrumentData) onlyVault virtual external  {}
+
 
     /// @notice Before supplying liquidity from the vault to this instrument,
     /// which is done automatically when instrument is trusted, 

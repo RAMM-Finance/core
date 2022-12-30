@@ -12,6 +12,7 @@ import {FixedPointMathLib} from "solmate/utils/FixedPointMathLib.sol";
 import {Pausable} from "openzeppelin-contracts/security/Pausable.sol";
 import {ERC4626} from "solmate/mixins/ERC4626.sol";
 import {ERC721TokenReceiver} from "solmate/tokens/ERC721.sol";
+import {Vault} from "../vaults/vault.sol";
 import "forge-std/console.sol";
 import "@prb/math/SD59x18.sol";
 
@@ -96,9 +97,11 @@ contract PoolInstrument is ERC4626, Instrument, PoolConstants, ReentrancyGuard, 
     
     CurrentRateInfo public currentRateInfo;
     CollateralLabel[] collaterals; //approved collaterals.
+    address controller;
     
     constructor (
         address _vault,
+        address _controller,
         address _utilizer,
         address _asset,
         string memory _name,
@@ -106,29 +109,38 @@ contract PoolInstrument is ERC4626, Instrument, PoolConstants, ReentrancyGuard, 
         address _rateCalculator,
         bytes memory _rateInitCallData
     ) Instrument(_vault, _utilizer) ERC4626(ERC20(_asset), _name, _symbol) {
+        controller = _controller;
         rateContract = IRateCalculator(_rateCalculator);
         rateInitCallData = _rateInitCallData;
         rateContract.requireValidInitData(_rateInitCallData);
+
     }
 
     // should be gated function
     /// tokenId 0 for ERC20.
     function initialize(
-        
     ) external {
+
     }
 
-    /// @notice add a new collateral to the pool, tokenId is zero for ERC20s.
+    function getAcceptedCollaterals() view public returns (CollateralLabel[] memory) {
+        return collaterals;
+    }
+
+    // legacy for tests, remove later.
     function addAcceptedCollateral(
-        address _tokenAddress,
+        address _collateral,
         uint256 _tokenId,
         uint256 _maxAmount,
-        uint256 _maxBorrowAmount
-    ) external onlyVault {
-        require(!approvedCollateral[_tokenAddress][_tokenId], "collateral already approved");
-        approvedCollateral[_tokenAddress][_tokenId] = true;
-        collaterals.push(CollateralLabel(_tokenAddress, _tokenId));
-        collateralData[_tokenAddress][_tokenId] = Collateral(0,_maxAmount, _maxBorrowAmount, _tokenId == 0);
+        uint256 _maxBorrowAmount,
+        bool _isERC20
+    ) external  {
+        require(msg.sender == controller, "only controller");
+        require(!approvedCollateral[_collateral][_tokenId], "collateral already approved");
+        require(_maxAmount > _maxBorrowAmount, "maxAmount must be greater than maxBorrowAmount");
+        approvedCollateral[_collateral][_tokenId] = true;
+        collaterals.push(CollateralLabel(_collateral, _tokenId));
+        collateralData[_collateral][_tokenId] = Collateral(0,_maxAmount, _maxBorrowAmount, _isERC20);
     }
 
     // INTERNAL HELPERS
@@ -251,25 +263,6 @@ contract PoolInstrument is ERC4626, Instrument, PoolConstants, ReentrancyGuard, 
     /// @dev 0 addr cannot borrow.
     function _canBorrow(address _borrower) public view returns (bool) {
         uint256 _maxBorrowableAmount = getMaxBorrow(_borrower);
-
-        // for (uint256 i; i < collaterals.length; i++) {
-        //     CollateralLabel memory _collateral = collaterals[i];
-        //     Collateral memory _collateralData = collateralData[_collateral.tokenAddress][_collateral.tokenId];
-        //     if (_collateralData.isERC20 && userCollateralERC20[_collateral.tokenAddress][_borrower] > 0) {
-        //         uint256 _d = ERC20(_collateral.tokenAddress).decimals();
-        //         // console.log("d", _d);
-        //         // console.log("userERC20", userCollateralERC20[_collateral.tokenAddress][_borrower]);
-        //         // console.log("maxBorrow", _collateralData.maxBorrowAmount);
-        //         _maxBorrowableAmount += userCollateralERC20[_collateral.tokenAddress][_borrower] * _collateralData.maxBorrowAmount / (10**_d); // <= precision of collateral.
-        //     } else {
-        //         if (userCollateralNFTs[_collateral.tokenAddress][_collateral.tokenId] == _borrower) {
-        //             _maxBorrowableAmount += _collateralData.maxBorrowAmount;
-        //         }
-        //     }
-        // }
-        // console.log("maxBorrowableAmount", _maxBorrowableAmount);
-        // console.log("user debt: ", totalBorrow.toAmount(userBorrowShares[_borrower], false));
-
 
         if (userBorrowShares[_borrower] == 0) {
             return true;
@@ -782,12 +775,16 @@ contract PoolInstrument is ERC4626, Instrument, PoolConstants, ReentrancyGuard, 
         view
         returns (
             uint256 _userAssetShares,
+            uint256 _userAssetAmount,
             uint256 _userBorrowShares,
+            uint256 _userBorrowAmount,
             int256 _userAccountLiquidity
         )
     {
         _userAssetShares = balanceOf[_address];
+        _userAssetAmount = totalAsset.toAmount(_userAssetShares, false);
         _userBorrowShares = userBorrowShares[_address];
+        _userBorrowAmount = totalBorrow.toAmount(_userBorrowShares, false);
         (, _userAccountLiquidity) = _isLiquidatable(_address);
     }
 

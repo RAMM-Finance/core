@@ -15,10 +15,10 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   const {address : zcb_addr} = await deployments.get("ZCBFactory"); 
   const args = [controller_addr, zcb_addr];
 
-  const linear_library = await deployments.get("LinearCurve", {
-  	from: deployer,
-  	log: true
-  })
+  // const linear_library = await deployments.get("LinearCurve", {
+  // 	from: deployer,
+  // 	log: true
+  // })
   const{address:linearcurve_addr} = await deployments.get("LinearCurve"); 
 
   await deployments.deploy("SyntheticZCBPoolFactory", {

@@ -20,13 +20,13 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     log: true, 
   });
           
-  const cr_args = ["0x88197517e53F3E82a5385339bD41cF65e32ed82F", deployer, 10000, 1000, 100, 11000, 
-  cash_addr, cash_addr, 0,0]
-  await deployments.deploy("CreditLine", {
-    from: deployer,
-    args: cr_args,
-    log: true,
-  });
+  // const cr_args = ["0x88197517e53F3E82a5385339bD41cF65e32ed82F", deployer, 10000, 1000, 100, 11000, 
+  // cash_addr, cash_addr, 0,0]
+  // await deployments.deploy("CreditLine", {
+  //   from: deployer,
+  //   args: cr_args,
+  //   log: true,
+  // });
 
 };
         

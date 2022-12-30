@@ -240,17 +240,18 @@ contract CustomTestBase is Test {
     }
     function doApprove(uint256 marketId, address vault) public{ //TODO: update
         // validators invest and approve 
-        address[] memory vals = controller.viewValidators(marketId);
-        console.log("val.length", vals.length);
-        uint256 initialStake = controller.getInitialStake(marketId);
-        for (uint i=0; i < vals.length; i++) {
-            doApproveCol(vault, vals[i]);
-            doApproveVault(vault, vals[i], address(controller));
-            doApproveCol(address(marketmanager), vals[i]);
-            doMint(vault, vals[i], initialStake);
-            vm.prank(vals[i]);
-            controller.validatorApprove(marketId);
-        }
+        // address[] memory vals = controller.viewValidators(marketId);
+        // console.log("val.length", vals.length);
+        // uint256 initialStake = controller.getInitialStake(marketId);
+        // for (uint i=0; i < vals.length; i++) {
+        //     doApproveCol(vault, vals[i]);
+        //     doApproveVault(vault, vals[i], address(controller));
+        //     doApproveCol(address(marketmanager), vals[i]);
+        //     doMint(vault, vals[i], initialStake);
+        //     vm.prank(vals[i]);
+        //     controller.validatorApprove(marketId);
+        // }
+        controller.testApproveMarket(marketId);
     }
    
 }
