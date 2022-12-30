@@ -14,6 +14,11 @@ import {CoveredCallOTC} from "contracts/vaults/dov.sol";
 import {ERC20} from "solmate/tokens/ERC20.sol";
 import {Fetcher} from "contracts/utils/fetcher.sol";
 import {ReputationManager} from "contracts/protocol/reputationmanager.sol";
+import {PoolInstrument} from "contracts/instruments/poolInstrument.sol";
+import {VariableInterestRate} from "contracts/instruments/VariableInterestRate.sol";
+import {TestNFT} from "contracts/utils/TestNFT.sol";
+import {VariableInterestRate} from "../contracts/instruments/VariableInterestRate.sol";
+import {LinearInterestRate} from "../contracts/instruments/LinearInterestRate.sol";
 
 contract FetcherTest is Test {
     using FixedPointMath for uint256; 
@@ -27,7 +32,9 @@ contract FetcherTest is Test {
     VaultFactory vaultFactory;
     SyntheticZCBPoolFactory poolFactory; 
     Cash collateral2; 
-    CoveredCallOTC otc; 
+    CoveredCallOTC otc;
+    VariableInterestRate rateCalculator;
+    LinearInterestRate linearRateCalculator; 
     address deployer = 0xb4c79daB8f259C7Aee6E5b2Aa729821864227e84;
     uint256 unit = 10**18; 
     uint256 constant precision = 1e18;
@@ -52,6 +59,7 @@ contract FetcherTest is Test {
     uint256 faceValue = 1100*precision; 
     MockBorrowerContract borrowerContract = new MockBorrowerContract();
     CreditLine instrument;
+    PoolInstrument poolInstrument;
     uint256 N = 1;
     uint256 sigma = precision/20; //5%
     uint256 alpha = precision*4/10; 
@@ -69,6 +77,13 @@ contract FetcherTest is Test {
     uint256 pricePerContract = precision/10; //pricepercontract * 
     uint256 shortCollateral = principal; 
     uint256 longCollateral = shortCollateral.mulWadDown(pricePerContract); 
+
+    // lending pool collateral data.
+    Cash col1;
+    Cash col2;
+    TestNFT nft1;
+    TestNFT nft2;
+    uint256 wad = 1e18;
 
     function setUsers() public {
         jonna = address(0xbabe);
@@ -152,7 +167,7 @@ contract FetcherTest is Test {
         controller.setVaultFactory(address(vaultFactory));
         controller.setPoolFactory(address(poolFactory)); 
         controller.setReputationManager(address(reputationManager));
-        vm.stopPrank(); 
+        vm.stopPrank();
 
         controller.createVault(
             address(collateral),
@@ -175,6 +190,25 @@ contract FetcherTest is Test {
             ); 
         instrument.setUtilizer(jott); 
 
+        rateCalculator = new VariableInterestRate();
+
+        col1 = new Cash("ERC20_1", "ERC20_1", 6);
+        col2 = new Cash("ERC20_2", "ERC20_2", 7);
+
+        nft1 = new TestNFT("NFT_1", "NFT_1");
+        nft2 = new TestNFT("NFT_2", "NFT_2");
+        
+        bytes memory bites;
+        poolInstrument = new PoolInstrument(
+            vault_ad,
+            address(controller),
+            chris,
+            address(collateral),
+            "pool name",
+            "POOL1",
+            address(rateCalculator),
+            bites
+        );
         otc = new CoveredCallOTC(
             vault_ad, toku, address(collateral2), 
             strikeprice, //strikeprice 
@@ -185,9 +219,11 @@ contract FetcherTest is Test {
             address(0), 
             10); 
         otc.setUtilizer(toku); 
+        
 
-        initiateCreditMarket(); 
-        initiateOptionsOTCMarket(); 
+        // initiateCreditMarket(); 
+        // initiateOptionsOTCMarket(); 
+        initiateLendingPool();
     }
 
     function initiateCreditMarket() public {
@@ -204,7 +240,7 @@ contract FetcherTest is Test {
         data.instrument_address = address(instrument);
         data.instrument_type = Vault.InstrumentType.CreditLine;
         data.maturityDate = 10; 
-        data.name = "instrument name";
+        data.name = "credit line name";
 
         controller.initiateMarket(jott, data, 1);
         uint256[] memory words = new uint256[](N);
@@ -227,12 +263,103 @@ contract FetcherTest is Test {
         data.instrument_address = address(otc);
         data.instrument_type = Vault.InstrumentType.CoveredCall;
         data.maturityDate = 10; 
+        data.name = "options instrument";
         controller.initiateMarket(toku, data, 1);
         uint256[] memory words = new uint256[](N);
         for (uint256 i=0; i< words.length; i++) {
             words[i] = uint256(keccak256(abi.encodePacked(i)));
         }
         controller.fulfillRandomWords(1, words);
+    }
+    function testInitiatePool() public {
+        initiateLendingPool();
+    }
+    function initiateLendingPool() public {
+
+        // rateCalculator = new VariableInterestRate();
+        // linearRateCalculator = new LinearInterestRate();
+
+        // pool = new PoolInstrument(
+        //     address(vault),
+        //     address(controller),
+        //     deployer,
+        //     address(asset),
+        //     "pool 1",
+        //     "P1",
+        //     address(rateCalculator),
+        //     initCallData
+        // );
+        Vault.InstrumentData memory data; 
+        Vault.PoolData memory poolData; 
+
+        poolData.saleAmount = principal/4; 
+        poolData.initPrice = 7e17; 
+        poolData.promisedReturn = 3000000000; 
+        poolData.inceptionTime = block.timestamp; 
+        poolData.inceptionPrice = 8e17; 
+        poolData.leverageFactor = 3e18; 
+
+        data.isPool = true; 
+        data.trusted = false; 
+        data.balance = 0;
+        data.faceValue = 0;
+        data.marketId = 0; 
+        data.principal = 0;
+        data.expectedYield = 0;
+        data.duration = 0;
+        data.description = "test";
+        data.instrument_address = address(poolInstrument);
+        data.instrument_type = Vault.InstrumentType.Pool;
+        data.maturityDate = 0; 
+        data.poolData = poolData; 
+        data.name = "pool instrument";
+ 
+        controller.initiateMarket(
+            chris,
+            data,
+            1
+        );
+        vm.startPrank(chris);
+
+        controller.addAcceptedCollateral(
+            1,
+            address(col1),
+            0,
+            wad/2,
+            wad/4,
+            true
+        );
+        controller.addAcceptedCollateral(
+            1,
+            address(col2),
+            0,
+            wad/2,
+            wad/4,
+            true
+        );
+        controller.addAcceptedCollateral(
+            1,
+            address(nft1),
+            1,
+            wad/2,
+            wad/4,
+            false
+        );
+        controller.addAcceptedCollateral(
+            1,
+            address(nft2),
+            1,
+            wad/2,
+            wad/4,
+            false
+        );
+        console.log("Pool collateral length: ", poolInstrument.getAcceptedCollaterals().length);
+        uint256[] memory words = new uint256[](N);
+        for (uint256 i=0; i< words.length; i++) {
+            words[i] = uint256(keccak256(abi.encodePacked(i)));
+        }
+        controller.fulfillRandomWords(1, words);
+        vm.stopPrank();
     }
 
     function testFetcher() public {
@@ -266,6 +393,8 @@ contract FetcherTest is Test {
         ); //vaultId = 3;
         uint256 numVaults = vaultFactory.numVaults();
         Fetcher fetcher = new Fetcher();
+
+        vault.fetchInstrumentData(1);
         for (uint256 i=1; i < numVaults+1; i++) {
             (
                 Fetcher.VaultBundle memory v,
@@ -274,30 +403,30 @@ contract FetcherTest is Test {
                 uint256 timestamp
             ) = fetcher.fetchInitial(controller, marketmanager, i);
 
-            console.log("VAULT LOG: ");
-            console.log("vault id: ", v.vaultId);
+            // console.log("VAULT LOG: ");
+            // console.log("vault id: ", v.vaultId);
             emit log_array(v.marketIds);
             //console.log("params: ", v.default_params.N, v.default_params.sigma, v.default_params.alpha, v.default_params.omega, v.default_params.delta, v.default_params.r, v.default_params.s, v.default_params.steak);
-            console.log("params: ", v.default_params.N);
-            console.log("onlyVerified: ", v.onlyVerified);
-            console.log("r: ", v.r);
-            console.log("asset_limit: ", v.asset_limit);
-            console.log("total_asset_limit: ", v.total_asset_limit);
-            console.log("want: ", v.want.symbol);
-            console.log("totalShares: ", v.totalShares);
-            console.log("vault address: ", v.vault_address);
-            console.log("vault name: ", v.name);
-            console.log("utilization_rate: ", v.utilizationRate);
-            console.log("totalAssets: ", v.totalAssets);
-            console.log("exchangeRate: ", v.exchangeRate);
-            console.log("totalEstimatedAPR: ", v.totalEstimatedAPR);
-            console.log("goalAPR: ", v.goalAPR);
-            console.log("totalProtection: ", v.totalProtection);
+            // console.log("params: ", v.default_params.N);
+            // console.log("onlyVerified: ", v.onlyVerified);
+            // console.log("r: ", v.r);
+            // console.log("asset_limit: ", v.asset_limit);
+            // console.log("total_asset_limit: ", v.total_asset_limit);
+            // console.log("want: ", v.want.symbol);
+            // console.log("totalShares: ", v.totalShares);
+            // console.log("vault address: ", v.vault_address);
+            // console.log("vault name: ", v.name);
+            // console.log("utilization_rate: ", v.utilizationRate);
+            // console.log("totalAssets: ", v.totalAssets);
+            // console.log("exchangeRate: ", v.exchangeRate);
+            // console.log("totalEstimatedAPR: ", v.totalEstimatedAPR);
+            // console.log("goalAPR: ", v.goalAPR);
+            // console.log("totalProtection: ", v.totalProtection);
 
             console.log("MARKET LOG: ");
             if (m.length > 0) {
                 for (uint j; j < m.length; j++) {
-                    console.log("market id: ", m[j].marketId);
+                    // console.log("market id: ", m[j].marketId);
                     // console.log("vaultId", m[j].vaultId);
                     // console.log("creationTimestamp", m[j].creationTimestamp);
                     // console.log("longZCB", m[j].longZCB);
@@ -306,31 +435,53 @@ contract FetcherTest is Test {
                     // console.log("approved_yield", m[j].approved_yield);
                     // console.log("bondPool", address(m[j].bondPool));
                     //console.log("parameters", m[j].parameters.N, m[j].parameters.sigma, m[j].parameters.alpha, m[j].parameters.omega, m[j].parameters.delta, m[j].parameters.r, m[j].parameters.s, m[j].parameters.steak);
-                    console.log("parameters", m[j].parameters.N);
+                    // console.log("parameters", m[j].parameters.N);
                     //console.log("phase:", m[j].phase.duringAssessment, m[j].phase.onlyReputable, m[j].phase.resolved, m[j].phase.alive, m[j].phase.atLoss);
                     // console.log("phase: ", m[j].phase.alive);
                     // console.log("longZCBsupply", m[j].longZCBsupply);
                     // console.log("longZCBprice", m[j].longZCBprice);
-                    emit log_array(m[j].validatorData.validators);
-                    console.log("val_cap", m[j].validatorData.val_cap);
-                    console.log("avg_price", m[j].validatorData.avg_price);
-                    console.log("totalSales", m[j].validatorData.totalSales);
-                    console.log("totalStaked", m[j].validatorData.totalStaked);
-                    console.log("numApproved", m[j].validatorData.numApproved);
-                    console.log("initialStake", m[j].validatorData.initialStake);
-                    console.log("finalStake", m[j].validatorData.finalStake);
-                    console.log("numResolved", m[j].validatorData.numResolved);
+                    // emit log_array(m[j].validatorData.validators);
+                    // console.log("val_cap", m[j].validatorData.val_cap);
+                    // console.log("avg_price", m[j].validatorData.avg_price);
+                    // console.log("totalSales", m[j].validatorData.totalSales);
+                    // console.log("totalStaked", m[j].validatorData.totalStaked);
+                    // console.log("numApproved", m[j].validatorData.numApproved);
+                    // console.log("initialStake", m[j].validatorData.initialStake);
+                    // console.log("finalStake", m[j].validatorData.finalStake);
+                    // console.log("numResolved", m[j].validatorData.numResolved);
 
                 }
             }
             if (instrs.length > 0) {
-                console.log(string(abi.encodePacked(instrs[0].name)));
+                console.log("INSTRUMENT LOG: ");
+                for (uint k; k < instrs.length; k++) {
+                    Fetcher.InstrumentBundle memory instr = instrs[k];
 
-   
-                console.log("seniorAPR: ", instrs[0].seniorAPR); 
-                console.log("exposurePercentage", instrs[0].exposurePercentage); 
-                console.log("managers_stake", instrs[0].managers_stake); 
-                console.log("approvalPrice", instrs[0].approvalPrice); 
+                    console.log("name: ",string(abi.encode(instr.name)));
+                    console.log("isPool: ",instr.isPool);
+                    console.log("type: ", uint256(instr.instrument_type));
+                    
+                    if (instr.isPool) {
+                        console.log("saleAmount: ", instr.poolData.saleAmount);
+                        console.log("initPrice: ", instr.poolData.initPrice);
+                        console.log("promisedReturn: ", instr.poolData.promisedReturn);
+                        console.log("inceptionTime: ", instr.poolData.inceptionTime);
+                        console.log("inceptionPrice: ", instr.poolData.inceptionPrice);
+                        console.log("leverageFactor: ", instr.poolData.leverageFactor);
+                        console.log("managementFee: ", instr.poolData.managementFee);
+                        console.log("pju: ", instr.poolData.pju);
+                        console.log("psu: ", instr.poolData.psu);
+                        console.log("manager stake", instr.managers_stake);
+
+                        console.log("collaterals: ", instr.poolData.collaterals.length);
+                        for (uint l; l < instr.poolData.collaterals.length; l++) {
+                            console.log("collateral: ", instr.poolData.collaterals[l].name);
+                            console.log("collateral decimals: ", instr.poolData.collaterals[l].decimals);
+                        }
+
+                    }
+                }
+
             }
         }
     }

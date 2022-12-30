@@ -9,6 +9,7 @@ import {FixedPointMathLib} from "./utils/FixedPointMathLib.sol";
 
 import {ERC20} from "./tokens/ERC20.sol";
 import {Instrument} from "./instrument.sol";
+import {PoolInstrument} from "../instruments/poolInstrument.sol";
 import {Controller} from "../protocol/controller.sol";
 import {MarketManager} from "../protocol/marketmanager.sol"; 
 import "openzeppelin-contracts/utils/math/Math.sol";
@@ -88,7 +89,7 @@ contract Vault is ERC4626{
       uint256 inceptionTime;
       uint256 inceptionPrice; // init price of longZCB after assessment 
       uint256 leverageFactor; //leverageFactor * manager collateral = capital from vault to instrument
-      uint256 managementFee; // sum of discounts for high reputation managers/validators 
+      uint256 managementFee; // sum of discounts for high reputation managers/validators
     }
 
     struct ResolveVar{
@@ -601,8 +602,4 @@ contract Vault is ERC4626{
 
         asset.safeTransfer(receiver, assets);
     }
-
-
-
-
 }

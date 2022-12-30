@@ -309,7 +309,7 @@ contract FullCycleTest is Test {
     //     // marketmanager.getZCB(vars.marketId).balanceOf(gatdang), marketmanager.getZCB(vars.marketId).totalSupply()); 
 
     // }
-
+    
     // struct testVars2{
     //     address utilizer; 
 
