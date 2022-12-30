@@ -16,6 +16,7 @@ import {SimpleNFTPool} from "../contracts/vaults/nftLending.sol";
 import {ReputationManager} from "../contracts/protocol/reputationmanager.sol";
 
 import {CustomTestBase} from "./testbase.sol";
+import {LeverageModule} from "../contracts/protocol/LeverageModule.sol"; 
 
 contract PoolInstrumentTest is CustomTestBase {
     using FixedPointMath for uint256; 
@@ -61,6 +62,9 @@ contract PoolInstrumentTest is CustomTestBase {
 
         initiateSimpleNFTLendingPool(); 
         doInvest(vault_ad,  toku, 1e18*10000); 
+
+        leverageModule = new LeverageModule(address(controller)); 
+
     }
    
 
@@ -347,6 +351,8 @@ contract PoolInstrumentTest is CustomTestBase {
 
 
     function testBorrowAndRepay() public{}
+
+
 
     // struct testVars2{
     //     address utilizer; 

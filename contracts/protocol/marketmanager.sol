@@ -328,8 +328,9 @@ contract MarketManager
     int256 amount,
     uint256 marketId
     ) internal view {
-    if(queuedRepUpdates[trader] > queuedRepThreshold)
-      revert("rep queue"); 
+    //TODO per market queue 
+    //if(queuedRepUpdates[trader] > queuedRepThreshold)
+    //  revert("rep queue"); 
 
     // if (!controller.isVerified(trader)) 
     //   revert("!verified");
@@ -429,7 +430,7 @@ contract MarketManager
     ) internal {
 
     if (isLong){
-
+      // TODO queuerep needs to be per market 
       // If buying bond during assessment, trader is manager, so should update 
       if (isBuy) {
         longTrades[marketId][trader] += collateral; 

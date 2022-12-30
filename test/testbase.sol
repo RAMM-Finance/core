@@ -13,6 +13,7 @@ import {CoveredCallOTC} from "../contracts/vaults/dov.sol";
 import {ERC20} from "solmate/tokens/ERC20.sol";
 import {SimpleNFTPool} from "../contracts/vaults/nftLending.sol"; 
 import {ReputationManager} from "../contracts/protocol/reputationmanager.sol";
+import {LeverageModule} from "../contracts/protocol/LeverageModule.sol"; 
 
 contract CustomTestBase is Test {
     using FixedPointMath for uint256; 
@@ -28,6 +29,7 @@ contract CustomTestBase is Test {
     MockBorrowerContract borrowerContract = new MockBorrowerContract();
     CreditLine instrument;
     SimpleNFTPool nftPool; 
+    LeverageModule leverageModule; 
 
     address deployer = 0xb4c79daB8f259C7Aee6E5b2Aa729821864227e84;
     uint256 unit = 10**18; 
@@ -209,6 +211,11 @@ contract CustomTestBase is Test {
         controller.fulfillRandomWords(1, words);
 
     }
+
+    function initiateLeverageModule() public {
+        leverageModule = new LeverageModule(address(controller)); 
+    }
+
 
     function doApproveCol(address _who, address _by) public{
         vm.prank(_by); 

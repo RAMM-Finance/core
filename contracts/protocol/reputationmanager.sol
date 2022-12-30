@@ -126,6 +126,11 @@ contract ReputationManager {
         _updateRanking(trader, true);
     }
 
+    function testIncrementScore(uint256 update) public {
+        trader_scores[msg.sender] += update;
+        _updateRanking(msg.sender, true);
+    }
+
     /**
     @notice decrements trader's score
     @dev score >= 0, update > 0
