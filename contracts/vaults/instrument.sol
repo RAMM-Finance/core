@@ -70,7 +70,9 @@ abstract contract Instrument {
     //     validators.push(_validator); 
     //     isValidator[_validator] = true;     
     // }
-
+    function setVault(address newVault) external onlyAuthorized {
+        vault = Vault(newVault); 
+    }
 
     /// @notice Withdraws a specific amount of underlying tokens from the Instrument.
     /// @param amount The amount of underlying tokens to withdraw.

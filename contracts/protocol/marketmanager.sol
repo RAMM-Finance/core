@@ -586,6 +586,7 @@ contract MarketManager
 
     // Synthetic bonds are issued (liquidity provision are amortized as counterparties)
     else{
+      // TODO check liquidity, revert if not 
       (uint16 point, bool isTaker) = abi.decode(_tradeRequestData, (uint16,bool ));
       if(isTaker)
         (amountIn, amountOut) = bondPool.takerOpen(true, _amountIn, _priceLimit, abi.encode(msg.sender));

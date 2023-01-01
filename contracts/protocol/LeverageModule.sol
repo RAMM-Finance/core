@@ -1,8 +1,8 @@
 pragma solidity ^0.8.4; 
 //https://github.com/poap-xyz/poap-contracts/tree/master/contracts
-import {ERC721} from "solmate/tokens/ERC721.sol";
 import {ERC20} from "solmate/tokens/ERC20.sol";
 
+import  "openzeppelin-contracts/token/ERC721/extensions/ERC721Enumerable.sol"; 
 import {Controller} from "./controller.sol";
 import "forge-std/console.sol";
 import {Vault} from "../vaults/vault.sol";
@@ -13,7 +13,7 @@ import {SafeCastLib} from "solmate/utils/SafeCastLib.sol";
 
 
 /// @notice borrow from leverageVault to leverage mint vaults
-contract LeverageModule is ERC721{
+contract LeverageModule is ERC721Enumerable{
   	using FixedPointMathLib for uint256;
     using SafeCastLib for uint256;
 
@@ -22,11 +22,11 @@ contract LeverageModule is ERC721{
 	/// param leverageVault is where the capital is for borrowing
 	constructor(
 		address controller_ad 
-		)ERC721("LeverageVaultPosition", "RAMMLV") {
+		)ERC721Enumerable() ERC721("RAMM lv", "RammLV") {
 		controller = Controller(controller_ad); 
 	}
 
-	mapping(uint256=> Position) positions; 
+	mapping(uint256=> Position) public positions; 
 	mapping(uint256=> address)  leveragePools; 
 
 	struct Position{
@@ -37,7 +37,11 @@ contract LeverageModule is ERC721{
 		uint256 borrowedCapital; 
 
 		uint256 borrowTimeStamp;
-		uint192 endStateBalance; 
+		uint256 endStateBalance; 
+	}
+
+	function getPosition(uint256 tokenId) public view returns (Position memory position){
+		return positions[tokenId]; 
 	}
 
     /// @dev The ID of the next token that will be minted. Skips 0
@@ -153,6 +157,7 @@ contract LeverageModule is ERC721{
 
 			if(vars.totalBorrowAmount == 0 || vars.noMoreLiq) break; 
 		}
+		vars.mintedShares += vars.shares; 
 
 		_mint(msg.sender,  (tokenId = _nextId++)); 
 
@@ -162,15 +167,12 @@ contract LeverageModule is ERC721{
 			suppliedCapital, 
 			vars.borrowedAmount, 
 			block.timestamp, 
-			vars.shares.safeCastTo192()
+			vars.shares
 		);
-		
+
 		positions[tokenId] = newPosition; 
-				
-		console.log('final position shares', positions[tokenId].totalShares); 
-		console.log('final position suppliedCapital', positions[tokenId].suppliedCapital); 
-		console.log('final position borrowedCapital', positions[tokenId].borrowedCapital); 
-		console.log('final position endStateBalance', positions[tokenId].endStateBalance); 
+
+
 
 	}
 
@@ -180,6 +182,7 @@ contract LeverageModule is ERC721{
 		uint256 withdrawAmount; 
 		uint256 removed; 
 		uint256 totalAssetReturned;
+		uint256 sharesRedeemed; 
 
 	}
 
@@ -203,39 +206,84 @@ contract LeverageModule is ERC721{
 
 		ERC20 underlying = ERC20(address(vault.UNDERLYING())); 
 		PoolInstrument leveragePool = PoolInstrument(leveragePools[vaultId]); 
+		underlying.approve(address(leveragePool), vault.previewMint(withdrawAmount)); //TODO 
 
 		vars.withdrawAmount = withdrawAmount; 
 
 		// Begin with initial redeem 
-		vars.assetReturned = vault.redeem(position.endStateBalance, address(this), address(this)); 
+
+
     	// vars.redeemedShares = position.endStateBalance; 
 
 		while(vars.withdrawAmount!=0 ){
-
-			leveragePool.repayWithAmount(vars.assetReturned, address(this)); 
-
+			vars.sharesRedeemed = min(position.endStateBalance, vars.withdrawAmount); 
+			vars.assetReturned = vault.redeem(
+				vars.sharesRedeemed, 
+				address(this),
+				address(this)//70, 100=70, 80,30= 30
+				); 
+			leveragePool.repayWithAmount(vars.assetReturned, address(this)); //70->80
+			// get 70 collateral in, 30 collateral in, 
 			vars.removed = leveragePool.removeAvailableCollateral(address(vault), 0, address(this)); 
+			// get 80 collateral out , 34 collateral out
+       		console.log('___NEW___'); 
+       		console.log('withdraw left', vars.withdrawAmount); 
+        	console.log('redeemed shares',min(position.endStateBalance, vars.withdrawAmount) ); 
+        	console.log('redeemed/repayed', vars.assetReturned); 
+        	console.log('removed', vars.removed); 
 
-			vars.assetReturned = vault.redeem(vars.removed, address(this), address(this)); 
-
-			if(vars.withdrawAmount> vars.removed) vars.withdrawAmount -= vars.removed; 
-        	else vars.withdrawAmount = vars.removed; 
+        	// Revert if err
+			vars.withdrawAmount -= vars.sharesRedeemed; 
 
         	vars.totalAssetReturned += vars.assetReturned; 
 
-		}
+        	position.endStateBalance = position.endStateBalance >= vars.withdrawAmount
+        								? position.endStateBalance - vars.withdrawAmount + vars.removed 
+        								: vars.removed; 
+        	console.log('totalAssetReturned', vars.totalAssetReturned); 							
+        	console.log('endStateBalance', position.endStateBalance); 
+
+		}// how does this take care of losses? how does interest accrue? 
 		position.totalShares -= withdrawAmount; 
 
 		if(position.borrowedCapital >= vars.totalAssetReturned)
 			position.borrowedCapital -= vars.totalAssetReturned;
 
-		else position.borrowedCapital == 0; 
+		else {
+			position.borrowedCapital = 0; 
+			// revert if withdraw amount was too large 
+			position.suppliedCapital -= vars.totalAssetReturned - position.borrowedCapital; 
+		}
 
 		positions[tokenId] = position; 
 
 	}
 
-	function deletePosition() public {}
+	function getTokenIds(address _owner) public view returns (uint[] memory) {
+        uint[] memory _tokensOfOwner = new uint[](balanceOf(_owner));
+        uint i;
+
+        for (i=0;i<balanceOf(_owner);i++){
+            _tokensOfOwner[i] =tokenOfOwnerByIndex(_owner, i);
+        }
+        return (_tokensOfOwner);
+    }
+
+    function getPositions(address _owner) public view returns(Position[] memory){
+    	uint[] memory ids = getTokenIds(_owner); 
+    	Position[] memory openpositions = new Position[](ids.length); 
+    	for(uint i=0; i<ids.length; i++){
+    		openpositions[i] = positions[ids[i]]; 
+    	}
+    	return openpositions; 
+    }
+
+// 60 c repay-> 70 v remove -> 70 v redeem-> 70c repay-> 80v remove -> 80v redeem 
+// 70 + 
+	/// @notice when debt is 0, user can claim their endstate balance 
+	function deletePosition() public {
+
+	}
 
 
 	function viewPNL () public {}

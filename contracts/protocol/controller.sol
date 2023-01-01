@@ -242,7 +242,8 @@ contract Controller {
                 shortZCB,
                 instrumentData.description,
                 false
-            );
+            );          
+
             // set validators
             _validatorSetup(
                 marketId,
@@ -447,6 +448,8 @@ contract Controller {
     /// @notice returns true if amount bought is greater than the insurance threshold
     function marketCondition(uint256 marketId) public view returns (bool) {
         (, , , , , , bool isPool) = marketManager.markets(marketId);
+
+        // TODO add vault balances as well 
         if (isPool) {
             return (marketManager.loggedCollaterals(marketId) >=
                 getVault(marketId)

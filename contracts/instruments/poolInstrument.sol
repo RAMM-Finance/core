@@ -136,7 +136,7 @@ contract PoolInstrument is ERC4626, Instrument, PoolConstants, ReentrancyGuard, 
         bool _isERC20
     ) external  {
         require(msg.sender == controller, "only controller");
-        require(!approvedCollateral[_collateral][_tokenId], "collateral already approved");
+        if (approvedCollateral[_collateral][_tokenId]) return; 
         require(_maxAmount > _maxBorrowAmount, "maxAmount must be greater than maxBorrowAmount");
         approvedCollateral[_collateral][_tokenId] = true;
         collaterals.push(CollateralLabel(_collateral, _tokenId));

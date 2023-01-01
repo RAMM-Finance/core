@@ -192,8 +192,6 @@ contract Fetcher {
         for (uint256 i; i < vaultBundle.marketIds.length; i++) {
             marketBundle[i] = buildMarketBundle(vaultBundle.marketIds[i], vaultId, _controller, _marketManager);
             
-
-            // (uint256 managers_stake, uint256 exposurePercentage, uint256 seniorAPR, uint256 approvalPrice) = 
             instrumentBundle[i] = buildInstrumentBundle(vaultBundle.marketIds[i], vaultId, _controller);
             computeInstrumentProfile(vaultBundle.marketIds[i], instrumentBundle[i], _controller, _marketManager);
             
@@ -230,7 +228,7 @@ contract Fetcher {
         bundle.utilizer = utilizer;
         bundle.name = data.name;
         if (data.isPool) {
-            bundle.poolData = buildPoolBundle(mid, vid, controller);
+            //bundle.poolData = buildPoolBundle(mid, vid, controller);
         }
     }
 
