@@ -500,7 +500,7 @@ contract MarketManager
     markets[_marketId].bondPool.trustedDiscountedMint(msg.sender, issueQTY); 
 
     // Need to transfer funds automatically to the instrument, seniorAmount is longZCB * levFactor * psu  
-    vault.depositIntoInstrument(_marketId, issueQTY.mulWadDown(levFactor).mulWadDown(psu)); 
+    vault.depositIntoInstrument(_marketId, issueQTY.mulWadDown(levFactor).mulWadDown(psu), true); 
     console.log('how much??', issueQTY.mulWadDown(levFactor).mulWadDown(psu)); 
     //TODO Need totalAssets and exchange rate to remain same assertion 
     //TODO reputation logs 

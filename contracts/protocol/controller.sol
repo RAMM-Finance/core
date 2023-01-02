@@ -1024,6 +1024,7 @@ contract Controller {
         uint256 collateral_amount,
         uint256 budget
     ) public pure returns (uint256) {
+      // TODO underflows when avgprice bigger than wad
         uint256 avg_price = collateral_amount.divWadDown(bondAmount);
         uint256 b = avg_price.mulWadDown(config.WAD - avg_price);
         uint256 ratio = bondAmount.divWadDown(budget);
