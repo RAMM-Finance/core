@@ -57,10 +57,7 @@ contract FixedTest is CustomTestBase {
         vault_ad = controller.getVaultfromId(1); 
         setUsers();
 
-        nftPool = new SimpleNFTPool(  vault_ad, toku, address(collateral)); 
-        nftPool.setUtilizer(toku); 
 
-        initiateSimpleNFTLendingPool(); 
         doInvest(vault_ad,  toku, 1e18*10000); 
 
         instrument = new CreditLine(

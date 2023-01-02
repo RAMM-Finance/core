@@ -2,6 +2,7 @@ pragma solidity ^0.8.16;
 
 import "./vault.sol";
 import {ERC20} from "./tokens/ERC20.sol";
+import {ERC4626} from "./mixins/ERC4626.sol"; 
 import "openzeppelin-contracts/utils/math/Math.sol";
 import {FixedPointMathLib} from "./utils/FixedPointMathLib.sol";
 import "forge-std/console.sol";
@@ -20,7 +21,7 @@ import {ERC721} from "./tokens/ERC721.sol";
 
 /// @notice people can submit an NFT collateral
 /// from a predtermined set
-contract SimpleNFTPool is Instrument{
+contract SimpleNFTPool is Instrument, ERC4626{
 
     using FixedPointMathLib for uint256; 
 
@@ -29,7 +30,7 @@ contract SimpleNFTPool is Instrument{
         address _utilizer, 
         address _underlying 
         
-        ) Instrument(_vault, _utilizer){
+        ) Instrument(_vault, _utilizer) ERC4626(ERC20(_underlying),"Mock", "Mock" ){
         utilizer = _utilizer; 
         underlying = ERC20(_underlying); // already specified 
         
@@ -42,7 +43,9 @@ contract SimpleNFTPool is Instrument{
     function borrowAllowed() public returns(bool){
         return true; 
     }
-
+    function totalAssets() public view override returns (uint256){
+        return underlying.balanceOf(address(this)); 
+    }
     function borrow(
         address tokenAddress,
         uint256 tokenId, 

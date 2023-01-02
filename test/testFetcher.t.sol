@@ -299,60 +299,61 @@ contract FetcherTest is Test {
         poolData.inceptionPrice = 8e17; 
         poolData.leverageFactor = 3e18; 
 
-        data.isPool = true; 
+        data.isPool = false; 
         data.trusted = false; 
         data.balance = 0;
-        data.faceValue = 0;
+        data.faceValue = 110*1e18;
         data.marketId = 0; 
-        data.principal = 0;
-        data.expectedYield = 0;
-        data.duration = 0;
+        data.principal = 100*1e18;
+        data.expectedYield = 10*1e18;
+        data.duration = 100;
         data.description = "test";
         data.instrument_address = address(poolInstrument);
         data.instrument_type = Vault.InstrumentType.Pool;
         data.maturityDate = 0; 
         data.poolData = poolData; 
         data.name = "pool instrument";
- 
         controller.initiateMarket(
             chris,
             data,
             1
         );
         vm.startPrank(chris);
+        if(data.isPool){
+            controller.addAcceptedCollateral(
+                1,
+                address(col1),
+                0,
+                wad/2,
+                wad/4,
+                true
+            );
+            controller.addAcceptedCollateral(
+                1,
+                address(col2),
+                0,
+                wad/2,
+                wad/4,
+                true
+            );
+            controller.addAcceptedCollateral(
+                1,
+                address(nft1),
+                1,
+                wad/2,
+                wad/4,
+                false
+            );
+            controller.addAcceptedCollateral(
+                1,
+                address(nft2),
+                1,
+                wad/2,
+                wad/4,
+                false
+            );
+        }
 
-        controller.addAcceptedCollateral(
-            1,
-            address(col1),
-            0,
-            wad/2,
-            wad/4,
-            true
-        );
-        controller.addAcceptedCollateral(
-            1,
-            address(col2),
-            0,
-            wad/2,
-            wad/4,
-            true
-        );
-        controller.addAcceptedCollateral(
-            1,
-            address(nft1),
-            1,
-            wad/2,
-            wad/4,
-            false
-        );
-        controller.addAcceptedCollateral(
-            1,
-            address(nft2),
-            1,
-            wad/2,
-            wad/4,
-            false
-        );
         console.log("Pool collateral length: ", poolInstrument.getAcceptedCollaterals().length);
         uint256[] memory words = new uint256[](N);
         for (uint256 i=0; i< words.length; i++) {

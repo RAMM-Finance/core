@@ -500,7 +500,7 @@ contract MarketManager
     markets[_marketId].bondPool.trustedDiscountedMint(msg.sender, issueQTY); 
 
     // Need to transfer funds automatically to the instrument, seniorAmount is longZCB * levFactor * psu  
-    vault.depositIntoInstrument(_marketId, issueQTY.mulWadDown(levFactor).mulWadDown(psu)); 
+    vault.depositIntoInstrument(_marketId, issueQTY.mulWadDown(levFactor).mulWadDown(psu), true); 
     console.log('how much??', issueQTY.mulWadDown(levFactor).mulWadDown(psu)); 
     //TODO Need totalAssets and exchange rate to remain same assertion 
     //TODO reputation logs 
@@ -586,6 +586,7 @@ contract MarketManager
 
     // Synthetic bonds are issued (liquidity provision are amortized as counterparties)
     else{
+      // TODO check liquidity, revert if not 
       (uint16 point, bool isTaker) = abi.decode(_tradeRequestData, (uint16,bool ));
       if(isTaker)
         (amountIn, amountOut) = bondPool.takerOpen(true, _amountIn, _priceLimit, abi.encode(msg.sender));

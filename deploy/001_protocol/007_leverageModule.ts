@@ -4,21 +4,15 @@ import { DeployFunction } from "hardhat-deploy/types";
 const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   const { deployments, getNamedAccounts } = hre;
   const { deployer } = await getNamedAccounts();
+  const controller_addr = (await deployments.get("Controller")).address;
 
-  // const linear_library = await deployments.deploy("LinearCurve", {
-  // 	from: deployer,
-  // 	log: true
-  // })
-  const{address:linearcurve_addr} = await deployments.get("LinearCurve"); 
-
-  await deployments.deploy("Fetcher", {
+  await deployments.deploy("LeverageModule", {
     from: deployer,
-    args: [],
+    args:[controller_addr],
     log: true,
-    libraries: {LinearCurve: linearcurve_addr}
   });
 };
-        
-func.tags = ["Fetcher"];
+  
+func.tags = ["Leverage"];
   
 export default func;

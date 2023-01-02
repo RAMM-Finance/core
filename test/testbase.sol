@@ -181,6 +181,13 @@ contract CustomTestBase is Test {
         Vault.InstrumentData memory data; 
         Vault.PoolData memory poolData; 
 
+        // poolData.saleAmount = principal/4; 
+        // poolData.initPrice = 7e17; 
+        // poolData.promisedReturn = 3000000000; 
+        // poolData.inceptionTime = block.timestamp; 
+        // poolData.inceptionPrice = 8e17; 
+        // poolData.leverageFactor = 3e18; 
+
         poolData.saleAmount = principal/4; 
         poolData.initPrice = 7e17; 
         poolData.promisedReturn = 3000000000; 

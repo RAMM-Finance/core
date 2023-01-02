@@ -183,6 +183,7 @@ contract Vault is ERC4626{
     public 
     view
     returns(uint256 psu, uint256 pju, uint256 levFactor){
+      //TODO should not tick during assessment 
     localVars memory vars; 
 
     (vars.promised_return, vars.inceptionTime, vars.inceptionPrice, vars.leverageFactor, 
@@ -246,13 +247,16 @@ contract Vault is ERC4626{
     /// @notice Deposit a specific amount of float into a trusted Instrument.
     /// Called when market is approved. 
     /// Also has the role of granting a credit line to a credit-based Instrument like uncol.loans 
-    function depositIntoInstrument(uint256 marketId, uint256 underlyingAmount) public 
+    function depositIntoInstrument(
+      uint256 marketId, 
+      uint256 underlyingAmount,
+      bool isPool) public 
   //onlyManager
     {
       Instrument instrument = fetchInstrument(marketId); 
       require(instrument_data[instrument].trusted, "UNTRUSTED Instrument");
 
-      if (decimal_mismatch) underlyingAmount = decSharesToAssets(underlyingAmount); 
+      // if (decimal_mismatch) underlyingAmount = decSharesToAssets(underlyingAmount); 
 
       if (underlyingAmount > UNDERLYING.balanceOf(address(this))) revert("Not enough bal in vault"); 
 
@@ -260,22 +264,31 @@ contract Vault is ERC4626{
 
       instrument_data[instrument].balance += underlyingAmount;
 
-      require(UNDERLYING.transfer(address(instrument), underlyingAmount), "DEPOSIT_FAILED");
+      if(!isPool)
+        require(UNDERLYING.transfer(address(instrument), underlyingAmount), "DEPOSIT_FAILED");
+      else{
+        // TODO keep track of all this 
+        UNDERLYING.approve(address(instrument), underlyingAmount); 
+        require(ERC4626(address(instrument)).deposit(underlyingAmount, address(this))>0, "DEPOSIT_FAILED");
+      }
 
       emit InstrumentDeposit(msg.sender, instrument, underlyingAmount);
     }
 
     /// @notice Withdraw a specific amount of underlying tokens from a Instrument.
-    function withdrawFromInstrument(Instrument instrument, uint256 underlyingAmount) internal {
+    function withdrawFromInstrument(
+      Instrument instrument, 
+      uint256 underlyingAmount, 
+      bool redeem) internal {
       require(instrument_data[instrument].trusted, "UNTRUSTED Instrument");
       
-      if (decimal_mismatch) underlyingAmount = decSharesToAssets(underlyingAmount); 
+      // if (decimal_mismatch) underlyingAmount = decSharesToAssets(underlyingAmount); 
 
       instrument_data[instrument].balance -= underlyingAmount;
       
       totalInstrumentHoldings -= underlyingAmount;
       
-      require(instrument.redeemUnderlying(underlyingAmount), "REDEEM_FAILED");
+      if (redeem) require(instrument.redeemUnderlying(underlyingAmount), "REDEEM_FAILED");
 
       emit InstrumentWithdrawal(msg.sender, instrument, underlyingAmount);
     }
@@ -290,12 +303,15 @@ contract Vault is ERC4626{
     { 
       // Send to withdrawer 
       Instrument instrument = fetchInstrument( marketId); 
-      instrument.redeemUnderlying(instrumentPullAmount ); 
+      require(instrument.isLiquid(underlyingAmount + instrumentPullAmount), "!liq");
+
+      ERC4626(address(instrument)).withdraw(underlyingAmount + instrumentPullAmount, address(this), address(this)); 
+      // instrument.redeemUnderlying(instrumentPullAmount ); 
       UNDERLYING.transfer(pushTo, instrumentPullAmount); 
 
-      require(instrument.isLiquid(underlyingAmount), "!liq");
       //TODO instrument balance should decrease to 0 and stay solvent  
-      withdrawFromInstrument(fetchInstrument(marketId), underlyingAmount);
+      withdrawFromInstrument(fetchInstrument(marketId), underlyingAmount, false);
+
     }
 
     /// @notice Stores a Instrument as trusted when its approved
@@ -313,14 +329,14 @@ contract Vault is ERC4626{
         instrumentData.expectedYield = data.approved_yield;
         instrumentData.faceValue = data.approved_principal + data.approved_yield; 
 
-        depositIntoInstrument(marketId, data.approved_principal-data.managers_stake);
+        depositIntoInstrument(marketId, data.approved_principal-data.managers_stake, false);
         
         setMaturityDate(marketId);
 
         fetchInstrument(marketId).onMarketApproval(data.approved_principal, data.approved_yield); 
 
       } else{
-        depositIntoInstrument(marketId, data.approved_principal-data.managers_stake);
+        depositIntoInstrument(marketId, data.approved_principal-data.managers_stake, true);
       }
     }
 
@@ -474,7 +490,7 @@ contract Vault is ERC4626{
             total_loss = atLoss? data.principal - instrument_balance :0; 
         }
 
-        withdrawFromInstrument(_instrument, instrument_balance);
+        withdrawFromInstrument(_instrument, instrument_balance, true);
         removeInstrument(data.marketId);
 
         return(atLoss, extra_gain, total_loss, prematureResolve); 

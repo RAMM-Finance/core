@@ -70,12 +70,15 @@ abstract contract Instrument {
     //     validators.push(_validator); 
     //     isValidator[_validator] = true;     
     // }
-
+    function setVault(address newVault) external onlyAuthorized {
+        vault = Vault(newVault); 
+    }
 
     /// @notice Withdraws a specific amount of underlying tokens from the Instrument.
     /// @param amount The amount of underlying tokens to withdraw.
     /// @return An error code, or 0 if the withdrawal was successful.
     function redeemUnderlying(uint256 amount) external onlyVault returns (bool){
+        //TODO if this is pool redeemig to vault, need to redeem pool shares 
         return underlying.transfer(address(vault), amount); 
     }
 

@@ -106,6 +106,7 @@ contract Fetcher {
         uint128 totalSuppliedAssets;
         uint64 APR;
         CollateralBundle[] collaterals;
+        uint256 availablePoolLiquidity; // amount of borrowable in lendingpool
     }
 
     struct InstrumentBundle {
@@ -251,6 +252,7 @@ contract Fetcher {
         // bundle.pju = pju;
 
         PoolInstrument.CollateralLabel[] memory labels = PoolInstrument(instrument).getAcceptedCollaterals();
+        bundle.availablePoolLiquidity = PoolInstrument(instrument).totalAssetAvailable(); 
         uint256 l = labels.length;
         bundle.collaterals = new CollateralBundle[](l);
         for (uint256 i; i < l; i++) {
