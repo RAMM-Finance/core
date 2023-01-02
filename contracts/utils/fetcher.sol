@@ -194,7 +194,7 @@ contract Fetcher {
             
 
             // (uint256 managers_stake, uint256 exposurePercentage, uint256 seniorAPR, uint256 approvalPrice) = 
-            instrumentBundle[i] = buildInstrumentBundle(vaultBundle.marketIds[i], vaultId, _controller);
+            instrumentBundle[i] = buildInstrumentBundle(vaultBundle.marketIds[i], vaultId, _controller, _marketManager);
             computeInstrumentProfile(vaultBundle.marketIds[i], instrumentBundle[i], _controller, _marketManager);
             
             console.log("instrumentBundle: ", instrumentBundle[i].managers_stake);
@@ -208,7 +208,7 @@ contract Fetcher {
         else vaultBundle.goalAPR = vaultBundle.totalEstimatedAPR ; 
     }
 
-    function buildInstrumentBundle(uint256 mid, uint256 vid, Controller controller) internal view returns (InstrumentBundle memory bundle) {
+    function buildInstrumentBundle(uint256 mid, uint256 vid, Controller controller, MarketManager marketManager) internal view returns (InstrumentBundle memory bundle) {
         Vault vault = controller.vaults(vid);
         (,address utilizer) = controller.market_data(mid);
         Vault.InstrumentData memory data = vault.fetchInstrumentData(mid);
@@ -230,11 +230,11 @@ contract Fetcher {
         bundle.utilizer = utilizer;
         bundle.name = data.name;
         if (data.isPool) {
-            bundle.poolData = buildPoolBundle(mid, vid, controller);
+            bundle.poolData = buildPoolBundle(mid, vid, controller, marketManager);
         }
     }
 
-    function buildPoolBundle(uint256 mid, uint256 vid, Controller controller) internal view returns (PoolBundle memory bundle) {
+    function buildPoolBundle(uint256 mid, uint256 vid, Controller controller, MarketManager marketManager) internal view returns (PoolBundle memory bundle) {
         Vault vault = controller.vaults(vid);
         address instrument = address(vault.Instruments(mid));
         Vault.InstrumentData memory instrumentData = vault.fetchInstrumentData(mid);
@@ -246,9 +246,9 @@ contract Fetcher {
         bundle.inceptionPrice = instrumentData.poolData.inceptionPrice;
         bundle.leverageFactor = instrumentData.poolData.leverageFactor;
         bundle.managementFee = instrumentData.poolData.managementFee;
-        (uint256 psu, uint256 pju, ) = vault.poolZCBValue(mid);
-        bundle.psu = psu;
-        bundle.pju = pju;
+        // (uint256 psu, uint256 pju, ) = vault.poolZCBValue(mid);
+        // bundle.psu = psu;
+        // bundle.pju = pju;
 
         PoolInstrument.CollateralLabel[] memory labels = PoolInstrument(instrument).getAcceptedCollaterals();
         uint256 l = labels.length;

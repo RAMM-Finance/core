@@ -271,7 +271,6 @@ contract CreditLine is Instrument {
         approvedNotDrawdowned,
         drawdowned, 
         partially_repayed,
-
         prepayment_fulfilled, 
         matured, 
         grace_period, 

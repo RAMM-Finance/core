@@ -1010,7 +1010,7 @@ contract Controller {
     }
 
     function isReputable(address trader, uint256 r) public view returns (bool) {
-        return reputationManager.isReputable(trader, r);
+      return reputationManager.isReputable(trader, r);
     }
 
     /// @notice calculates implied probability of the trader, used to

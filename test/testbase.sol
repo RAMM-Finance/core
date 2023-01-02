@@ -186,7 +186,7 @@ contract CustomTestBase is Test {
         poolData.promisedReturn = 3000000000; 
         poolData.inceptionTime = block.timestamp; 
         poolData.inceptionPrice = 8e17; 
-        poolData.leverageFactor = 3e18; 
+        poolData.leverageFactor = 3e18;
 
         data.isPool = true; 
         data.trusted = false; 
