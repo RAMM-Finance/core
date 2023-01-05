@@ -444,6 +444,32 @@ contract Vault is ERC4626{
         // emit event here;
     }
 
+    event PoolAdded(
+      uint256 indexed marketId,
+      address indexed instrumentAddress,
+      bytes32 indexed name,
+      uint256 saleAmount, 
+      uint256 initPrice, // init price of longZCB in the amm 
+      uint256 promisedReturn, //per unit time 
+      uint256 inceptionTime,
+      uint256 inceptionPrice, // init price of longZCB after assessment 
+      uint256 leverageFactor, //leverageFactor * manager collateral = capital from vault to instrument
+      uint256 managementFee
+    );
+
+    event InstrumentAdded(
+      uint256 indexed marketId,
+      address indexed instrumentAddress,
+      bytes32 indexed name,
+      uint256 faceValue,
+      uint256 principal,
+      uint256 expectedYield,
+      uint256 duration,
+      uint256 maturityDate,
+      InstrumentType instrumentType,
+      bool isPool
+    );
+
     /// @notice add instrument proposal created by the Utilizer 
     /// @dev Instrument instance should be created before this is called
     /// need to add authorization
@@ -498,6 +524,8 @@ contract Vault is ERC4626{
         prepareResolveBlock[marketId] = ResolveVar(block.number,true) ;  
       }
 
+
+    event InstrumentResolve(uint256 indexed marketId, uint256 instrumentBalance, bool atLoss, uint256 extraGain, uint256 totalLoss, bool prematureResolve);
     /// @notice RESOLVE FUNCTION #2
     /// @dev In cases of default, needs to be called AFTER the principal recouperation attempts 
     /// like liquidations, auctions, etc such that the redemption price takes into account the maturity balance
@@ -538,6 +566,8 @@ contract Vault is ERC4626{
         withdrawFromInstrument(_instrument, instrument_balance, true);
         removeInstrument(data.marketId);
 
+        emit InstrumentResolve(marketId, instrument_balance, atLoss, extra_gain, total_loss, prematureResolve);
+
         return(atLoss, extra_gain, total_loss, prematureResolve); 
     }
 
@@ -546,6 +576,7 @@ contract Vault is ERC4626{
         UNDERLYING.transfer(to, amount); 
     }
 
+    event InstrumentDeny(uint256 indexed marketId);
     /**
      called on market denial by controller.
      */
@@ -555,7 +586,7 @@ contract Vault is ERC4626{
         require(marketId > 0 && data.instrument_address != address(0), "invalid instrument");
 
         require(!data.trusted, "can't deny approved instrument");
-        
+        emit InstrumentDeny(marketId);
         removeInstrument(marketId);
     }
 

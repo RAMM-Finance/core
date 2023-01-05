@@ -35,7 +35,7 @@ contract Controller {
         uint256 approved_yield;
     }
 
-    event MarketInitiated(uint256 marketId, address recipient);
+
 
     mapping(uint256 => ApprovalData) approvalDatas;
 
@@ -169,6 +169,8 @@ contract Controller {
         vaults[vaultId] = newVault;
     }
 
+    event MarketInitiated(uint256 indexed marketId, uint256 indexed vaultId, uint256 indexed recipient, address pool, address longZCB, address shortZCB);
+
     /// @notice initiates market, called by frontend loan proposal or instrument form submit button.
     /// @dev Instrument should already be deployed
     /// @param recipient: utilizer for the associated instrument
@@ -258,7 +260,8 @@ contract Controller {
         instrumentData.marketId = marketId;
         vault.addProposal(instrumentData);
 
-        emit MarketInitiated(marketId, recipient);
+        emit MarketInitiated(marketId, vaultId, marketId, address(pool), longZCB, shortZCB);
+
         ad_to_id[recipient] = marketId; //only for testing purposes, one utilizer should be able to create multiple markets
     }
 
@@ -310,6 +313,8 @@ contract Controller {
         cleanUpDust(marketId);
     }
 
+    event ResolveMarket(uint256 indexed marketId);
+
     /// Resolve function 2
     /// @notice main function called at maturity OR premature resolve of instrument(from early default)
     /// @dev validators call this function from market manager
@@ -334,6 +339,7 @@ contract Controller {
             approvalDatas[marketId].approved_principal,
             principal_loss
         );
+        emit ResolveMarket(marketId);
         cleanUpDust(marketId);
     }
 

@@ -40,6 +40,23 @@ contract VaultFactory{
       _;
   }
 
+  event VaultCreated(
+    address vault, 
+    uint256 vaultId, 
+    address underlying, 
+    bool onlyVerified, 
+    uint256 rMint, 
+    uint256 assetLimit, 
+    uint256 totalAssetLimit,
+    uint256 N,
+    uint256 sigma, 
+    uint256 alpha, 
+    uint256 omega,
+    uint256 delta, 
+    uint256 rMarket,
+    uint256 s,
+    uint256 steak
+  );
   /**
    @notice creates vault
    @param underlying: underlying asset for vault
@@ -72,6 +89,23 @@ contract VaultFactory{
        ); 
     _isVault[address(vault)] = true; 
     numVaults++; 
+    emit VaultCreated(
+      address(vault), 
+      numVaults, 
+      underlying, 
+      _onlyVerified, 
+      _r, 
+      _asset_limit, 
+      _total_asset_limit,
+      default_params.N,
+      default_params.sigma, 
+      default_params.alpha, 
+      default_params.omega,
+      default_params.delta, 
+      default_params.r,
+      default_params.s,
+      default_params.steak
+    );
 
     return (vault, numVaults); 
     // vaultId is numVaults after new creation of the vault.

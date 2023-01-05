@@ -81,14 +81,14 @@ contract MarketManager
   /// param base_budget: higher base_budget means lower decentralization, 
   /// @dev omega always <= alpha
   struct MarketParameters{
-    uint256 N;
-    uint256 sigma; 
-    uint256 alpha; 
-    uint256 omega;
-    uint256 delta; 
-    uint256 r;
-    uint256 s;
-    uint256 steak;
+      uint256 N;
+      uint256 sigma; 
+      uint256 alpha; 
+      uint256 omega;
+      uint256 delta; 
+      uint256 r;
+      uint256 s;
+      uint256 steak;
   }
 
   modifier onlyController(){
@@ -151,6 +151,8 @@ contract MarketManager
   }
 
   /// @notice parameters have to be set prior 
+  event MarketCreated(uint256 indexed marketId, address bondPool, address longZCB, address shortZCB, string description, bool isPool);
+
   function newMarket(
     uint256 marketId,
     SyntheticZCBPool bondPool,  
@@ -161,6 +163,8 @@ contract MarketManager
     bool isPool
     ) external onlyController {
     uint256 creationTimestamp = block.timestamp;
+    
+    emit MarketCreated(marketId, address(bondPool), _longZCB, _shortZCB, _description, isPool);
 
     markets.push(CoreMarketData(
       bondPool, 
@@ -206,6 +210,8 @@ contract MarketManager
     parameters[marketId].N = _N;
   }
 
+event MarketPhaseSet(uint256 indexed marketId, bool duringAssessment, bool onlyReputable, uint256 base_budget);
+
   /// @notice sets market phase data
   /// @dev called on market initialization by controller
   /// @param base_budget: base budget (amount of vault tokens to spend) as a market manager during the assessment stage
@@ -221,7 +227,10 @@ contract MarketManager
     // data.min_rep_score = calcMinRepScore(marketId);
     data.base_budget = base_budget;
     data.alive = true;
+    emit MarketPhaseSet(marketId, duringAssessment, _onlyReputable, base_budget);
   }
+
+  event MarketReputationSet(uint256 indexed marketId, bool onlyReputable);
 
   /// @notice used to transition from reputationphases 
   function setReputationPhase(
@@ -229,8 +238,11 @@ contract MarketManager
     bool _onlyReputable
   ) public onlyController {
     restriction_data[marketId].onlyReputable = _onlyReputable;
+    emit MarketReputationSet(marketId, _onlyReputable);
   }
 
+
+event DeactivatedMarket(uint256 indexed marketId, bool atLoss, bool resolve, uint256 rp);
   /// @notice Called when market should end, a) when denied b) when maturity 
   /// @param resolve is true when instrument does not resolve prematurely
   function deactivateMarket(
@@ -242,8 +254,10 @@ contract MarketManager
     restriction_data[marketId].atLoss = atLoss; 
     restriction_data[marketId].alive = false;
     redemption_prices[marketId] = rp; 
-
+    emit DeactivatedMarket(marketId, atLoss, resolve, rp);
   } 
+
+event MarketDenied(uint256 indexed marketId); 
 
   /// @notice called by validator only
   function denyMarket(
@@ -254,6 +268,7 @@ contract MarketManager
     MarketPhaseData storage data = restriction_data[marketId]; 
     data.alive = false;
     data.resolved = true;
+    emit MarketDenied(marketId);
   }
 
   /// @notice main approval function called by controller
@@ -478,6 +493,7 @@ contract MarketManager
   function tradeCallBack(uint256 amount, bytes calldata data) external{
     SyntheticZCBPool(msg.sender).BaseToken().transferFrom(abi.decode(data, (address)), msg.sender, amount); 
   }
+
 
 
   /// @notice after assessment, let managers buy newly issued longZCB if the instrument is pool based 

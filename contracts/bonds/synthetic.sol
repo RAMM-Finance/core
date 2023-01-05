@@ -23,6 +23,7 @@ contract SyntheticZCBPoolFactory{
         zcbFactory = _zcbFactory; 
     }
 
+    event PoolCreated(address pool, address longZCB, address shortZCB);
 
     /// @notice param base is the collateral used in pool 
     function newPool(
@@ -35,6 +36,7 @@ contract SyntheticZCBPoolFactory{
         pool = new SyntheticZCBPool(
             base, longZCB, shortZCB, entry, controller
         ); 
+        emit PoolCreated(address(pool), longZCB, shortZCB);
     }
 }
 
