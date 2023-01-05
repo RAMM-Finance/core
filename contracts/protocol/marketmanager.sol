@@ -12,6 +12,7 @@ import {config} from "../utils/helpers.sol";
 import {SyntheticZCBPool} from "../bonds/synthetic.sol"; 
 import {ERC4626} from "../vaults/mixins/ERC4626.sol";
 import {Vault} from "../vaults/vault.sol"; 
+import {ReputationManager} from "./reputationmanager.sol"; 
 
 contract MarketManager 
  // VRFConsumerBaseV2 
@@ -30,6 +31,7 @@ contract MarketManager
 
   // ReputationNFT repToken;
   Controller controller;
+  ReputationManager reputationManager; 
   CoreMarketData[] public markets;
   address public owner; 
 
@@ -192,11 +194,15 @@ contract MarketManager
     parameters[marketId].s = param.s.mulWadDown(config.WAD - utilizationRate); // experiment
   }
 
+  function setReputationManager(address _reputationManager) external onlyController{
+      reputationManager = ReputationManager(_reputationManager);
+  }
+
   /**
    @dev in the event that the number of traders in X percentile is less than the specified number of validators
    parameter N is changed to reflect this
    */
-  function setN(uint256 marketId, uint256 _N) public onlyController {
+  function setN(uint256 marketId, uint256 _N) external onlyController {
     parameters[marketId].N = _N;
   }
 
@@ -277,18 +283,18 @@ contract MarketManager
   /// 4: post assessment(accepted or denied), amortized liquidity 
   function getCurrentMarketPhase(uint256 marketId) public view returns(uint256){
     if (restriction_data[marketId].onlyReputable){
-      assert(!controller.marketCondition(marketId) && !isMarketApproved(marketId) && restriction_data[marketId].duringAssessment ); 
+      // assert(!controller.marketCondition(marketId) && !isMarketApproved(marketId) && restriction_data[marketId].duringAssessment ); 
       return 1; 
     }
 
     else if (restriction_data[marketId].duringAssessment && !restriction_data[marketId].onlyReputable){
-      assert(!isMarketApproved(marketId)); 
+      // assert(!isMarketApproved(marketId)); 
       if (controller.marketCondition(marketId)) return 3; 
       return 2; 
     }
 
     else if (isMarketApproved( marketId)){
-      assert (!restriction_data[marketId].duringAssessment && controller.marketCondition(marketId)); 
+      // assert (!restriction_data[marketId].duringAssessment && controller.marketCondition(marketId)); 
       return 4; 
     }
   }
@@ -296,14 +302,10 @@ contract MarketManager
   /// @notice get trade budget = f(reputation), returns in collateral_dec
   /// sqrt for now
   function getTraderBudget(uint256 marketId, address trader) public view returns(uint256){
-    //uint256 repscore = repToken.getReputationScore(trader); 
-    uint256 repscore = controller.getTraderScore(trader);
-    
-    if (repscore==0) return 0; 
-
+    uint256 repscore = reputationManager.trader_scores(trader);
+    if (repscore==0) return 0;
     return restriction_data[marketId].base_budget + (repscore*config.WAD).sqrt();
   }
- 
 
   function getParameters(uint256 marketId) public view returns(MarketParameters memory){
     return parameters[marketId]; 
@@ -485,6 +487,7 @@ contract MarketManager
     uint256 _amountIn
     ) external _lock_ returns(uint256 issueQTY){
     require(!restriction_data[_marketId].duringAssessment, "Pre Approval"); 
+    // TODO doesn't work for first approved, and 1 
     _canIssue(msg.sender, int256(_amountIn), _marketId);  
     Vault vault = controller.getVault(_marketId); 
     ERC20 underlying = ERC20(address(markets[_marketId].bondPool.BaseToken())); 
@@ -503,7 +506,10 @@ contract MarketManager
     vault.depositIntoInstrument(_marketId, issueQTY.mulWadDown(levFactor).mulWadDown(psu), true); 
     console.log('how much??', issueQTY.mulWadDown(levFactor).mulWadDown(psu)); 
     //TODO Need totalAssets and exchange rate to remain same assertion 
-    //TODO reputation logs 
+
+    reputationManager.recordPull(msg.sender, _marketId, issueQTY,
+       _amountIn, getTraderBudget( _marketId, msg.sender), true); 
+      
   }
 
   /// @notice when a manager redeems a poollongzcb, redeemAmount*levFactor are automatically 
@@ -512,12 +518,12 @@ contract MarketManager
     uint256 marketId, 
     uint256 redeemAmount
     ) external _lock_ returns(uint256 collateral_redeem_amount, uint256 seniorAmount){
-    // TODO conditions 
+    // TODO conditions/restrictions-> need some time to pass to call this + need some liquidity in pool 
     Vault vault = controller.getVault(marketId); 
     CoreMarketData memory market = markets[marketId]; 
 
     require(market.isPool, "!pool"); 
-    require(market.longZCB.balanceOf(msg.sender) > redeemAmount, "insufficient bal"); 
+    require(market.longZCB.balanceOf(msg.sender) >= redeemAmount, "insufficient bal"); 
 
     (uint256 psu, uint256 pju, uint256 levFactor ) = vault.poolZCBValue(marketId);
     collateral_redeem_amount = pju.mulWadDown(redeemAmount); 
@@ -526,7 +532,8 @@ contract MarketManager
     // Need to check if redeemAmount*levFactor can be withdrawn from the pool and do so
     vault.withdrawFromPoolInstrument(marketId, collateral_redeem_amount, msg.sender, seniorAmount); 
 
-    // TODO update reputation 
+    // Update reputation 
+    reputationManager.recordPush(msg.sender, marketId, pju, false, redeemAmount); 
 
     // This means that the sender is a manager
     if (queuedRepUpdates[msg.sender] > 0){
@@ -563,11 +570,14 @@ contract MarketManager
       _logTrades(_marketId, msg.sender, amountIn, 0, true, true);
 
       // Get implied probability estimates by summing up all this manager bought for this market 
-      assessment_probs[_marketId][msg.sender] = controller.calcImpliedProbability(
-          getZCB(_marketId).balanceOf(msg.sender) + leveragePosition[_marketId][msg.sender].amount, 
-          longTrades[_marketId][msg.sender], 
-          getTraderBudget(_marketId, msg.sender) 
-      ); 
+      reputationManager.recordPull(msg.sender, _marketId, amountOut,
+        amountIn, getTraderBudget(_marketId, msg.sender), marketData.isPool); 
+
+      // assessment_probs[_marketId][msg.sender] = controller.calcImpliedProbability(
+      //     getZCB(_marketId).balanceOf(msg.sender) + leveragePosition[_marketId][msg.sender].amount, 
+      //     longTrades[_marketId][msg.sender], 
+      //     getTraderBudget(_marketId, msg.sender) 
+      // ); 
 
       // Phase Transitions when conditions met
       if(restriction_data[_marketId].onlyReputable){
@@ -586,13 +596,18 @@ contract MarketManager
 
     // Synthetic bonds are issued (liquidity provision are amortized as counterparties)
     else{
-      // TODO check liquidity, revert if not 
-      (uint16 point, bool isTaker) = abi.decode(_tradeRequestData, (uint16,bool ));
-      if(isTaker)
-        (amountIn, amountOut) = bondPool.takerOpen(true, _amountIn, _priceLimit, abi.encode(msg.sender));
-      else{
-        (uint256 escrowAmount, uint128 crossId) = bondPool.makerOpen(point, uint256(_amountIn), true, msg.sender); 
-      }
+      (amountIn, amountOut) = bondPool.takerOpen(true, _amountIn, _priceLimit, abi.encode(msg.sender));
+
+      // TODO check if valid slippage 
+      // TODO check liquidity, revert if not
+      // TODO reputation while trading post assessment? 
+      // (uint16 point, bool isTaker) = abi.decode(_tradeRequestData, (uint16,bool ));
+      // if(isTaker)
+
+      //   (amountIn, amountOut) = bondPool.takerOpen(true, _amountIn, _priceLimit, abi.encode(msg.sender));
+      // else{
+      //   (uint256 escrowAmount, uint128 crossId) = bondPool.makerOpen(point, uint256(_amountIn), true, msg.sender); 
+      // }
     }
   }
 
@@ -627,6 +642,9 @@ contract MarketManager
         (uint256 escrowAmount, uint128 crossId) = bondPool.makerClose(point, uint256(_amountIn), true, msg.sender);        
       }
     }
+
+    reputationManager.recordPush(msg.sender, _marketId, bondPool.getCurPrice(), true, amountIn); 
+
   } 
 
   /// @param _amountIn: amount of short trader is willing to buy
@@ -763,8 +781,7 @@ contract MarketManager
     collateral_redeem_amount = redemption_price.mulWadDown(zcb_redeem_amount); 
 
     if (!controller.isValidator(marketId, msg.sender)) { // TODO should validators get reputation if they do ok.
-      bool increment = redemption_price >= config.WAD? true: false;
-      controller.updateReputation(marketId, msg.sender, increment);
+      reputationManager.recordPush(msg.sender, marketId, redemption_price, false, zcb_redeem_amount); 
     }
 
     // This means that the sender is a manager
@@ -774,6 +791,7 @@ contract MarketManager
 
     bondPool.trustedBurn(msg.sender, zcb_redeem_amount, true); 
     controller.redeem_transfer(collateral_redeem_amount, msg.sender, marketId); 
+
 
   }
 
@@ -843,11 +861,11 @@ contract MarketManager
     _logTrades(_marketId, msg.sender, _amountIn, 0, true, true);
 
     // Get implied probability estimates by summing up all this managers bought for this market 
-    assessment_probs[_marketId][msg.sender] = controller.calcImpliedProbability(
-        amountOut, 
-        amountIn, 
-        getTraderBudget(_marketId, msg.sender) 
-    ); 
+    // assessment_probs[_marketId][msg.sender] = controller.calcImpliedProbability(
+    //     amountOut, 
+    //     amountIn, 
+    //     getTraderBudget(_marketId, msg.sender) 
+    // ); 
 
     // Phase Transitions when conditions met
     if(restriction_data[_marketId].onlyReputable){
@@ -883,8 +901,10 @@ contract MarketManager
         ? collateral_back - uint256(position.debt) : 0; 
 
     if (!controller.isValidator(marketId, msg.sender)) {
-      bool increment = redemption_price >= config.WAD? true: false;
-      controller.updateReputation(marketId, msg.sender, increment);
+      // bool increment = redemption_price >= config.WAD? true: false;
+      // controller.updateReputation(marketId, msg.sender, increment);
+      // reputationManager.recordPush(msg.sender, marketId, redemption_price, false, zcb_redeem_amount); 
+
     }
 
     // This means that the sender is a manager

@@ -261,7 +261,7 @@ contract FetcherTest is Test {
         data.duration = duration;
         data.description = "test";
         data.instrument_address = address(otc);
-        data.instrument_type = Vault.InstrumentType.CoveredCall;
+        data.instrument_type = Vault.InstrumentType.CoveredCallShort;
         data.maturityDate = 10; 
         data.name = "options instrument";
         controller.initiateMarket(toku, data, 1);
@@ -309,7 +309,7 @@ contract FetcherTest is Test {
         data.duration = 100;
         data.description = "test";
         data.instrument_address = address(poolInstrument);
-        data.instrument_type = Vault.InstrumentType.Pool;
+        data.instrument_type = Vault.InstrumentType.LendingPool;
         data.maturityDate = 0; 
         data.poolData = poolData; 
         data.name = "pool instrument";

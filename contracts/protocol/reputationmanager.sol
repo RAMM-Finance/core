@@ -1,6 +1,7 @@
 pragma solidity ^0.8.16;
 import {config} from "../utils/helpers.sol"; 
 import {FixedPointMathLib} from "solmate/utils/FixedPointMathLib.sol";
+import {Controller} from "./controller.sol"; 
 
 contract ReputationManager {
     using FixedPointMathLib for uint256;
@@ -18,8 +19,8 @@ contract ReputationManager {
         require(msg.sender == controller || msg.sender == marketManager || msg.sender == deployer, "ReputationManager: !protocol");
         _;
     }
-
-    
+    // event pullLogged(uint256 marketId, address recipient, );
+    event reputationUpdated(uint256 marketId, address recipient);
 
     constructor(
         address _controller,
@@ -28,6 +29,142 @@ contract ReputationManager {
        controller = _controller;
        marketManager = _marketManager;
        deployer = msg.sender;
+    }
+
+    struct RepLog{
+        uint256 collateralAmount; 
+        uint256 bondAmount; 
+        uint256 budget; 
+        bool perpetual; 
+        //TODO place this info elsewhere or do packing
+    }
+
+    mapping(address=> mapping(uint256=> RepLog)) public repLogs; //trader=> marketid=>replog 
+
+    function getRepLog(address trader, uint256 marketId) external view returns(RepLog memory){
+        return repLogs[trader][marketId]; 
+    }
+
+    /// @notice record for reputation updates whenever trader buys longZCB
+    function recordPull(
+        address trader, 
+        uint256 marketId, 
+        uint256 bondAmount, 
+        uint256 collateral_amount, 
+        uint256 budget,
+        bool perpetual
+        ) external onlyProtocol{
+        RepLog memory newLog = repLogs[trader][marketId]; 
+        newLog.collateralAmount += collateral_amount; 
+        newLog.bondAmount += bondAmount; 
+        newLog.perpetual = perpetual; 
+        newLog.budget = budget; 
+
+        repLogs[trader][marketId] = newLog;   
+    }
+
+    /// @notice updates reputation whenever trader redeems 
+    /// param premature is true if trader redeems/sells before maturity 
+    /// param redeemAmount is 0 if !perpetual, since for those traders will redeem all at once 
+    function recordPush(
+        address trader, 
+        uint256 marketId, 
+        uint256 bondPrice, 
+        bool premature, 
+        uint256 redeemAmount//in bonds 
+        ) external onlyProtocol {
+        RepLog memory newLog = repLogs[trader][marketId]; 
+
+        uint256 avgPrice = newLog.collateralAmount.divWadDown(newLog.bondAmount); 
+
+        // Penalize premature sells 
+        if(premature){
+            _updateReputation(marketId, trader, false, 1e18, newLog); 
+            delete repLogs[trader][marketId]; 
+        }
+        // What about when trader buys during assessment at discount?  
+        // if instrument is perpetual, increment if exit price > avgPrice by 
+        // proportional to the diff in price  
+        if(newLog.perpetual){
+            if (bondPrice >= avgPrice) 
+                _updateReputation(marketId, trader, true,  bondPrice-avgPrice, newLog); 
+            else 
+                _updateReputation(marketId, trader, false,  avgPrice - bondPrice, newLog); 
+
+            require(newLog.collateralAmount >= redeemAmount.mulWadDown(avgPrice), "logERR1");
+            require(newLog.bondAmount>= redeemAmount, "logERR2"); 
+            unchecked{
+                newLog.collateralAmount -= redeemAmount.mulWadDown(avgPrice);
+                newLog.bondAmount -= redeemAmount; 
+                repLogs[trader][marketId] = newLog; 
+            }
+        }
+
+        // if instrument is fixed term, increment if redemptionprice >= 1, 
+        // no change if 1>= redemption price >= avgPrice and decrement otherwise 
+        else{
+            //bondPrice is redemptionprice for fixed term instruments
+            if(bondPrice>= 1e18)
+                _updateReputation(marketId, trader, true, bondPrice-avgPrice, newLog); 
+            
+            else if(bondPrice <= avgPrice && bondPrice < 1e18)
+                _updateReputation(marketId, trader, false, avgPrice-bondPrice, newLog);  
+
+            // Redeeming everything at maturity 
+            delete repLogs[trader][marketId];             
+        }
+
+
+    }
+
+    /// @notice when market is resolved(maturity/early default), calculates score
+    /// and update each assessment phase trader's reputation, called by individual traders when redeeming
+    function _updateReputation(
+        uint256 marketId,
+        address trader,
+        bool increment, 
+        uint256 priceChange, 
+        RepLog memory log
+    ) internal {
+
+        uint256 implied_probs = log.perpetual
+            ? log.collateralAmount.divWadDown(log.budget)
+            : calcImpliedProbability(
+                log.bondAmount, 
+                log.collateralAmount, 
+                log.budget
+                ); 
+
+        uint256 change = priceChange.mulWadDown(implied_probs); 
+                        // log.perpetual
+                        // ? priceChange.mulWadDown(implied_probs) * 
+                        // : implied_probs.mulDivDown(implied_probs, config.WAD);
+
+        if (increment) {
+            incrementScore(trader, change);
+        } else {
+            decrementScore(trader, change);
+        }
+    }
+
+    //function expectedRepGain()
+
+
+    /// @notice calculates implied probability of the trader, used to
+    /// update the reputation score by brier scoring mechanism
+    /// @param budget of trader in collateral decimals
+    function calcImpliedProbability(
+        uint256 bondAmount,
+        uint256 collateral_amount,
+        uint256 budget
+    ) public pure returns (uint256) {
+        require(bondAmount > 0 && collateral_amount > 0, "0div"); 
+      // TODO underflows when avgprice bigger than wad
+        uint256 avg_price = collateral_amount.divWadDown(bondAmount);
+        uint256 b = avg_price.mulWadDown(config.WAD - avg_price);
+        uint256 ratio = bondAmount.divWadDown(budget);
+
+        return ratio.mulWadDown(b) + avg_price;
     }
 
     function calculateMinScore(uint256 percentile) view external returns (uint256) {
@@ -61,6 +198,11 @@ contract ReputationManager {
         } else {
         return false;
         }
+    }
+
+    // TODO 
+    function expectedIncrement(address manager) public view returns(uint256){
+
     }
 
     /**

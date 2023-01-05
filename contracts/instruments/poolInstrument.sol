@@ -787,6 +787,9 @@ contract PoolInstrument is ERC4626, Instrument, PoolConstants, ReentrancyGuard, 
         _userBorrowAmount = totalBorrow.toAmount(_userBorrowShares, false);
         (, _userAccountLiquidity) = _isLiquidatable(_address);
     }
+    function isWithdrawAble(address holder, uint256 amount) external view returns(bool){
+        return (previewRedeem(balanceOf[holder])>= amount && totalAssetAvailable() >= amount); 
+    }
 
     function toBorrowShares(uint256 _amount, bool _roundUp) external view returns (uint256) {
         return totalBorrow.toShares(_amount, _roundUp);

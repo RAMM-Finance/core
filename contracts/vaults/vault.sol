@@ -52,8 +52,10 @@ contract Vault is ERC4626{
 
     enum InstrumentType {
         CreditLine,
-        CoveredCall,
-        Pool, 
+        CoveredCallShort,
+        LendingPool, 
+        StraddleBuy, 
+        LiquidityProvision, 
         Other
     }
 
@@ -250,7 +252,7 @@ contract Vault is ERC4626{
     function depositIntoInstrument(
       uint256 marketId, 
       uint256 underlyingAmount,
-      bool isPool) public 
+      bool isPool) public virtual 
   //onlyManager
     {
       Instrument instrument = fetchInstrument(marketId); 
@@ -258,10 +260,17 @@ contract Vault is ERC4626{
 
       // if (decimal_mismatch) underlyingAmount = decSharesToAssets(underlyingAmount); 
 
-      if (underlyingAmount > UNDERLYING.balanceOf(address(this))) revert("Not enough bal in vault"); 
+      uint256 curBalance = UNDERLYING.balanceOf(address(this)); 
+      if (underlyingAmount > curBalance) {
+
+        // check if can be pulled from lending pool, if yes do it
+        uint256 required = underlyingAmount - curBalance; 
+        if(PoolInstrument(address(Instruments[0])).isWithdrawAble( address(this), required))  
+          pullFromLM( required); 
+        else revert("!vaultbal"); 
+      }
 
       totalInstrumentHoldings += underlyingAmount; 
-
       instrument_data[instrument].balance += underlyingAmount;
 
       if(!isPool)
@@ -279,7 +288,7 @@ contract Vault is ERC4626{
     function withdrawFromInstrument(
       Instrument instrument, 
       uint256 underlyingAmount, 
-      bool redeem) internal {
+      bool redeem) internal virtual {
       require(instrument_data[instrument].trusted, "UNTRUSTED Instrument");
       
       // if (decimal_mismatch) underlyingAmount = decSharesToAssets(underlyingAmount); 
@@ -298,7 +307,7 @@ contract Vault is ERC4626{
       uint256 instrumentPullAmount, 
       address pushTo, 
       uint256 underlyingAmount
-      ) external
+      ) public virtual 
     //onlyManager
     { 
       // Send to withdrawer 
@@ -306,12 +315,10 @@ contract Vault is ERC4626{
       require(instrument.isLiquid(underlyingAmount + instrumentPullAmount), "!liq");
 
       ERC4626(address(instrument)).withdraw(underlyingAmount + instrumentPullAmount, address(this), address(this)); 
-      // instrument.redeemUnderlying(instrumentPullAmount ); 
       UNDERLYING.transfer(pushTo, instrumentPullAmount); 
 
       //TODO instrument balance should decrease to 0 and stay solvent  
       withdrawFromInstrument(fetchInstrument(marketId), underlyingAmount, false);
-
     }
 
     /// @notice Stores a Instrument as trusted when its approved
@@ -319,7 +326,7 @@ contract Vault is ERC4626{
       uint256 marketId,
       Controller.ApprovalData memory data, 
       bool isPool
-      ) external onlyController{
+      ) external virtual onlyController{
       instrument_data[fetchInstrument(marketId)].trusted = true;
 
       //Write to storage 
@@ -352,6 +359,44 @@ contract Vault is ERC4626{
     /// @notice Stores a Instrument as untrusted
     function distrustInstrument(Instrument instrument) external onlyController {
       instrument_data[instrument].trusted = false; 
+    }
+
+    function addLendingModule(address lv) external
+    //onlyOwner
+    { 
+      // The 0th instrument is always the lending module 
+      Instruments[0] = Instrument(lv);
+      instrument_data[Instruments[0]].trusted = true; 
+      UNDERLYING.approve(lv, type(uint256).max); 
+    }
+
+    /// @notice push unutilized capital to leverage vault 
+    function pushToLM(uint256 amount) external 
+    //onlyOwner 
+    { 
+      // if amount=0, push everything this vault have 
+      uint256 depositAmount = amount==0
+        ? UNDERLYING.balanceOf(address(this))
+        : amount; 
+
+      depositIntoInstrument(0, depositAmount, true); 
+    }
+
+    function pullFromLM(uint256 amount) public
+    //onlyowner or internal 
+    {
+
+
+      // check if amount is available liquidity, and is appropriate for the given
+      // shares this vault has of it. 
+      Instrument instrument = fetchInstrument(0); 
+      uint256 shares = ERC4626(address(instrument)).balanceOf(address(this)); 
+      require(amount <= ERC4626(address(instrument)).previewMint(shares), "!!liq" ); 
+      require(instrument.isLiquid(amount), "!liq");
+
+      ERC4626(address(instrument)).withdraw(amount, address(this), address(this)); 
+
+      withdrawFromInstrument(instrument, amount, false);
     }
 
     /// @notice returns true if Instrument is approved
@@ -413,7 +458,7 @@ contract Vault is ERC4626{
         require(data.marketId > 0, "must be valid instrument");
       }
         num_proposals[msg.sender] ++; 
-
+        // TODO indexed by id
         instrument_data[Instrument(data.instrument_address)] = data;  
 
         Instruments[data.marketId] = Instrument(data.instrument_address);

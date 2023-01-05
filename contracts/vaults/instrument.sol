@@ -208,6 +208,7 @@ abstract contract Instrument {
 
     function isLiquid(uint256 amount) public virtual view returns(bool){
         //TODO 
+        console.log('isliquid', balanceOfUnderlying(address(this)), amount); 
         return balanceOfUnderlying(address(this)) >= amount; 
     }
 

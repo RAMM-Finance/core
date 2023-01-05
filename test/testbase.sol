@@ -167,7 +167,7 @@ contract CustomTestBase is Test {
         data.duration = duration;
         data.description = "test";
         data.instrument_address = address(otc);
-        data.instrument_type = Vault.InstrumentType.CoveredCall;
+        data.instrument_type = Vault.InstrumentType.CoveredCallShort;
         data.maturityDate = 10; 
         controller.initiateMarket(toku, data, 1);
         uint256[] memory words = new uint256[](N);
@@ -205,7 +205,7 @@ contract CustomTestBase is Test {
         data.duration = 0;
         data.description = "test";
         data.instrument_address = address(nftPool);
-        data.instrument_type = Vault.InstrumentType.Pool;
+        data.instrument_type = Vault.InstrumentType.LendingPool;
         data.maturityDate = 0; 
         data.poolData = poolData; 
 
@@ -221,6 +221,13 @@ contract CustomTestBase is Test {
 
     function initiateLeverageModule() public {
         leverageModule = new LeverageModule(address(controller)); 
+    }
+
+    function donateToInstrument(address vaultad, address instrument, uint256 amount) public {
+        vm.startPrank(jonna); 
+        Vault(vaultad).UNDERLYING().transfer(instrument, amount); 
+        vm.stopPrank(); 
+        Vault(vaultad).harvest(instrument); 
     }
 
 

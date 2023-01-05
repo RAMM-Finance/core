@@ -104,8 +104,9 @@ contract Controller {
     function setReputationManager(address _reputationManager)
         public
         onlyManager
-    {
+    {   require(address(marketManager)!= address(0), "0mm"); 
         reputationManager = ReputationManager(_reputationManager);
+        marketManager.setReputationManager(_reputationManager); 
     }
 
     function setVaultFactory(address _vaultFactory) public onlyManager {
@@ -128,6 +129,7 @@ contract Controller {
 
     function testVerifyAddress() external {
         verified[msg.sender] = true;
+        reputationManager.setTraderScore(msg.sender, 1e18); 
     }
 
     /// @notice called only when redeeming, transfer funds from vault
@@ -403,27 +405,27 @@ contract Controller {
         );
     }
 
-    /// @notice when market is resolved(maturity/early default), calculates score
-    /// and update each assessment phase trader's reputation, called by individual traders when redeeming
-    function updateReputation(
-        uint256 marketId,
-        address trader,
-        bool increment
-    ) external onlyManager {
-        uint256 implied_probs = marketManager.assessment_probs(
-            marketId,
-            trader
-        );
-        // int256 scoreToUpdate = increment ? int256(implied_probs.mulDivDown(implied_probs, config.WAD)) //experiment
-        //                                  : -int256(implied_probs.mulDivDown(implied_probs, config.WAD));
-        uint256 change = implied_probs.mulDivDown(implied_probs, config.WAD);
+    // /// @notice when market is resolved(maturity/early default), calculates score
+    // /// and update each assessment phase trader's reputation, called by individual traders when redeeming
+    // function updateReputation(
+    //     uint256 marketId,
+    //     address trader,
+    //     bool increment
+    // ) external onlyManager {
+    //     uint256 implied_probs = marketManager.assessment_probs(
+    //         marketId,
+    //         trader
+    //     );
+    //     // int256 scoreToUpdate = increment ? int256(implied_probs.mulDivDown(implied_probs, config.WAD)) //experiment
+    //     //                                  : -int256(implied_probs.mulDivDown(implied_probs, config.WAD));
+    //     uint256 change = implied_probs.mulDivDown(implied_probs, config.WAD);
 
-        if (increment) {
-            reputationManager.incrementScore(trader, change);
-        } else {
-            reputationManager.decrementScore(trader, change);
-        }
-    }
+    //     if (increment) {
+    //         reputationManager.incrementScore(trader, change);
+    //     } else {
+    //         reputationManager.decrementScore(trader, change);
+    //     }
+    // }
 
     /// @notice function that closes the instrument/market before maturity, maybe to realize gains/cut losses fast
     /// or debt is prematurely fully repaid, or underlying strategy is deemed dangerous, etc.
@@ -1016,21 +1018,6 @@ contract Controller {
         return reputationManager.isReputable(trader, r);
     }
 
-    /// @notice calculates implied probability of the trader, used to
-    /// update the reputation score by brier scoring mechanism
-    /// @param budget of trader in collateral decimals
-    function calcImpliedProbability(
-        uint256 bondAmount,
-        uint256 collateral_amount,
-        uint256 budget
-    ) public pure returns (uint256) {
-      // TODO underflows when avgprice bigger than wad
-        uint256 avg_price = collateral_amount.divWadDown(bondAmount);
-        uint256 b = avg_price.mulWadDown(config.WAD - avg_price);
-        uint256 ratio = bondAmount.divWadDown(budget);
-
-        return ratio.mulWadDown(b) + avg_price;
-    }
 
     /// @notice pool instrument
     /// @notice called by utilizer during assessment

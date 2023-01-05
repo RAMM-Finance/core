@@ -340,17 +340,24 @@ contract PoolInstrumentTest is CustomTestBase {
         marketmanager.issuePoolBond(vars.marketId, vars.amountToBuy); 
         assertEq(exchangeRate1, Vault(vars.vault_ad).previewMint(1e18));
 
-
+        console.log('doing trade'); 
+        vars.curPrice = marketmanager.getPool(vars.marketId).getCurPrice();
+        (vars.amountIn, vars.amountOut) =
+            marketmanager.buyBond(vars.marketId, int256(vars.amountToBuy), vars.curPrice *11/10, data); 
+        console.log('amountIn, amountout', vars.amountIn, vars.amountOut); 
+        
     }
 
     // Redeem test 
     function testVaultExchangeRateSameAfterRedemption() public{}
-
     function testprofitSplit() public{}//profit split between vault and 
     function testEveryoneRedeem() public{}
-
-
     function testBorrowAndRepay() public{}
+
+    function testPricingWithOracle() public{}
+    function testLendingPool() public{}
+
+
 
 
 
