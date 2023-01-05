@@ -32,9 +32,11 @@ contract Fetcher {
         uint256 decimals;
         uint256 maxAmount;
         uint256 borrowAmount;
+        uint256 totalCollateral; //only for ERC20.
         string symbol;
         string name;
         bool isERC20;
+        address owner; // only for ERC721.
     }
 
     struct ValidatorBundle {
@@ -104,6 +106,7 @@ contract Fetcher {
         // lending pool data
         uint128 totalBorrowedAssets;
         uint128 totalSuppliedAssets;
+        uint256 totalAvailableAssets;
         uint64 APR;
         CollateralBundle[] collaterals;
         uint256 availablePoolLiquidity; // amount of borrowable in lendingpool
@@ -193,7 +196,9 @@ contract Fetcher {
         for (uint256 i; i < vaultBundle.marketIds.length; i++) {
             marketBundle[i] = buildMarketBundle(vaultBundle.marketIds[i], vaultId, _controller, _marketManager);
             
-            instrumentBundle[i] = buildInstrumentBundle(vaultBundle.marketIds[i], vaultId, _controller);
+
+            // (uint256 managers_stake, uint256 exposurePercentage, uint256 seniorAPR, uint256 approvalPrice) = 
+            instrumentBundle[i] = buildInstrumentBundle(vaultBundle.marketIds[i], vaultId, _controller, _marketManager);
             computeInstrumentProfile(vaultBundle.marketIds[i], instrumentBundle[i], _controller, _marketManager);
             
             console.log("instrumentBundle: ", instrumentBundle[i].managers_stake);
@@ -207,7 +212,7 @@ contract Fetcher {
         else vaultBundle.goalAPR = vaultBundle.totalEstimatedAPR ; 
     }
 
-    function buildInstrumentBundle(uint256 mid, uint256 vid, Controller controller) internal view returns (InstrumentBundle memory bundle) {
+    function buildInstrumentBundle(uint256 mid, uint256 vid, Controller controller, MarketManager marketManager) internal view returns (InstrumentBundle memory bundle) {
         Vault vault = controller.vaults(vid);
         (,address utilizer) = controller.market_data(mid);
         Vault.InstrumentData memory data = vault.fetchInstrumentData(mid);
@@ -229,11 +234,11 @@ contract Fetcher {
         bundle.utilizer = utilizer;
         bundle.name = data.name;
         if (data.isPool) {
-            //bundle.poolData = buildPoolBundle(mid, vid, controller);
+            bundle.poolData = buildPoolBundle(mid, vid, controller, marketManager);
         }
     }
 
-    function buildPoolBundle(uint256 mid, uint256 vid, Controller controller) internal view returns (PoolBundle memory bundle) {
+    function buildPoolBundle(uint256 mid, uint256 vid, Controller controller, MarketManager marketManager) internal view returns (PoolBundle memory bundle) {
         Vault vault = controller.vaults(vid);
         address instrument = address(vault.Instruments(mid));
         Vault.InstrumentData memory instrumentData = vault.fetchInstrumentData(mid);
@@ -245,20 +250,21 @@ contract Fetcher {
         bundle.inceptionPrice = instrumentData.poolData.inceptionPrice;
         bundle.leverageFactor = instrumentData.poolData.leverageFactor;
         bundle.managementFee = instrumentData.poolData.managementFee;
-        (uint256 psu, uint256 pju, ) = vault.poolZCBValue(mid);
-        bundle.psu = psu;
-        bundle.pju = pju;
+        // (uint256 psu, uint256 pju, ) = vault.poolZCBValue(mid);
+        // bundle.psu = psu;
+        // bundle.pju = pju;
 
         PoolInstrument.CollateralLabel[] memory labels = PoolInstrument(instrument).getAcceptedCollaterals();
         bundle.availablePoolLiquidity = PoolInstrument(instrument).totalAssetAvailable(); 
         uint256 l = labels.length;
         bundle.collaterals = new CollateralBundle[](l);
         for (uint256 i; i < l; i++) {
-            (,
+            (uint256 totalCollateral,
             uint256 maxAmount,
             uint256 maxBorrowAmount,
             bool isERC20) = PoolInstrument(instrument).collateralData(labels[i].tokenAddress, labels[i].tokenId);
-            bundle.collaterals[i] = buildCollateralBundle(labels[i].tokenAddress, labels[i].tokenId, maxAmount, maxBorrowAmount, isERC20);
+            bundle.collaterals[i] = buildCollateralBundle(labels[i].tokenAddress, labels[i].tokenId, maxAmount, maxBorrowAmount, isERC20, totalCollateral);
+            bundle.collaterals[i].owner = PoolInstrument(instrument).userCollateralNFTs(labels[i].tokenAddress, labels[i].tokenId);
         }
         
         
@@ -268,14 +274,16 @@ contract Fetcher {
         (uint128 assetAmount,) = PoolInstrument(instrument).totalAsset();
         bundle.totalBorrowedAssets = borrowAmount;
         bundle.totalSuppliedAssets = assetAmount;
+        bundle.totalAvailableAssets = PoolInstrument(instrument).totalAssetAvailable();
     }
 
-    function buildCollateralBundle(address tokenAddress, uint256 tokenId, uint256 maxAmount, uint256 borrowAmount, bool isERC20) internal view returns (CollateralBundle memory bundle) {
+    function buildCollateralBundle(address tokenAddress, uint256 tokenId, uint256 maxAmount, uint256 borrowAmount, bool isERC20, uint256 totalCollateral) internal view returns (CollateralBundle memory bundle) {
         bundle.tokenAddress = tokenAddress;
         bundle.tokenId = tokenId;
         bundle.maxAmount = maxAmount;
         bundle.borrowAmount = borrowAmount;
         bundle.isERC20 = isERC20;
+        bundle.totalCollateral = totalCollateral;
         if (isERC20) {
             bundle.name = ERC20(tokenAddress).name();
             bundle.symbol = ERC20(tokenAddress).symbol();

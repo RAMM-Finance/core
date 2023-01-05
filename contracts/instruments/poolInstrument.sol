@@ -14,7 +14,7 @@ import {ERC4626} from "solmate/mixins/ERC4626.sol";
 import {ERC721TokenReceiver} from "solmate/tokens/ERC721.sol";
 import {Vault} from "../vaults/vault.sol";
 import "forge-std/console.sol";
-import "@prb/math/SD59x18.sol";
+// import "@prb/math/SD59x18.sol";
 
 // https://github.com/FraxFinance/fraxlend
 /// ****THIS IS A PROOF OF CONCEPT INSTRUMENT.
@@ -61,17 +61,17 @@ contract PoolInstrument is ERC4626, Instrument, PoolConstants, ReentrancyGuard, 
     /// @param decayConstant parameter that controls price decay, stored as a 59x18 fixed precision number
     /// @param startTime for dutch auction: start time of auction, for GDA: time of last auction.
     /// @param emissionRate for dutch auction: 0, for GDA: amount of collateral to be auctioned off per second.
-    struct Auction {
-        address borrower;
-        address collateral;
-        uint256 tokenId;
-        SD59x18 initialPrice;
-        SD59x18 minimumPrice;
-        SD59x18 decayConstant;
-        SD59x18 startTime;
-        // SD59x18 emissionRate;
-        bool alive;
-    }
+    // struct Auction {
+    //     address borrower;
+    //     address collateral;
+    //     uint256 tokenId;
+    //     SD59x18 initialPrice;
+    //     SD59x18 minimumPrice;
+    //     SD59x18 decayConstant;
+    //     SD59x18 startTime;
+    //     // SD59x18 emissionRate;
+    //     bool alive;
+    // }
 
     /// @notice amount: asset token borrowed, shares = total shares outstanding
     VaultAccount public totalBorrow;
@@ -86,7 +86,7 @@ contract PoolInstrument is ERC4626, Instrument, PoolConstants, ReentrancyGuard, 
     mapping(address=>uint256) public userAuctionId; // user => current auction id, if 0 then no auction.
     
     /// @dev auction id => order of creation.
-    mapping(uint256=>Auction) public auctions; // auction id => auction data, auction id is in order of creation.
+    // mapping(uint256=>Auction) public auctions; // auction id => auction data, auction id is in order of creation.
 
     uint256 public numAuctions; // number of auction ids.
 
@@ -545,183 +545,182 @@ contract PoolInstrument is ERC4626, Instrument, PoolConstants, ReentrancyGuard, 
         require(_liquidatable, "borrower is not liquidatable");
         require(userAuctionId[_borrower] == 0, "auction already exists");
         // _accountLiq < 0 if _liquidatable.
-        (_collateral, _auctionId) = _createAuction(_borrower, uint256(-_accountLiq));
+        //(_collateral, _auctionId) = _createAuction(_borrower, uint256(-_accountLiq));
     }
 
     // since we don't know the price of the collateral, will just use largest maxAmount collateral, presumably the most "liquid"
     /// @dev _accountLiq in wad.
-    function _createAuction(address _borrower, uint256 _accountLiq) internal returns (CollateralLabel memory _collateral, uint256 _auctionId) {
-        CollateralLabel[] memory _collaterals = collaterals;
+    // function _createAuction(address _borrower, uint256 _accountLiq) internal returns (CollateralLabel memory _collateral, uint256 _auctionId) {
+    //     CollateralLabel[] memory _collaterals = collaterals;
 
-        uint256 maxBorrowableAmount;
-        for (uint256 i; i<_collaterals.length; i++) {
-            CollateralLabel memory _collateralLabel = _collaterals[i];
-            Collateral memory _collateralData = collateralData[_collateralLabel.tokenAddress][_collateralLabel.tokenId];
-            if (_collateralData.isERC20) {
-                uint256 _amount = userCollateralERC20[_collateralLabel.tokenAddress][_borrower] * _collateralData.maxAmount / 1e18; // <= precision of collateral.
-                if (_amount > maxBorrowableAmount) {
-                    maxBorrowableAmount = _amount;
-                    _collateral = _collateralLabel;
-                }
-            } else {
-                if (userCollateralNFTs[_collateralLabel.tokenAddress][_collateralLabel.tokenId] == _borrower) {
-                    if (_collateralData.maxAmount > maxBorrowableAmount) {
-                        maxBorrowableAmount = _collateralData.maxAmount;
-                        _collateral = _collateralLabel;
-                    }
-                }
-            }
-        }
+    //     uint256 maxBorrowableAmount;
+    //     for (uint256 i; i<_collaterals.length; i++) {
+    //         CollateralLabel memory _collateralLabel = _collaterals[i];
+    //         Collateral memory _collateralData = collateralData[_collateralLabel.tokenAddress][_collateralLabel.tokenId];
+    //         if (_collateralData.isERC20) {
+    //             uint256 _amount = userCollateralERC20[_collateralLabel.tokenAddress][_borrower] * _collateralData.maxAmount / 1e18; // <= precision of collateral.
+    //             if (_amount > maxBorrowableAmount) {
+    //                 maxBorrowableAmount = _amount;
+    //                 _collateral = _collateralLabel;
+    //             }
+    //         } else {
+    //             if (userCollateralNFTs[_collateralLabel.tokenAddress][_collateralLabel.tokenId] == _borrower) {
+    //                 if (_collateralData.maxAmount > maxBorrowableAmount) {
+    //                     maxBorrowableAmount = _collateralData.maxAmount;
+    //                     _collateral = _collateralLabel;
+    //                 }
+    //             }
+    //         }
+    //     }
 
-        // creates auction for collateral user collateral.
-        Collateral memory _data = collateralData[_collateral.tokenAddress][_collateral.tokenId];
+    //     // creates auction for collateral user collateral.
+    //     Collateral memory _data = collateralData[_collateral.tokenAddress][_collateral.tokenId];
 
-        uint256 _id = numAuctions + 1;
+    //     uint256 _id = numAuctions + 1;
+
+    //     SD59x18 _balance;
+    //     if (_data.isERC20) {
+    //         uint256 _d = ERC20(_collateral.tokenAddress).decimals();
+    //         _balance = sd(int256(userCollateralERC20[_collateral.tokenAddress][_borrower] * 10**(18-_d)));
+    //     } else {
+    //         _balance = toSD59x18(1);
+    //     }
+    //     console.log("accountLiq: ", _accountLiq);
+    //     console.logInt(SD59x18.unwrap(_balance));
+    //     console.log("maxAmount: ", _data.maxAmount);
+    //     console.logInt(int256(_data.maxAmount));
+
+    //     SD59x18 _initialPrice = sd(int256(_accountLiq)).div(_balance).add(sd(int256(_data.maxAmount))); // per collateral token.
+    //     // console.logInt(SD59x18.unwrap(_initialPrice));
+
+    //     console.log("shares: ", totalBorrow.toShares(uint256(SD59x18.unwrap(_initialPrice)), true));
+    //     console.log("total.shares: ", totalBorrow.shares);
+    //     console.log("total.amount: ", totalBorrow.amount);
+
+    //     SD59x18 _decayConstant = sd(1e17).div(toSD59x18(86400));// decayConstant * deltaTime * initial price = discount.
+    //     SD59x18 _minimumPrice = _initialPrice.div(toSD59x18(4)); // minimum price is 1/4 of initial price.
         
-
-        SD59x18 _balance;
-        if (_data.isERC20) {
-            uint256 _d = ERC20(_collateral.tokenAddress).decimals();
-            _balance = sd(int256(userCollateralERC20[_collateral.tokenAddress][_borrower] * 10**(18-_d)));
-        } else {
-            _balance = toSD59x18(1);
-        }
-        console.log("accountLiq: ", _accountLiq);
-        console.logInt(SD59x18.unwrap(_balance));
-        console.log("maxAmount: ", _data.maxAmount);
-        console.logInt(int256(_data.maxAmount));
-
-        SD59x18 _initialPrice = sd(int256(_accountLiq)).div(_balance).add(sd(int256(_data.maxAmount))); // per collateral token.
-        // console.logInt(SD59x18.unwrap(_initialPrice));
-
-        console.log("shares: ", totalBorrow.toShares(uint256(SD59x18.unwrap(_initialPrice)), true));
-        console.log("total.shares: ", totalBorrow.shares);
-        console.log("total.amount: ", totalBorrow.amount);
-
-        SD59x18 _decayConstant = sd(1e17).div(toSD59x18(86400));// decayConstant * deltaTime * initial price = discount.
-        SD59x18 _minimumPrice = _initialPrice.div(toSD59x18(4)); // minimum price is 1/4 of initial price.
-        
-        // sd(1219450412706); // 10% a day. 1.219450412706322930873853944899453684098615428047153617638... × 10^-6
-        // SD59x18 _emissionRate = _balance.div(toSD59x18(86400).div(toSD59x18(2))); // 1/2 balance in a day, tokens per second.
-        auctions[_id] = Auction({
-            collateral: _collateral.tokenAddress,
-            tokenId: _collateral.tokenId,
-            borrower: _borrower,
-            initialPrice: _initialPrice,
-            minimumPrice: _minimumPrice,
-            decayConstant: _decayConstant,
-            startTime: toSD59x18(int256(block.timestamp)),
-            //emissionRate: _emissionRate,
-            alive: true
-        });
+    //     // sd(1219450412706); // 10% a day. 1.219450412706322930873853944899453684098615428047153617638... × 10^-6
+    //     // SD59x18 _emissionRate = _balance.div(toSD59x18(86400).div(toSD59x18(2))); // 1/2 balance in a day, tokens per second.
+    //     auctions[_id] = Auction({
+    //         collateral: _collateral.tokenAddress,
+    //         tokenId: _collateral.tokenId,
+    //         borrower: _borrower,
+    //         initialPrice: _initialPrice,
+    //         minimumPrice: _minimumPrice,
+    //         decayConstant: _decayConstant,
+    //         startTime: toSD59x18(int256(block.timestamp)),
+    //         //emissionRate: _emissionRate,
+    //         alive: true
+    //     });
     
-        numAuctions = numAuctions + 1;
-        _auctionId = _id;
-        userAuctionId[_borrower] = _auctionId;
+    //     numAuctions = numAuctions + 1;
+    //     _auctionId = _id;
+    //     userAuctionId[_borrower] = _auctionId;
 
-        emit AuctionCreated(_id, _borrower, _collateral.tokenAddress, _collateral.tokenId);
-    }
+    //     emit AuctionCreated(_id, _borrower, _collateral.tokenAddress, _collateral.tokenId);
+    // }
 
     
-    function closeAuction(address _borrower) public {
-        uint256 _id = userAuctionId[_borrower];
-        (bool _liquidatable, ) = _isLiquidatable(auctions[_id].borrower);
-        require(_id != 0, "no auction exists");
+    // function closeAuction(address _borrower) public {
+    //     uint256 _id = userAuctionId[_borrower];
+    //     (bool _liquidatable, ) = _isLiquidatable(auctions[_id].borrower);
+    //     require(_id != 0, "no auction exists");
 
-        if (!_liquidatable) {
-            _closeAuction(_id);
-        }
-    }
+    //     if (!_liquidatable) {
+    //         _closeAuction(_id);
+    //     }
+    // }
 
-    function _closeAuction(uint256 _id) internal {
-        address _borrower = auctions[_id].borrower;
-        emit AuctionClosed(_id, _borrower, auctions[_id].collateral, auctions[_id].tokenId);
-        delete userAuctionId[_borrower];
-        delete auctions[_id];
-    }
+    // function _closeAuction(uint256 _id) internal {
+    //     address _borrower = auctions[_id].borrower;
+    //     emit AuctionClosed(_id, _borrower, auctions[_id].collateral, auctions[_id].tokenId);
+    //     delete userAuctionId[_borrower];
+    //     delete auctions[_id];
+    // }
 
-    function purchaseERC20Collateral(uint256 _id, uint256 _amount) external returns (uint256 _totalCost) {
-        Auction memory _auction = auctions[_id];
+    // function purchaseERC20Collateral(uint256 _id, uint256 _amount) external returns (uint256 _totalCost) {
+    //     Auction memory _auction = auctions[_id];
 
-        (bool _liquidatable, ) = _isLiquidatable(_auction.borrower);
-        if (!_liquidatable) {
-            _closeAuction(_id);
-            revert("auction closed");
-        }
+    //     (bool _liquidatable, ) = _isLiquidatable(_auction.borrower);
+    //     if (!_liquidatable) {
+    //         _closeAuction(_id);
+    //         revert("auction closed");
+    //     }
         
-        _totalCost = purchasePriceERC20(_id, _amount);
-        console.log("totalCost: ", _totalCost);
+    //     _totalCost = purchasePriceERC20(_id, _amount);
+    //     console.log("totalCost: ", _totalCost);
 
-        VaultAccount memory _totalBorrow = totalBorrow;
-        _repay(_totalBorrow, _totalCost.safeCastTo128(), _totalBorrow.toShares(_totalCost, false).safeCastTo128(), msg.sender, _auction.borrower);
+    //     VaultAccount memory _totalBorrow = totalBorrow;
+    //     _repay(_totalBorrow, _totalCost.safeCastTo128(), _totalBorrow.toShares(_totalCost, false).safeCastTo128(), msg.sender, _auction.borrower);
        
-       // will revert if not enough collateral in user collateral balance.
-       _removeCollateral(_auction.collateral, _amount, _auction.tokenId, _auction.borrower, msg.sender);
+    //    // will revert if not enough collateral in user collateral balance.
+    //    _removeCollateral(_auction.collateral, _amount, _auction.tokenId, _auction.borrower, msg.sender);
 
-        (_liquidatable, ) = _isLiquidatable(_auction.borrower);
-        if (!_liquidatable) {
-            _closeAuction(_id);
-        }
-        if (userCollateralERC20[_auction.collateral][_auction.borrower] == 0) {
-            delete userAuctionId[_auction.borrower];
-            delete auctions[_id];
-        }
+    //     (_liquidatable, ) = _isLiquidatable(_auction.borrower);
+    //     if (!_liquidatable) {
+    //         _closeAuction(_id);
+    //     }
+    //     if (userCollateralERC20[_auction.collateral][_auction.borrower] == 0) {
+    //         delete userAuctionId[_auction.borrower];
+    //         delete auctions[_id];
+    //     }
         
-    }
+    // }
 
-    function purchasePriceERC20(uint256 _id, uint256 _numTokens) public view returns (uint256 totalCost) {
-        Auction memory _auction = auctions[_id];
-        require(_auction.alive, "auction is not alive");
+    // function purchasePriceERC20(uint256 _id, uint256 _numTokens) public view returns (uint256 totalCost) {
+    //     Auction memory _auction = auctions[_id];
+    //     require(_auction.alive, "auction is not alive");
 
-        uint256 _d = ERC20(_auction.collateral).decimals();
+    //     uint256 _d = ERC20(_auction.collateral).decimals();
         
-        SD59x18 _quantity = sd(int256(_numTokens * (10 ** (18 - _d))));
-        SD59x18 _discount = _auction.decayConstant.mul(toSD59x18(int256(block.timestamp)).sub(_auction.startTime)).mul(_auction.initialPrice);
-        SD59x18 _price = SD59x18.unwrap(_auction.initialPrice) > SD59x18.unwrap(_auction.minimumPrice.add(_discount)) // is initial price > minimum price + discount => initial price - discount > minimum price
-            ? _auction.initialPrice.sub(_discount) : _auction.minimumPrice;
-        totalCost = uint256(SD59x18.unwrap(_price.mul(_quantity)));
-    }
+    //     SD59x18 _quantity = sd(int256(_numTokens * (10 ** (18 - _d))));
+    //     SD59x18 _discount = _auction.decayConstant.mul(toSD59x18(int256(block.timestamp)).sub(_auction.startTime)).mul(_auction.initialPrice);
+    //     SD59x18 _price = SD59x18.unwrap(_auction.initialPrice) > SD59x18.unwrap(_auction.minimumPrice.add(_discount)) // is initial price > minimum price + discount => initial price - discount > minimum price
+    //         ? _auction.initialPrice.sub(_discount) : _auction.minimumPrice;
+    //     totalCost = uint256(SD59x18.unwrap(_price.mul(_quantity)));
+    // }
 
-    /// @param _id is the auction id to purchase the collateral from
-    function purchaseERC721Collateral(uint256 _id) external returns (uint256 _totalCost) {
-        Auction memory _auction = auctions[_id];
+    // /// @param _id is the auction id to purchase the collateral from
+    // function purchaseERC721Collateral(uint256 _id) external returns (uint256 _totalCost) {
+    //     Auction memory _auction = auctions[_id];
 
-        (bool _liquidatable, ) = _isLiquidatable(_auction.borrower);
-        if (!_liquidatable) {
-            _auction.alive = false;
-            auctions[_id] = _auction;
-            delete userAuctionId[_auction.borrower];
-            revert("auction closed");
-        }
+    //     (bool _liquidatable, ) = _isLiquidatable(_auction.borrower);
+    //     if (!_liquidatable) {
+    //         _auction.alive = false;
+    //         auctions[_id] = _auction;
+    //         delete userAuctionId[_auction.borrower];
+    //         revert("auction closed");
+    //     }
         
-        _totalCost = purchasePriceERC721(_id);
+    //     _totalCost = purchasePriceERC721(_id);
 
-        VaultAccount memory _totalBorrow = totalBorrow;
-        _repay(_totalBorrow, _totalCost.safeCastTo128(), _totalBorrow.toShares(_totalCost, false).safeCastTo128(), msg.sender, _auction.borrower);
+    //     VaultAccount memory _totalBorrow = totalBorrow;
+    //     _repay(_totalBorrow, _totalCost.safeCastTo128(), _totalBorrow.toShares(_totalCost, false).safeCastTo128(), msg.sender, _auction.borrower);
        
-       // will revert if not enough collateral in user collateral balance.
-       _removeCollateral(_auction.collateral, 0, _auction.tokenId, _auction.borrower, msg.sender);
+    //    // will revert if not enough collateral in user collateral balance.
+    //    _removeCollateral(_auction.collateral, 0, _auction.tokenId, _auction.borrower, msg.sender);
 
-        (_liquidatable, ) = _isLiquidatable(_auction.borrower);
-        if (!_liquidatable) {
-            _closeAuction(_id);
-        }
-        if (userCollateralNFTs[_auction.collateral][_auction.tokenId] == address(0)) {
-            delete userAuctionId[_auction.borrower];
-            delete auctions[_id];
-        }
-    }
+    //     (_liquidatable, ) = _isLiquidatable(_auction.borrower);
+    //     if (!_liquidatable) {
+    //         _closeAuction(_id);
+    //     }
+    //     if (userCollateralNFTs[_auction.collateral][_auction.tokenId] == address(0)) {
+    //         delete userAuctionId[_auction.borrower];
+    //         delete auctions[_id];
+    //     }
+    // }
 
-    function purchasePriceERC721(uint256 _id) public view returns (uint256 totalCost) {
-        Auction memory _auction = auctions[_id];
-        require(_auction.alive, "auction is not alive");
+    // function purchasePriceERC721(uint256 _id) public view returns (uint256 totalCost) {
+    //     Auction memory _auction = auctions[_id];
+    //     require(_auction.alive, "auction is not alive");
 
-        SD59x18 _discount = _auction.decayConstant.mul(toSD59x18(int256(block.timestamp)).sub(_auction.startTime));
+    //     SD59x18 _discount = _auction.decayConstant.mul(toSD59x18(int256(block.timestamp)).sub(_auction.startTime));
 
-        totalCost = SD59x18.unwrap(_auction.initialPrice) > SD59x18.unwrap(_auction.minimumPrice.add(_discount)) ? 
-        uint256(SD59x18.unwrap(_auction.initialPrice.sub(_discount))) : uint256(SD59x18.unwrap(_auction.minimumPrice));
+    //     totalCost = SD59x18.unwrap(_auction.initialPrice) > SD59x18.unwrap(_auction.minimumPrice.add(_discount)) ? 
+    //     uint256(SD59x18.unwrap(_auction.initialPrice.sub(_discount))) : uint256(SD59x18.unwrap(_auction.minimumPrice));
         
-    }
+    // }
 
     // instrument functions
     function instrumentApprovalCondition() public override virtual view returns (bool) {
