@@ -17,18 +17,18 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     //     log: true,
     //   });
     // }
-  //  await deployments.deploy("Collateral", {
-  //       contract: "Cash",
-  //       from: deployer,
-  //       args: ["USDC", "USDC", 18],
-  //       log: true,
-  //     });
-    // await deployments.deploy("Controller", {
-    //   contract: "Controller",
-    //   from: deployer,
-    //   args,
-    //   log: true,
-    // });
+   await deployments.deploy("Collateral", {
+        contract: "Cash",
+        from: deployer,
+        args: ["USDC", "USDC", 18],
+        log: true,
+      });
+    await deployments.deploy("Controller", {
+      contract: "Controller",
+      from: deployer,
+      args,
+      log: true,
+    });
   };
   
   func.tags = ["Controller"];

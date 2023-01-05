@@ -53,7 +53,7 @@ abstract contract Instrument {
     /// @notice address of user who submits the liquidity proposal 
     address public Utilizer; 
     address[] public validators; //set when deployed, but can't be ch
-    mapping(address=>bool) isValidator; 
+    mapping(address=>bool) isValidator;
 
     /**
      @notice hooks for approval logic that are specific to each instrument type, called by controller for approval/default logic

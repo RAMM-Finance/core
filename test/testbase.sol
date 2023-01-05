@@ -28,7 +28,7 @@ contract CustomTestBase is Test {
     CoveredCallOTC otc; 
     MockBorrowerContract borrowerContract = new MockBorrowerContract();
     CreditLine instrument;
-    SimpleNFTPool nftPool; 
+    PoolInstrument nftPool; 
     LeverageModule leverageModule; 
 
     address deployer = 0xb4c79daB8f259C7Aee6E5b2Aa729821864227e84;
