@@ -28,7 +28,7 @@ contract CustomTestBase is Test {
     CoveredCallOTC otc; 
     MockBorrowerContract borrowerContract = new MockBorrowerContract();
     CreditLine instrument;
-    PoolInstrument nftPool; 
+    SimpleNFTPool nftPool; 
     LeverageModule leverageModule; 
 
     address deployer = 0xb4c79daB8f259C7Aee6E5b2Aa729821864227e84;
@@ -193,7 +193,7 @@ contract CustomTestBase is Test {
         poolData.promisedReturn = 3000000000; 
         poolData.inceptionTime = block.timestamp; 
         poolData.inceptionPrice = 8e17; 
-        poolData.leverageFactor = 3e18;
+        poolData.leverageFactor = 5e18; 
 
         data.isPool = true; 
         data.trusted = false; 
