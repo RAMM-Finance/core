@@ -89,23 +89,23 @@ contract VaultFactory{
        ); 
     _isVault[address(vault)] = true; 
     numVaults++; 
-    emit VaultCreated(
-      address(vault), 
-      numVaults, 
-      underlying, 
-      _onlyVerified, 
-      _r, 
-      _asset_limit, 
-      _total_asset_limit,
-      default_params.N,
-      default_params.sigma, 
-      default_params.alpha, 
-      default_params.omega,
-      default_params.delta, 
-      default_params.r,
-      default_params.s,
-      default_params.steak
-    );
+    // emit VaultCreated(
+    //   address(vault), 
+    //   numVaults, 
+    //   underlying, 
+    //   _onlyVerified, 
+    //   _r, 
+    //   _asset_limit, 
+    //   _total_asset_limit,
+    //   default_params.N,
+    //   default_params.sigma, 
+    //   default_params.alpha, 
+    //   default_params.omega,
+    //   default_params.delta, 
+    //   default_params.r,
+    //   default_params.s,
+    //   default_params.steak
+    // );
 
     return (vault, numVaults); 
     // vaultId is numVaults after new creation of the vault.

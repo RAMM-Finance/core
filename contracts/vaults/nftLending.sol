@@ -44,7 +44,8 @@ contract SimpleNFTPool is Instrument, ERC4626{
         return true; 
     }
     function totalAssets() public view override returns (uint256){
-        return underlying.balanceOf(address(this)); 
+        console.log('??', asset.balanceOf(address(this)), underlying.balanceOf(address(this))); 
+        return asset.balanceOf(address(this)); 
     }
     function borrow(
         address tokenAddress,

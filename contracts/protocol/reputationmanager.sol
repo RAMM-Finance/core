@@ -1,4 +1,6 @@
 pragma solidity ^0.8.16;
+import "forge-std/console.sol";
+
 import {config} from "../utils/helpers.sol"; 
 import {FixedPointMathLib} from "solmate/utils/FixedPointMathLib.sol";
 import {Controller} from "./controller.sol"; 
@@ -141,8 +143,10 @@ contract ReputationManager {
                         // : implied_probs.mulDivDown(implied_probs, config.WAD);
 
         if (increment) {
+            console.log('increment', change); 
             incrementScore(trader, change);
         } else {
+            console.log('decrement', change); 
             decrementScore(trader, change);
         }
     }

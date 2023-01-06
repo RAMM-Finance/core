@@ -368,7 +368,7 @@ event MarketDenied(uint256 indexed marketId);
   ) internal view {
     //If after assessment there is a set buy threshold, people can't buy above this threshold
     require(restriction_data[marketId].alive, "!Active");
-
+    // TODO: upper bound 
     // TODO: check if this is correct
     // require(controller.getVault(marketId).fetchInstrumentData(marketId).maturityDate > block.timestamp, "market maturity reached");
     // TODO: check if enough liquidity 
@@ -512,14 +512,14 @@ event MarketDenied(uint256 indexed marketId);
     (uint256 psu, uint256 pju, uint256 levFactor ) = vault.poolZCBValue(_marketId);
 
     underlying.transferFrom(msg.sender, address(this), _amountIn);
-    underlying.approve(address(vault.Instruments(_marketId)), _amountIn); 
-    vault.Instruments(_marketId).pullRawFunds(_amountIn); 
+    // underlying.approve(address(vault.Instruments(_marketId)), _amountIn); 
+    // vault.Instruments(_marketId).pullRawFunds(_amountIn); 
 
     issueQTY = _amountIn.divWadDown(pju); 
     markets[_marketId].bondPool.trustedDiscountedMint(msg.sender, issueQTY); 
 
     // Need to transfer funds automatically to the instrument, seniorAmount is longZCB * levFactor * psu  
-    vault.depositIntoInstrument(_marketId, issueQTY.mulWadDown(levFactor).mulWadDown(psu), true); 
+    vault.depositIntoInstrument(_marketId, issueQTY.mulWadDown(config.WAD + levFactor).mulWadDown(psu), true); 
     console.log('how much??', issueQTY.mulWadDown(levFactor).mulWadDown(psu)); 
     //TODO Need totalAssets and exchange rate to remain same assertion 
 

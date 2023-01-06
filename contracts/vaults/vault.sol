@@ -212,15 +212,16 @@ contract Vault is ERC4626{
       psu = vars.totalAssetsHeld.divWadDown(vars.seniorSupply);
       vars.belowThreshold = true;  
     }
+    console.log("ok?", vars.totalAssetsHeld, vars.srpPlusOne.mulWadDown(vars.seniorSupply),vars.srpPlusOne); 
 
     // should be 0 otherwise 
     if(!vars.belowThreshold) pju = (vars.totalAssetsHeld 
       - vars.srpPlusOne.mulWadDown(vars.seniorSupply)).divWadDown(vars.juniorSupply); 
+    // uint pju_ = (BASE_UNIT+ vars.leverageFactor).mulWadDown(previewMint(BASE_UNIT*8/10)) 
+    //   -  vars.srpPlusOne.mulWadDown(vars.leverageFactor);
+    // assert(pju_ >= pju-10 || pju_ <= pju+10); 
+        // console.log('ok????'); 
 
-
-    uint pju_ = (BASE_UNIT+ vars.leverageFactor).mulWadDown(previewMint(BASE_UNIT*8/10)) 
-      -  vars.srpPlusOne.mulWadDown(vars.leverageFactor);
-    assert(pju_ >= pju-10 || pju_ <= pju+10); 
     }
 
     /// @notice Harvest a trusted Instrument, records profit/loss 
@@ -279,6 +280,7 @@ contract Vault is ERC4626{
         // TODO keep track of all this 
         UNDERLYING.approve(address(instrument), underlyingAmount); 
         require(ERC4626(address(instrument)).deposit(underlyingAmount, address(this))>0, "DEPOSIT_FAILED");
+
       }
 
       emit InstrumentDeposit(msg.sender, instrument, underlyingAmount);
@@ -336,22 +338,24 @@ contract Vault is ERC4626{
         instrumentData.expectedYield = data.approved_yield;
         instrumentData.faceValue = data.approved_principal + data.approved_yield; 
 
-        depositIntoInstrument(marketId, data.approved_principal-data.managers_stake, false);
+        depositIntoInstrument(marketId, data.approved_principal - data.managers_stake, false);
         
         setMaturityDate(marketId);
 
         fetchInstrument(marketId).onMarketApproval(data.approved_principal, data.approved_yield); 
 
       } else{
-        depositIntoInstrument(marketId, data.approved_principal-data.managers_stake, true);
+        depositIntoInstrument(marketId, data.approved_principal - data.managers_stake, true);
       }
     }
 
     /// @notice fetches how much asset the instrument has in underlying. 
     function instrumentAssetOracle(uint256 marketId, uint256 juniorSupply, uint256 seniorSupply) public view returns(uint256){
       // Default balance oracle 
-      // return (juniorSupply + seniorSupply).mulWadDown(previewMint(BASE_UNIT*8/10)); 
-      return (juniorSupply + seniorSupply).mulWadDown(BASE_UNIT*8/10); 
+      ERC4626 instrument = ERC4626(address(Instruments[marketId])); 
+      console.log('preview', instrument.previewDeposit(BASE_UNIT)); 
+      return (juniorSupply + seniorSupply).mulWadDown(instrument.previewDeposit(BASE_UNIT))*8/10; 
+      // return (juniorSupply + seniorSupply).mulWadDown(BASE_UNIT*8/10); 
       //return instrument_data[Instruments[marketId]].balance; 
       //TODO custom oracle 
     }

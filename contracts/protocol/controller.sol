@@ -207,31 +207,33 @@ contract Controller {
             );
 
         if (instrumentData.isPool) {
-            instrumentData.poolData.inceptionTime = block.timestamp;
+          require(instrumentData.poolData.initPrice<= 1e18 
+            && instrumentData.poolData.initPrice< instrumentData.poolData.inceptionPrice, "PRICE ERR"); 
+          instrumentData.poolData.inceptionTime = block.timestamp;
 
-            instrumentData.poolData.managementFee = pool
-                .calculateInitCurveParamsPool(
-                    instrumentData.poolData.saleAmount,
-                    instrumentData.poolData.initPrice,
-                    instrumentData.poolData.inceptionPrice,
-                    marketManager.getParameters(marketId).sigma
-                );
-
-            marketManager.newMarket(
-                marketId,
-                pool,
-                longZCB,
-                shortZCB,
-                instrumentData.description,
-                true
-            );
-
-            // set validators
-            _validatorSetup(
-                marketId,
+          instrumentData.poolData.managementFee = pool
+            .calculateInitCurveParamsPool(
                 instrumentData.poolData.saleAmount,
-                instrumentData.isPool
+                instrumentData.poolData.initPrice,
+                instrumentData.poolData.inceptionPrice,
+                marketManager.getParameters(marketId).sigma
             );
+
+          marketManager.newMarket(
+            marketId,
+            pool,
+            longZCB,
+            shortZCB,
+            instrumentData.description,
+            true
+        );
+
+          // set validators
+          _validatorSetup(
+            marketId,
+            instrumentData.poolData.saleAmount,
+            instrumentData.isPool
+        );
         } else {
             pool.calculateInitCurveParams(
                 instrumentData.principal,
@@ -501,28 +503,29 @@ contract Controller {
         (, , , , , , bool isPool) = marketManager.markets(marketId);
         uint256 managerCollateral = marketManager.loggedCollaterals(marketId);
 
+
+        pool.flush(address(this), managerCollateral); 
+        address instrument = address(vault.fetchInstrument(marketId)); 
+        vault.UNDERLYING().approve(instrument, managerCollateral); 
+
         if (isPool) {
             poolApproval(
                 marketId,
                 marketManager.getZCB(marketId).totalSupply(),
                 vault.fetchInstrumentData(marketId).poolData
             );
+          require(ERC4626(instrument).deposit(managerCollateral, address(this))>0, "DEPOSIT_FAILED");
         } else {
             if (vault.getInstrumentType(marketId) == 0)
                 creditApproval(marketId, pool);
             else generalApproval(marketId);
+            vault.UNDERLYING().transfer(instrument, managerCollateral); 
         }
 
         approvalDatas[marketId].managers_stake = managerCollateral;
 
         // TODO vault exchange rate should not change
         // pull from pool to vault, which will be used to fund the instrument
-        pool.flush(address(this), managerCollateral);
-        pool.BaseToken().approve(
-            address(vault.Instruments(marketId)),
-            managerCollateral
-        );
-        vault.Instruments(marketId).pullRawFunds(managerCollateral);
 
         // Trust and deposit to the instrument contract
         vault.trustInstrument(marketId, approvalDatas[marketId], isPool);
