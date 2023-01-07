@@ -85,6 +85,9 @@ contract FetcherTest is Test {
     TestNFT nft2;
     uint256 wad = 1e18;
 
+    PoolInstrument.CollateralLabel[] clabels;
+    PoolInstrument.Collateral[] collaterals;
+
     function setUsers() public {
         jonna = address(0xbabe);
         vm.label(jonna, "jonna"); // manager1
@@ -146,7 +149,20 @@ contract FetcherTest is Test {
     }
 
     function setUp() public {
-
+        clabels.push(
+            PoolInstrument.CollateralLabel(
+                address(collateral),
+                0
+            )
+        );
+        collaterals.push(
+            PoolInstrument.Collateral(
+            0,
+            wad/2,
+            wad/4,
+            true
+        )
+        );
         controller = new Controller(deployer, address(0)); // zero addr for interep
         vaultFactory = new VaultFactory(address(controller));
         collateral = new Cash("n","n",18);
@@ -199,6 +215,8 @@ contract FetcherTest is Test {
         nft2 = new TestNFT("NFT_2", "NFT_2");
         
         bytes memory bites;
+        PoolInstrument.CollateralLabel[] memory _clabels = clabels;
+        PoolInstrument.Collateral[] memory _collaterals = collaterals;
         poolInstrument = new PoolInstrument(
             vault_ad,
             address(controller),
@@ -207,7 +225,9 @@ contract FetcherTest is Test {
             "pool name",
             "POOL1",
             address(rateCalculator),
-            bites
+            bites,
+            _clabels,
+            _collaterals
         );
         otc = new CoveredCallOTC(
             vault_ad, toku, address(collateral2), 

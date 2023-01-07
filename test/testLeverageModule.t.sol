@@ -27,8 +27,26 @@ contract LeverageModuleTest is CustomTestBase {
     PoolInstrument pool; 
     bytes initCallData;
 
-    function setUp() public {
+    uint256 wad = 1e18;
 
+    PoolInstrument.CollateralLabel[] clabels;
+    PoolInstrument.Collateral[] collaterals;
+
+    function setUp() public {
+clabels.push(
+            PoolInstrument.CollateralLabel(
+                address(collateral),
+                0
+            )
+        );
+        collaterals.push(
+            PoolInstrument.Collateral(
+            0,
+            wad/2,
+            wad/4,
+            true
+        )
+        );
         controller = new Controller(deployer, address(0)); // zero addr for interep
         vaultFactory = new VaultFactory(address(controller));
         collateral = new Cash("n","n",18);
@@ -71,6 +89,9 @@ contract LeverageModuleTest is CustomTestBase {
         leverageModule = new LeverageModule(address(controller));
 
         VariableInterestRate rateCalculator = new VariableInterestRate();
+
+        PoolInstrument.CollateralLabel[] memory _clabels = clabels;
+        PoolInstrument.Collateral[] memory _collaterals = collaterals;
         
         pool = new PoolInstrument(
             vault_ad,
@@ -80,7 +101,9 @@ contract LeverageModuleTest is CustomTestBase {
             "pool 1",
             "P1",
             address(rateCalculator),
-            initCallData
+            initCallData,
+            _clabels,
+            _collaterals
         );
                
         vm.prank(address(controller));

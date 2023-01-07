@@ -185,6 +185,7 @@ contract MarketManager
 
   /*----Phase Functions----*/
 
+  event MarketParametersSet(uint256 indexed marketId, uint256 N, uint256 sigma, uint256 alpha, uint256 omega, uint256 delta, uint256 r, uint256 s, uint256 steak);
   /// @notice list of parameters in this system for each market, should vary for each instrument 
   /// @dev calculates market driven s from utilization rate. If u-r high,  then s should be low, as 1) it disincentivizes 
   /// managers to approving as more proportion of the profit goes to the LP, and 2) disincentivizes the borrower 
@@ -196,6 +197,7 @@ contract MarketManager
     ) public onlyController{
     parameters[marketId] = param; 
     parameters[marketId].s = param.s.mulWadDown(config.WAD - utilizationRate); // experiment
+    emit MarketParametersSet(marketId, param.N, param.sigma, param.alpha, param.omega, param.delta, param.r, param.s, param.steak);
   }
 
   function setReputationManager(address _reputationManager) external onlyController{
@@ -206,9 +208,9 @@ contract MarketManager
    @dev in the event that the number of traders in X percentile is less than the specified number of validators
    parameter N is changed to reflect this
    */
-  function setN(uint256 marketId, uint256 _N) external onlyController {
-    parameters[marketId].N = _N;
-  }
+  // function setN(uint256 marketId, uint256 _N) external onlyController {
+  //   parameters[marketId].N = _N;
+  // }
 
 event MarketPhaseSet(uint256 indexed marketId, bool duringAssessment, bool onlyReputable, uint256 base_budget);
 
@@ -564,6 +566,7 @@ event MarketDenied(uint256 indexed marketId);
   mapping(address => uint8) public queuedRepUpdates; 
   uint8 public constant queuedRepThreshold = 3; // at most 3 simultaneous assessment per manager
 
+  event BondBuy(uint256 indexed marketId, address indexed trader, uint256 amountIn, uint256 amountOut);
   /// @notice main entry point for longZCB buys 
   /// @param _amountIn is negative if specified in zcb quantity
   function buyBond(
@@ -606,6 +609,7 @@ event MarketDenied(uint256 indexed marketId);
               .principal)
         ) {
           restriction_data[_marketId].onlyReputable = false;
+          emit MarketPhaseSet(_marketId, restriction_data[_marketId].duringAssessment, restriction_data[_marketId].onlyReputable, getTraderBudget(_marketId, msg.sender));
         }
       }
     }
@@ -625,8 +629,10 @@ event MarketDenied(uint256 indexed marketId);
       //   (uint256 escrowAmount, uint128 crossId) = bondPool.makerOpen(point, uint256(_amountIn), true, msg.sender); 
       // }
     }
+    emit BondBuy(_marketId, msg.sender, amountIn, amountOut); // get current price as well.
   }
 
+  
   /// @notice longZCB sells  
   /// @param _amountIn quantity in longZCB 
   function sellBond(

@@ -107,13 +107,21 @@ contract PoolInstrument is ERC4626, Instrument, PoolConstants, ReentrancyGuard, 
         string memory _name,
         string memory _symbol,
         address _rateCalculator,
-        bytes memory _rateInitCallData
+        bytes memory _rateInitCallData,
+        CollateralLabel[] memory _collaterals,
+        Collateral[] memory _collateralDatas
     ) Instrument(_vault, _utilizer) ERC4626(ERC20(_asset), _name, _symbol) {
         controller = _controller;
         rateContract = IRateCalculator(_rateCalculator);
         rateInitCallData = _rateInitCallData;
         rateContract.requireValidInitData(_rateInitCallData);
 
+        for (uint i = 0; i < _collaterals.length; i ++) {
+            collaterals.push(_collaterals[i]);
+            Collateral memory _collateral = _collateralDatas[i];
+            _collateral.totalCollateral = 0;
+            collateralData[_collaterals[i].tokenAddress][_collaterals[i].tokenId] = _collateral;
+        }
     }
 
     // should be gated function

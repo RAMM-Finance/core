@@ -62,6 +62,12 @@ const config: HardhatUserConfig = {
     sources: "./contracts",
     cache: "./cache_hardhat",
   },
+  abiExporter: {
+    path: "./abi",
+    runOnCompile: true,
+    clear: true
+
+  },
   solidity: {
     version: "0.8.16",
     settings: {

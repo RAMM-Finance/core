@@ -141,6 +141,18 @@ contract Controller {
         vaults[id_parent[marketId]].trusted_transfer(amount, to);
     }
 
+    // default_params too large -> do call.
+    event VaultCreated(
+        address indexed vault, 
+        uint256 indexed vaultId, 
+        address underlying, 
+        bool onlyVerified, 
+        uint256 rVault, 
+        uint256 assetLimit,
+        uint256 totalAssetLimit,
+        MarketManager.MarketParameters defaultParams
+        );
+
     /// @notice creates vault
     /// @param underlying: underlying asset for vault
     /// @param _onlyVerified: only verified users can mint shares
@@ -167,9 +179,20 @@ contract Controller {
         );
 
         vaults[vaultId] = newVault;
+        
+        emit VaultCreated(address(newVault), vaultId, underlying, _onlyVerified, _r, _asset_limit, _total_asset_limit, default_params);
     }
-
-    event MarketInitiated(uint256 indexed marketId, uint256 indexed vaultId, uint256 indexed recipient, address pool, address longZCB, address shortZCB);
+    
+    // instrument data too large -> do call.
+    event MarketInitiated(
+        uint256 indexed marketId, 
+        address indexed vault, 
+        address indexed recipient, 
+        address pool, 
+        address longZCB, 
+        address shortZCB,
+        Vault.InstrumentData instrumentData
+        );
 
     /// @notice initiates market, called by frontend loan proposal or instrument form submit button.
     /// @dev Instrument should already be deployed
@@ -184,8 +207,10 @@ contract Controller {
         require(recipient != address(0), "address0");
         require(instrumentData.instrument_address != address(0), "address0");
         require(address(vaults[vaultId]) != address(0), "address0");
-
+        
         Vault vault = vaults[vaultId];
+
+        require(vault.get_vault_params().N <= reputationManager.getTraders().length, "not enough rated traders");
         uint256 marketId = marketManager.marketCount();
         id_parent[marketId] = vaultId;
         vault_to_marketIds[vaultId].push(marketId);
@@ -262,7 +287,7 @@ contract Controller {
         instrumentData.marketId = marketId;
         vault.addProposal(instrumentData);
 
-        emit MarketInitiated(marketId, vaultId, marketId, address(pool), longZCB, shortZCB);
+        emit MarketInitiated(marketId, address(vaults[vaultId]), recipient , address(pool), longZCB, shortZCB,instrumentData);
 
         ad_to_id[recipient] = marketId; //only for testing purposes, one utilizer should be able to create multiple markets
     }
@@ -345,6 +370,17 @@ contract Controller {
         cleanUpDust(marketId);
     }
 
+
+    // all the parameters in the updateRedemptionPrice function: 
+    event RedemptionPriceUpdate(
+        uint256 indexed marketId, 
+        uint256 redemptionPrice,
+        bool atLoss,
+        uint256 extraGain,
+        uint256 principalLoss,
+        bool premature
+        );
+
     /// @dev Redemption price, as calculated (only once) at maturity,
     /// depends on total_repayed/(principal + predetermined yield)
     /// If total_repayed = 0, redemption price is 0
@@ -385,6 +421,7 @@ contract Controller {
         );
 
         // TODO edgecase redemption price calculations
+        emit RedemptionPriceUpdate(marketId, redemption_price, atLoss, extra_gain, loss, premature);
     }
 
     uint256 public constant riskTransferPenalty = 1e17;
@@ -412,28 +449,6 @@ contract Controller {
             type(uint256).max
         );
     }
-
-    // /// @notice when market is resolved(maturity/early default), calculates score
-    // /// and update each assessment phase trader's reputation, called by individual traders when redeeming
-    // function updateReputation(
-    //     uint256 marketId,
-    //     address trader,
-    //     bool increment
-    // ) external onlyManager {
-    //     uint256 implied_probs = marketManager.assessment_probs(
-    //         marketId,
-    //         trader
-    //     );
-    //     // int256 scoreToUpdate = increment ? int256(implied_probs.mulDivDown(implied_probs, config.WAD)) //experiment
-    //     //                                  : -int256(implied_probs.mulDivDown(implied_probs, config.WAD));
-    //     uint256 change = implied_probs.mulDivDown(implied_probs, config.WAD);
-
-    //     if (increment) {
-    //         reputationManager.incrementScore(trader, change);
-    //     } else {
-    //         reputationManager.decrementScore(trader, change);
-    //     }
-    // }
 
     /// @notice function that closes the instrument/market before maturity, maybe to realize gains/cut losses fast
     /// or debt is prematurely fully repaid, or underlying strategy is deemed dangerous, etc.
@@ -485,6 +500,7 @@ contract Controller {
         marketManager.approveMarket(marketId);
     }
 
+    event MarketApproved(uint256 indexed marketId, uint256 approvedPrincipal, uint256 approvedInterest, uint256 managerStake);
     /// @notice called by the validator from validatorApprove when market conditions are met
     /// need to move the collateral in the wCollateral to
     function approveMarket(uint256 marketId) internal {
@@ -523,6 +539,8 @@ contract Controller {
         }
 
         approvalDatas[marketId].managers_stake = managerCollateral;
+
+        emit MarketApproved(marketId, approvalDatas[marketId].approved_principal, approvalDatas[marketId].approved_yield, approvalDatas[marketId].managers_stake);
 
         // TODO vault exchange rate should not change
         // pull from pool to vault, which will be used to fund the instrument
@@ -595,6 +613,7 @@ contract Controller {
         );
     }
 
+    event MarketDenied(uint256 indexed marketId);
     /**
    @dev called by validator denial of market.
    */
@@ -602,6 +621,7 @@ contract Controller {
         vaults[id_parent[marketId]].denyInstrument(marketId);
         cleanUpDust(marketId);
         marketManager.denyMarket(marketId);
+        emit MarketDenied(marketId);
     }
 
     /*----Validator Logic----*/
@@ -696,16 +716,9 @@ contract Controller {
             utilizer
         );
 
-        // if there are not enough traders, set validators to all selected traders.
-        if (selected.length <= N) {
-            validator_data[marketId].validators = selected;
-
-            if (selected.length < N) {
-                marketManager.setN(marketId, selected.length);
-                revert("not enough rated traders");
-            }
-
-            return;
+        // if there are not enough traders, revert, will need to wait for more traders to be rated.
+        if (selected.length < N) {
+            revert("not enough rated traders");
         }
 
         validator_data[marketId].requested = true;
@@ -722,6 +735,7 @@ contract Controller {
         requestToMarketId[_requestId] = marketId;
     }
 
+    event ValidatorsChosen(uint256 indexed marketId, address[] validators);
     /**
    @notice chainlink callback function, sets validators.
    @dev TODO => can be called by anyone?
@@ -749,6 +763,8 @@ contract Controller {
             temp[j] = temp[length - 1];
             length--;
         }
+
+        emit ValidatorsChosen(marketId, validator_data[marketId].validators);
     }
 
     function _weightedRetrieve(
@@ -775,6 +791,7 @@ contract Controller {
         }
     }
 
+    event ValidatorApprove(uint256 indexed marketId, address validator);
     /// @notice allows validators to buy at a discount + automatically stake a percentage of the principal
     /// They can only buy a fixed amount of ZCB, usually a at lot larger amount
     /// @dev get val_cap, the total amount of zcb for sale and each validators should buy
@@ -827,6 +844,8 @@ contract Controller {
             marketManager.approveMarket(marketId); // For market to go to a post assessment stage there always needs to be a lower bound set
         }
 
+        emit ValidatorApprove(marketId, msg.sender);
+
         return collateral_required;
     }
 
@@ -866,6 +885,7 @@ contract Controller {
             validator_data[marketId].validators.length);
     }
 
+    event ValidatorStakeUpdated(uint256 indexed marketId, uint256 newStake);
     /**
    @notice updates the validator stake, burned in proportion to loss.
    principal and principal loss are in the underlying asset of the vault => must be converted to vault shares.
@@ -899,6 +919,8 @@ contract Controller {
         validator_data[marketId].finalStake =
             newTotal /
             validator_data[marketId].validators.length;
+
+        emit ValidatorStakeUpdated(marketId, validator_data[marketId].finalStake);
     }
 
     /**
