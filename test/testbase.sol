@@ -14,6 +14,7 @@ import {ERC20} from "solmate/tokens/ERC20.sol";
 import {SimpleNFTPool} from "../contracts/vaults/nftLending.sol"; 
 import {ReputationManager} from "../contracts/protocol/reputationmanager.sol";
 import {LeverageModule} from "../contracts/protocol/LeverageModule.sol"; 
+import {Instrument} from "../contracts/vaults/instrument.sol"; 
 
 contract CustomTestBase is Test {
     using FixedPointMath for uint256; 
@@ -157,6 +158,17 @@ contract CustomTestBase is Test {
     }
 
     function initiateOptionsOTCMarket() public{
+        if(address(otc) == address(0))
+        otc = new CoveredCallOTC(
+            vault_ad, toku, address(collateral2), 
+            strikeprice, //strikeprice 
+            pricePerContract, //price per contract
+            shortCollateral, 
+            longCollateral, 
+            address(collateral), 
+            address(0), 
+            10); 
+        otc.setUtilizer(toku); 
         Vault.InstrumentData memory data;
         data.trusted = false; 
         data.balance = 0;
@@ -227,7 +239,8 @@ contract CustomTestBase is Test {
         vm.startPrank(jonna); 
         Vault(vaultad).UNDERLYING().transfer(instrument, amount); 
         vm.stopPrank(); 
-        Vault(vaultad).harvest(instrument); 
+        if(Vault(vaultad).isTrusted(Instrument(instrument)))
+            Vault(vaultad).harvest(instrument); 
     }
 
 

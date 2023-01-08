@@ -181,9 +181,9 @@ contract Controller {
         Vault.InstrumentData memory instrumentData,
         uint256 vaultId
     ) external {
-        require(recipient != address(0), "address0");
-        require(instrumentData.instrument_address != address(0), "address0");
-        require(address(vaults[vaultId]) != address(0), "address0");
+        require(recipient != address(0), "address0R");
+        require(instrumentData.instrument_address != address(0), "address0I");
+        require(address(vaults[vaultId]) != address(0), "address0V");
 
         Vault vault = vaults[vaultId];
         uint256 marketId = marketManager.marketCount();

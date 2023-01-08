@@ -99,32 +99,7 @@ abstract contract Instrument {
     }
 
 
-    /**
-     * @notice
-     *  Provide an accurate estimate for the total amount of assets
-     *  (principle + return) that this Instrument is currently managing,
-     *  denominated in terms of Underlying tokens.
-     *
-     *  This total should be "realizable" e.g. the total value that could
-     *  *actually* be obtained from this Instrument if it were to divest its
-     *  entire position based on current on-chain conditions.
-     * @dev
-     *  Care must be taken in using this function, since it relies on external
-     *  systems, which could be manipulated by the attacker to give an inflated
-     *  (or reduced) value produced by this function, based on current on-chain
-     *  conditions (e.g. this function is possible to influence through
-     *  flashloan attacks, oracle manipulations, or other DeFi attack
-     *  mechanisms).
-     *
-     *  It is up to governance to use this function to correctly order this
-     *  Instrument relative to its peers in the withdrawal queue to minimize
-     *  losses for the Vault based on sudden withdrawals. This value should be
-     *  higher than the total debt of the Instrument and higher than its expected
-     *  value to be "safe".
-     *  Estimated Total assets should be 
 
-     * @return The estimated total assets in this Strategy.
-     */
     function estimatedTotalAssets() public view virtual returns (uint256){}
 
 
@@ -156,23 +131,10 @@ abstract contract Instrument {
 
         }
 
-    /**
-     * Liquidate up to `_amountNeeded` of `underlying` of this strategy's positions,
-     * irregardless of slippage. Any excess will be re-invested with `adjustPosition()`.
-     * This function should return the amount of `underlying` tokens made available by the
-     * liquidation. If there is a difference between them, `_loss` indicates whether the
-     * difference is due to a realized loss, or if there is some other sitution at play
-     * (e.g. locked funds) where the amount made available is less than what is needed.
-     *
-     * NOTE: The invariant `_liquidatedAmount + _loss <= _amountNeeded` should always be maintained
-     */
+
     function liquidatePosition(uint256 _amountNeeded) public  virtual returns (uint256 _liquidatedAmount, uint256 _loss){}
 
-    /**
-     * Liquidate everything and returns the amount that got freed.
-     * This function is used during emergency exit instead of `prepareReturn()` to
-     * liquidate all of the instrument's positions back to the Vault.
-     */
+
     function liquidateAllPositions() public  virtual returns (uint256 _amountFreed){}
 
     function lockLiquidityFlow() internal{
@@ -182,7 +144,6 @@ abstract contract Instrument {
     function isLocked() public view returns(bool){
         return locked; 
     }
-
 
     function transfer_liq(address to, uint256 amount) internal notLocked {
         if (vault.decimal_mismatch()) amount = vault.decSharesToAssets(amount); 

@@ -212,7 +212,7 @@ contract Vault is ERC4626{
       psu = vars.totalAssetsHeld.divWadDown(vars.seniorSupply);
       vars.belowThreshold = true;  
     }
-    console.log("ok?", vars.totalAssetsHeld, vars.srpPlusOne.mulWadDown(vars.seniorSupply),vars.srpPlusOne); 
+
 
     // should be 0 otherwise 
     if(!vars.belowThreshold) pju = (vars.totalAssetsHeld 
@@ -221,7 +221,8 @@ contract Vault is ERC4626{
     //   -  vars.srpPlusOne.mulWadDown(vars.leverageFactor);
     // assert(pju_ >= pju-10 || pju_ <= pju+10); 
         // console.log('ok????'); 
-
+    console.log("totalAsset, srp*supply, pju", vars.totalAssetsHeld, vars.srpPlusOne, 
+      pju); 
     }
 
     /// @notice Harvest a trusted Instrument, records profit/loss 
@@ -353,8 +354,8 @@ contract Vault is ERC4626{
     function instrumentAssetOracle(uint256 marketId, uint256 juniorSupply, uint256 seniorSupply) public view returns(uint256){
       // Default balance oracle 
       ERC4626 instrument = ERC4626(address(Instruments[marketId])); 
-      console.log('preview', instrument.previewDeposit(BASE_UNIT)); 
-      return (juniorSupply + seniorSupply).mulWadDown(instrument.previewDeposit(BASE_UNIT))*8/10; 
+      console.log('previewdeposit,juniorsupply', instrument.previewMint(BASE_UNIT), juniorSupply); 
+      return (juniorSupply + seniorSupply).mulWadDown(instrument.previewMint(BASE_UNIT))*8/10; 
       // return (juniorSupply + seniorSupply).mulWadDown(BASE_UNIT*8/10); 
       //return instrument_data[Instruments[marketId]].balance; 
       //TODO custom oracle 
@@ -540,7 +541,7 @@ contract Vault is ERC4626{
         Instrument _instrument = Instruments[marketId];
         ResolveVar memory rvar = prepareResolveBlock[marketId]; 
         require(_instrument.isLocked(), "Not Locked");
-        require(rvar.isPrepared && rvar.endBlock < block.number, "can't resolve"); 
+        // require(rvar.isPrepared && rvar.endBlock < block.number, "can't resolve"); 
 
         uint256 bal = UNDERLYING.balanceOf(address(this)); 
         uint256 instrument_balance = _instrument.getMaturityBalance(); 

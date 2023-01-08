@@ -65,7 +65,8 @@ contract CoveredCallOTC is Instrument{
     uint256 public testqueriedPrice=1e18; 
     /// @notice queries oracle for the latest price of the underlying 
     function queryPrice() public view returns(uint256 price){
-        return testqueriedPrice; 
+        //return testqueriedPrice; 
+        return strikePrice*4/3; 
     }
 
     /// @notice for a given queriedPrice(usually the spot chainlink price at maturity)
@@ -98,17 +99,14 @@ contract CoveredCallOTC is Instrument{
         require(profit> 0, "0profit"); 
 
         underlying.transfer(msg.sender, profit); 
-
         profit = 0; 
-
         utilizerClaimed = true; 
-
         vault.pingMaturity(address(this), false); 
     }
 
     /// @notice called at maturity
     function readyForWithdrawal() public view override returns(bool){
-        return ( (block.timestamp <= maturityTime + timeThreshold && profit == 0)
+        return ( (block.timestamp >= maturityTime + timeThreshold && profit == 0)
                 || utilizerClaimed); 
     }
 

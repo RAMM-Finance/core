@@ -163,8 +163,8 @@ contract ReputationSystemTests is CustomTestBase {
     }
 
     function testRecordPushPerp() public{
-        uint donateamount = 100e18; 
-        uint donateamount2 = 38e18; 
+        uint donateamount =500e18; 
+        uint donateamount2 = 389e18; 
 
         testVars1 memory vars = testRecordPull();
         doApprove(vars.marketId, vars.vault_ad);
@@ -199,6 +199,7 @@ contract ReputationSystemTests is CustomTestBase {
 
         else if (pju > psu) assert(midRep> startRep); 
         else if (pju == psu) assert(midRep== startRep); 
+        else if (pju < psu) assert(midRep< startRep); 
 
         // // get rid of everything, 
         vm.warp(31536000); 
@@ -229,11 +230,86 @@ contract ReputationSystemTests is CustomTestBase {
         //collateralamount,bondamount goes to 0 when all is redeemed 
 
 // what the fuck all the instrument balance should go to 0?? why is it not
-   
+
 
     }
 
-    function testReputationIncreaseWithFixed() public{} //try options and creditline 
+    function testRecordPullFixed() public returns(testVars1 memory){
+        initiateOptionsOTCMarket(); 
+        // buy f
+        testVars1 memory vars; 
+
+        vars.marketId = controller.getMarketId(toku); 
+
+        vars.vault_ad = address(controller.getVault(vars.marketId)); //
+        vars.amountToBuy = Vault(vars.vault_ad).fetchInstrumentData(vars.marketId).principal/2; 
+
+        // Let manager buy
+        bytes memory data; 
+        doApproveCol(address(marketmanager), jonna); 
+        vm.prank(jonna); 
+        (vars.amountIn2, vars.amountOut2) =
+            marketmanager.buyBond(vars.marketId, int256(vars.amountToBuy), vars.curPrice + precision/2 , data); 
+
+        ReputationManager.RepLog memory log = reputationManager.getRepLog(jonna, vars.marketId);
+        assertEq(log.collateralAmount , vars.amountIn2); 
+        assertEq(log.bondAmount, vars.amountOut2); 
+
+        // buy again 
+        vm.prank(jonna); 
+        (vars.amountIn, vars.amountOut) =
+            marketmanager.buyBond(vars.marketId, int256(vars.amountToBuy), vars.curPrice + precision/2 , data); 
+        ReputationManager.RepLog memory log2 = reputationManager.getRepLog(jonna, vars.marketId);
+        assertEq(log2.collateralAmount, log.collateralAmount + vars.amountIn ); 
+        assertEq(log2.bondAmount, log.bondAmount + vars.amountOut);
+        return vars; 
+    }
+
+    function testReputationIncreaseWithFixed() public{
+        testVars1 memory vars = testRecordPullFixed();
+
+        uint donateamount = Vault(vars.vault_ad).fetchInstrumentData(vars.marketId).expectedYield; 
+        donateToInstrument(vars.vault_ad, address(Vault(vars.vault_ad).fetchInstrument(vars.marketId)), longCollateral*2); 
+        doApprove(vars.marketId, vars.vault_ad);
+
+   // redeem portion
+        ReputationManager.RepLog memory log = reputationManager.getRepLog(jonna, vars.marketId);
+        vm.prank(jonna); 
+        uint startRep = reputationManager.trader_scores(jonna); 
+
+        // time passes... test when pju increase, decrease, or stay same 
+
+        vm.warp(31536000); 
+
+        donateToInstrument(vars.vault_ad,  
+            address(Vault(vars.vault_ad).fetchInstrument(vars.marketId)), donateamount); 
+
+        // vm.startPrank(toku); 
+        // CoveredCallOTC( address(Vault(vars.vault_ad).fetchInstrument(vars.marketId))).claim(); 
+        // vm.stopPrank(); 
+
+        vm.prank(jonna); 
+        controller.testResolveMarket(vars.marketId); 
+
+        vm.prank(jonna); 
+        marketmanager.redeem(vars.marketId); 
+        ReputationManager.RepLog memory log2 = reputationManager.getRepLog(jonna, vars.marketId);
+        assertEq(log.bondAmount - log2.bondAmount, log.bondAmount ); 
+        assertEq(log2.collateralAmount, 0); 
+
+        uint midRep = reputationManager.trader_scores(jonna); 
+        if(donateamount==0) {
+            assert(midRep <  startRep); 
+        }
+        else if(donateamount >= Vault(vars.vault_ad).fetchInstrumentData(vars.marketId).expectedYield)
+            assert(midRep> startRep); 
+        else if(donateamount < Vault(vars.vault_ad).fetchInstrumentData(vars.marketId).expectedYield)
+            assert(midRep< startRep); 
+
+        console.log('start', startRep, midRep); 
+
+
+    } 
     function testReputationDecreaseWithFixed() public{} //try options and creditline 
     function testReputationIncreaseWithPerp() public{} 
     function testReputationDecreaseWithPerp() public{}
