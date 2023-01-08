@@ -175,7 +175,7 @@ contract CustomTestBase is Test {
         data.faceValue = faceValue;
         data.marketId = 0; 
         data.principal = principal;
-        data.expectedYield = interest;
+        data.expectedYield = longCollateral;
         data.duration = duration;
         data.description = "test";
         data.instrument_address = address(otc);

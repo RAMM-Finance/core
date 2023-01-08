@@ -111,7 +111,7 @@ contract ReputationManager {
             
             else if(bondPrice <= avgPrice && bondPrice < 1e18)
                 _updateReputation(marketId, trader, false, avgPrice-bondPrice, newLog);  
-
+            console.log('bondpriceavgprice', avgPrice, bondPrice); 
             // Redeeming everything at maturity 
             delete repLogs[trader][marketId];             
         }

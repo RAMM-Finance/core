@@ -153,8 +153,10 @@ clabels.push(
         Vault(vars.vault_ad).deposit(poolCapital, jonna); 
 
         doApproveCol(address(pool), vars.vault_ad); 
-        vm.prank(vars.vault_ad);
-        pool.deposit(1000*precision, vars.vault_ad); 
+        //vm.prank(vars.vault_ad);
+        Vault(vars.vault_ad).addLendingModule(address(pool)); 
+        Vault(vars.vault_ad).pushToLM( poolCapital); 
+        //pool.deposit(1000*precision, vars.vault_ad); 
 
         vars.cbalnow = cBal(address(pool)); 
         vars.cbalnow2 = Vault(vars.vault_ad).balanceOf(address(pool)); 
@@ -225,7 +227,54 @@ clabels.push(
         //assertApproxEqAbs(); 
     }
 
-    function testDeletePosition()public{}
+    function testPushToLeverage() public returns(testVars1 memory){
+        // trigger vault unutilized balance to leverage vault, and borrow from that vault 
+        uint investAmount = 100e18; 
+        uint pushAmount = 30e18; 
+        testVars1 memory vars;  
+        vars.amountIn = pushAmount; 
+        vars.marketId = controller.getMarketId(toku); 
+        vars.vault_ad = controller.getVaultfromId(vars.marketId); 
+        uint startPreview = pool.previewMint(1e18); 
+        uint startAssets = pool.totalAssets(); 
+        Vault(vars.vault_ad).addLendingModule(address(pool)); 
+
+        doInvest(vars.vault_ad, jonna,  investAmount); 
+        uint vaultBal = Vault(vars.vault_ad).UNDERLYING().balanceOf(vars.vault_ad); 
+
+        Vault(vars.vault_ad).pushToLM( pushAmount); 
+        if(pushAmount==0) {
+            assertEq(Vault(vars.vault_ad).utilizationRate(), precision); 
+            assertEq(pool.totalAssets() - startAssets, vaultBal); 
+        }
+        else if(pushAmount>0) {
+            assertApproxEqAbs(Vault(vars.vault_ad).utilizationRate(), pushAmount.divWadDown(vaultBal), 10);
+            assertApproxEqAbs(pool.totalAssets() - startAssets, pushAmount, 10); 
+        }
+
+        assertEq(pool.previewMint(1e18), startPreview); 
+        return vars; 
+
+//1e18*10000
+
+    }
+
+    function testPullFromLeverage() public {
+        testVars1 memory vars = testPushToLeverage(); 
+
+        // able to pull from vault if need be 
+        vars.amountOut = vars.amountIn; 
+        vars.valamountIn = pool.balanceOf(vars.vault_ad); 
+        uint startbal = pool.totalAssets(); 
+        Vault(vars.vault_ad).pullFromLM(vars.amountOut); 
+        assertApproxEqAbs(vars.valamountIn - pool.balanceOf(vars.vault_ad), pool.previewDeposit(vars.amountOut), 10);
+        assertEq(startbal - pool.totalAssets(), vars.amountOut); 
+
+    }
+
+    function testDeletePosition() public{
+
+    }
 
     function _testWithdrawLeverage() public {
 

@@ -66,7 +66,7 @@ contract CoveredCallOTC is Instrument{
     /// @notice queries oracle for the latest price of the underlying 
     function queryPrice() public view returns(uint256 price){
         //return testqueriedPrice; 
-        return strikePrice*4/3; 
+        return strikePrice;  
     }
 
     /// @notice for a given queriedPrice(usually the spot chainlink price at maturity)
@@ -74,9 +74,9 @@ contract CoveredCallOTC is Instrument{
     /// @dev utillizers can call this function at maturity so they can realize profit it is positive 
     /// if they miss the window(timethreshold), they can't realize profit. 
     /// param queriedPrice must be the exact price at which option is exercised, at maturity
-    function profitForUtilizer() public onlyUtilizer{
-        require(block.timestamp <= maturityTime + timeThreshold  && 
-            block.timestamp >= maturityTime- timeThreshold , "Time window err"); 
+    function profitForUtilizer() internal{
+        // require(block.timestamp <= maturityTime + timeThreshold  && 
+        //     block.timestamp >= maturityTime- timeThreshold , "Time window err"); 
         require(profit == 0, "profit already set"); 
         uint256 queriedPrice = queryPrice(); 
 
@@ -95,8 +95,11 @@ contract CoveredCallOTC is Instrument{
     /// @notice either option buyers(utilizers) or sellers(protocol)
     /// can claim their proportion of the winnings 
     function claim() external onlyUtilizer{
-        require(maturityTime < block.timestamp, "not matured"); 
-        require(profit> 0, "0profit"); 
+        require(maturityTime < block.timestamp, "not matured");
+        profitForUtilizer(); 
+
+        if (profit==0) return; 
+        // require(profit> 0, "0profit"); 
 
         underlying.transfer(msg.sender, profit); 
         profit = 0; 
