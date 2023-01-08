@@ -185,6 +185,7 @@ contract MarketManager
 
   /*----Phase Functions----*/
 
+  event MarketParametersSet(uint256 indexed marketId, MarketParameters params);
   /// @notice list of parameters in this system for each market, should vary for each instrument 
   /// @dev calculates market driven s from utilization rate. If u-r high,  then s should be low, as 1) it disincentivizes 
   /// managers to approving as more proportion of the profit goes to the LP, and 2) disincentivizes the borrower 
@@ -196,6 +197,7 @@ contract MarketManager
     ) public onlyController{
     parameters[marketId] = param; 
     parameters[marketId].s = param.s.mulWadDown(config.WAD - utilizationRate); // experiment
+    emit MarketParametersSet(marketId, param);
   }
 
   function setReputationManager(address _reputationManager) external onlyController{
@@ -243,7 +245,7 @@ event MarketPhaseSet(uint256 indexed marketId, bool duringAssessment, bool onlyR
 
 
 event DeactivatedMarket(uint256 indexed marketId, bool atLoss, bool resolve, uint256 rp);
-  /// @notice Called when market should end, a) when denied b) when maturity 
+  /// @notice Called when market resolves 
   /// @param resolve is true when instrument does not resolve prematurely
   function deactivateMarket(
     uint256 marketId, 
@@ -271,10 +273,12 @@ event MarketDenied(uint256 indexed marketId);
     emit MarketDenied(marketId);
   }
 
+  event MarketApproved(uint256 indexed marketId);
   /// @notice main approval function called by controller
   /// @dev if market is alive and market is not during assessment, it is approved. 
   function approveMarket(uint256 marketId) onlyController external {
     restriction_data[marketId].duringAssessment = false;    
+    emit MarketApproved(marketId);
   }
 
   function getPhaseData(
@@ -434,7 +438,9 @@ event MarketDenied(uint256 indexed marketId);
   }
 
 
-
+  event MarketCollateralUpdate(uint256 marketId, uint256 totalCollateral);
+  event TraderLongCollateralUpdate(uint256 marketId, address manager, uint256 totalCollateral);
+  event TraderShortCollateralUpdate(uint256 marketId, address manager, uint256 totalCollateral);
   /// @notice log how much collateral trader has at stake, 
   /// to be used for redeeming, restricting trades
   function _logTrades(
@@ -456,7 +462,8 @@ event MarketDenied(uint256 indexed marketId);
         } else {
         longTrades[marketId][trader] -= collateral;
         loggedCollaterals[marketId] -= collateral; 
-        } 
+        }
+        emit TraderLongCollateralUpdate(marketId, trader, longTrades[marketId][trader]);
       } else{
       if (isBuy) {
         // shortCollateral is amount trader pays to buy shortZCB
@@ -467,9 +474,11 @@ event MarketDenied(uint256 indexed marketId);
         } else {
         // revert if underflow, which means trader sold short at a profit, which is not allowed during assessment 
         shortTrades[marketId][trader] -= shortCollateral; 
-        loggedCollaterals[marketId] += collateral; 
+        loggedCollaterals[marketId] += collateral;
       } 
+      emit TraderShortCollateralUpdate(marketId, trader, shortTrades[marketId][trader]);
     }
+    emit MarketCollateralUpdate(marketId, loggedCollaterals[marketId]);
   }
 
   /// @notice general limitorder claim + liquidity provision funnels used post-assessment, 
@@ -564,6 +573,7 @@ event MarketDenied(uint256 indexed marketId);
   mapping(address => uint8) public queuedRepUpdates; 
   uint8 public constant queuedRepThreshold = 3; // at most 3 simultaneous assessment per manager
 
+  event BondBuy(uint256 indexed marketId, address indexed trader, uint256 amountIn, uint256 amountOut);
   /// @notice main entry point for longZCB buys 
   /// @param _amountIn is negative if specified in zcb quantity
   function buyBond(
@@ -606,6 +616,7 @@ event MarketDenied(uint256 indexed marketId);
               .principal)
         ) {
           restriction_data[_marketId].onlyReputable = false;
+          emit MarketPhaseSet(_marketId, restriction_data[_marketId].duringAssessment, restriction_data[_marketId].onlyReputable, getTraderBudget(_marketId, msg.sender));
         }
       }
     }
@@ -625,8 +636,10 @@ event MarketDenied(uint256 indexed marketId);
       //   (uint256 escrowAmount, uint128 crossId) = bondPool.makerOpen(point, uint256(_amountIn), true, msg.sender); 
       // }
     }
+    emit BondBuy(_marketId, msg.sender, amountIn, amountOut); // get current price as well.
   }
 
+  
   /// @notice longZCB sells  
   /// @param _amountIn quantity in longZCB 
   function sellBond(
@@ -723,6 +736,7 @@ event MarketDenied(uint256 indexed marketId);
     }
   }
 
+  event RedeemDenied(uint256 marketId, address trader, bool isLong);
 
   /// @notice called by traders when market is denied before approval TODO
   /// ??? if the market is denied, this function is called and everything is redeemed 
@@ -745,6 +759,7 @@ event MarketDenied(uint256 indexed marketId);
       // TODO this means if trader's loss will be refunded if loss was realized before denied market
       collateral_amount = shortTrades[marketId][msg.sender]; 
       delete shortTrades[marketId][msg.sender]; 
+      emit RedeemDenied(marketId, msg.sender, false);
 
       //Burn all their balance
       bondPool.trustedBurn(msg.sender, balance, false);
@@ -762,6 +777,7 @@ event MarketDenied(uint256 indexed marketId);
       else{
         collateral_amount = longTrades[marketId][msg.sender]; 
         delete longTrades[marketId][msg.sender]; 
+        emit RedeemDenied(marketId, msg.sender, true);
       }
 
       // Burn all their balance 

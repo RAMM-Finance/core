@@ -263,6 +263,7 @@ contract ReputationManager {
         return traders;
     }
 
+    event ScoreUpdated(address trader, uint256 score);
     /**
     @notice increments trader's score
     @dev score >= 0, update > 0
@@ -270,11 +271,13 @@ contract ReputationManager {
     function incrementScore(address trader, uint256 update) onlyProtocol public {
         trader_scores[trader] += update;
         _updateRanking(trader, true);
+        emit ScoreUpdated(trader, trader_scores[trader]);
     }
 
     function testIncrementScore(uint256 update) public {
         trader_scores[msg.sender] += update;
         _updateRanking(msg.sender, true);
+        emit ScoreUpdated(msg.sender, trader_scores[msg.sender]);
     }
 
     /**

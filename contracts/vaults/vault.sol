@@ -22,12 +22,6 @@ contract Vault is ERC4626{
     using FixedPointMathLib for uint256;
 
 
-    event InstrumentDeposit(address indexed user, Instrument indexed instrument, uint256 underlyingAmount);
-    event InstrumentWithdrawal(address indexed user, Instrument indexed instrument, uint256 underlyingAmount);
-    event InstrumentTrusted(address indexed user, Instrument indexed instrument);
-    event InstrumentDistrusted(address indexed user, Instrument indexed instrument);
-    event InstrumentHarvest(address indexed instrument, uint256 instrument_balance, uint256 mag, bool sign); //sign is direction of mag, + or -.
-
     /*///////////////////////////////////////////////////////////////
                                  CONSTANTS
     //////////////////////////////////////////////////////////////*/
@@ -113,8 +107,8 @@ contract Vault is ERC4626{
     )
         ERC4626(
             ERC20(_UNDERLYING),
-            string(abi.encodePacked("debita ", ERC20(_UNDERLYING).name(), " Vault")),
-            string(abi.encodePacked("db", ERC20(_UNDERLYING).symbol()))
+            string(abi.encodePacked("Ramm ", ERC20(_UNDERLYING).name(), " Vault")),
+            string(abi.encodePacked("RAMM", ERC20(_UNDERLYING).symbol()))
         )  
 
     {   
@@ -225,6 +219,8 @@ contract Vault is ERC4626{
       pju); 
     }
 
+    event InstrumentHarvest(address indexed instrument, uint256 totalInstrumentHoldings, uint256 instrument_balance, uint256 mag, bool sign); //sign is direction of mag, + or -.
+
     /// @notice Harvest a trusted Instrument, records profit/loss 
     function harvest(address instrument) public {
       require(instrument_data[Instrument(instrument)].trusted, "UNTRUSTED_Instrument");
@@ -245,16 +241,17 @@ contract Vault is ERC4626{
       delta = net_positive ? balanceThisHarvest - balanceLastHarvest : balanceLastHarvest - balanceThisHarvest;
       totalInstrumentHoldings = net_positive ? oldTotalInstrumentHoldings + delta : oldTotalInstrumentHoldings - delta;
 
-      emit InstrumentHarvest(instrument, balanceThisHarvest, delta, net_positive);
+      emit InstrumentHarvest(instrument, totalInstrumentHoldings, balanceThisHarvest, delta, net_positive);
     }
 
+    event InstrumentDeposit(uint256 indexed marketId, address indexed instrument, uint256 amount, bool isPool);
     /// @notice Deposit a specific amount of float into a trusted Instrument.
     /// Called when market is approved. 
     /// Also has the role of granting a credit line to a credit-based Instrument like uncol.loans 
     function depositIntoInstrument(
       uint256 marketId, 
       uint256 underlyingAmount,
-      bool isPool) public virtual 
+      bool isPool) public virtual
   //onlyManager
     {
       Instrument instrument = fetchInstrument(marketId); 
@@ -284,9 +281,10 @@ contract Vault is ERC4626{
 
       }
 
-      emit InstrumentDeposit(msg.sender, instrument, underlyingAmount);
+      emit InstrumentDeposit(marketId, address(instrument), underlyingAmount, isPool);
     }
 
+    event InstrumentWithdrawal(uint256 indexed marketId, address indexed instrument, uint256 amount);
     /// @notice Withdraw a specific amount of underlying tokens from a Instrument.
     function withdrawFromInstrument(
       Instrument instrument, 
@@ -302,7 +300,7 @@ contract Vault is ERC4626{
       
       if (redeem) require(instrument.redeemUnderlying(underlyingAmount), "REDEEM_FAILED");
 
-      emit InstrumentWithdrawal(msg.sender, instrument, underlyingAmount);
+      emit InstrumentWithdrawal(instrument_data[instrument].marketId, address(instrument), underlyingAmount);
     }
 
     function withdrawFromPoolInstrument(
@@ -324,6 +322,7 @@ contract Vault is ERC4626{
       withdrawFromInstrument(fetchInstrument(marketId), underlyingAmount, false);
     }
 
+    event InstrumentTrusted(uint256 indexed marketId, address indexed instrument, uint256 principal, uint256 expectedYield);
     /// @notice Stores a Instrument as trusted when its approved
     function trustInstrument(
       uint256 marketId,
@@ -348,6 +347,7 @@ contract Vault is ERC4626{
       } else{
         depositIntoInstrument(marketId, data.approved_principal - data.managers_stake, true);
       }
+      emit InstrumentTrusted(marketId, address(Instruments[marketId]), data.approved_principal, data.approved_yield);
     }
 
     /// @notice fetches how much asset the instrument has in underlying. 
@@ -362,6 +362,7 @@ contract Vault is ERC4626{
     }
 
     /// @notice Stores a Instrument as untrusted
+    // not needed?
     function distrustInstrument(Instrument instrument) external onlyController {
       instrument_data[instrument].trusted = false; 
     }
@@ -437,7 +438,8 @@ contract Vault is ERC4626{
       return (data.poolData.promisedReturn, data.poolData.inceptionTime, 
             data.poolData.inceptionPrice, data.poolData.leverageFactor, data.poolData.managementFee); 
     }
-
+  
+    event InstrumentRemoved(uint256 indexed marketId, address indexed instrumentAddress);
     /**
      called on market denial + removal, maybe no chekcs?
      */
@@ -447,34 +449,36 @@ contract Vault is ERC4626{
         delete instrument_data[Instruments[marketId]];
         delete Instruments[marketId];
         // emit event here;
+        emit InstrumentRemoved(marketId, address(Instruments[marketId]));
     }
 
-    event PoolAdded(
-      uint256 indexed marketId,
-      address indexed instrumentAddress,
-      bytes32 indexed name,
-      uint256 saleAmount, 
-      uint256 initPrice, // init price of longZCB in the amm 
-      uint256 promisedReturn, //per unit time 
-      uint256 inceptionTime,
-      uint256 inceptionPrice, // init price of longZCB after assessment 
-      uint256 leverageFactor, //leverageFactor * manager collateral = capital from vault to instrument
-      uint256 managementFee
-    );
+    // event PoolAdded(
+    //   uint256 indexed marketId,
+    //   address indexed instrumentAddress,
+    //   bytes32 indexed name,
+    //   uint256 saleAmount, 
+    //   uint256 initPrice, // init price of longZCB in the amm 
+    //   uint256 promisedReturn, //per unit time 
+    //   uint256 inceptionTime,
+    //   uint256 inceptionPrice, // init price of longZCB after assessment 
+    //   uint256 leverageFactor, //leverageFactor * manager collateral = capital from vault to instrument
+    //   uint256 managementFee
+    // );
 
-    event InstrumentAdded(
-      uint256 indexed marketId,
-      address indexed instrumentAddress,
-      bytes32 indexed name,
-      uint256 faceValue,
-      uint256 principal,
-      uint256 expectedYield,
-      uint256 duration,
-      uint256 maturityDate,
-      InstrumentType instrumentType,
-      bool isPool
-    );
+    // event InstrumentAdded(
+    //   uint256 indexed marketId,
+    //   address indexed instrumentAddress,
+    //   bytes32 indexed name,
+    //   uint256 faceValue,
+    //   uint256 principal,
+    //   uint256 expectedYield,
+    //   uint256 duration,
+    //   uint256 maturityDate,
+    //   InstrumentType instrumentType,
+    //   bool isPool
+    // );
 
+    event ProposalAdded(InstrumentData data);
     /// @notice add instrument proposal created by the Utilizer 
     /// @dev Instrument instance should be created before this is called
     /// need to add authorization
@@ -493,11 +497,15 @@ contract Vault is ERC4626{
         instrument_data[Instrument(data.instrument_address)] = data;  
 
         Instruments[data.marketId] = Instrument(data.instrument_address);
+        emit ProposalAdded(data);
     }
 
+    event MaturityDateSet(uint256 indexed marketId, address indexed instrument, uint256 maturityDate);
+  
     function setMaturityDate(uint256 marketId) internal {
 
         instrument_data[fetchInstrument(marketId)].maturityDate = instrument_data[fetchInstrument(marketId)].duration + block.timestamp;
+        emit MaturityDateSet(marketId, address(fetchInstrument(marketId)), instrument_data[fetchInstrument(marketId)].maturityDate);
     }
 
     /// @notice function called when instrument resolves from within
@@ -583,7 +591,7 @@ contract Vault is ERC4626{
 
     event InstrumentDeny(uint256 indexed marketId);
     /**
-     called on market denial by controller.
+     called on market denial by controller => denied before approval
      */
     function denyInstrument(uint256 marketId) external onlyController {
         InstrumentData storage data = instrument_data[Instruments[marketId]];
