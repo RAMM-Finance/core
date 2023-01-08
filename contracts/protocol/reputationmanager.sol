@@ -320,6 +320,7 @@ contract ReputationManager {
         trader_scores[trader] -= update;
         }
         _updateRanking(trader, false);
+        emit ScoreUpdated(trader, trader_scores[trader]);
     }
 
     /**

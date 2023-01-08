@@ -38,9 +38,9 @@ contract MarketManager
   // mapping(uint256 => uint256) requestToMarketId; // chainlink request id to marketId
   // mapping(uint256 => ValidatorData) validator_data;
   mapping(uint256=>uint256) public redemption_prices; //redemption price for each market, set when market resolves 
-  mapping(uint256=>mapping(address=>uint256)) private assessment_prices; 
-  mapping(uint256=>mapping(address=>bool)) private assessment_trader;
-  mapping(uint256=>mapping(address=>uint256) ) public assessment_probs; 
+  // mapping(uint256=>mapping(address=>uint256)) private assessment_prices; 
+  // mapping(uint256=>mapping(address=>bool)) private assessment_trader;
+  // mapping(uint256=>mapping(address=>uint256) ) public assessment_probs; 
   mapping(uint256=> MarketPhaseData) public restriction_data; // market ID => restriction data
   mapping(uint256=> MarketParameters) public parameters; //marketId-> params
   mapping(uint256=> mapping(address=>bool)) private redeemed; 
@@ -151,7 +151,7 @@ contract MarketManager
   }
 
   /// @notice parameters have to be set prior 
-  event MarketCreated(uint256 indexed marketId, address bondPool, address longZCB, address shortZCB, string description, bool isPool);
+  // event MarketCreated(uint256 indexed marketId, address bondPool, address longZCB, address shortZCB, string description, bool isPool);
 
   function newMarket(
     uint256 marketId,
@@ -164,7 +164,7 @@ contract MarketManager
     ) external onlyController {
     uint256 creationTimestamp = block.timestamp;
     
-    emit MarketCreated(marketId, address(bondPool), _longZCB, _shortZCB, _description, isPool);
+    //emit MarketCreated(marketId, address(bondPool), _longZCB, _shortZCB, _description, isPool);
 
     markets.push(CoreMarketData(
       bondPool, 
@@ -210,11 +210,11 @@ contract MarketManager
    @dev in the event that the number of traders in X percentile is less than the specified number of validators
    parameter N is changed to reflect this
    */
-  function setN(uint256 marketId, uint256 _N) external onlyController {
-    parameters[marketId].N = _N;
-  }
+  // function setN(uint256 marketId, uint256 _N) external onlyController {
+  //   parameters[marketId].N = _N;
+  // }
 
-event MarketPhaseSet(uint256 indexed marketId, bool duringAssessment, bool onlyReputable, uint256 base_budget);
+event MarketPhaseSet(uint256 indexed marketId, MarketPhaseData data);
 
   /// @notice sets market phase data
   /// @dev called on market initialization by controller
@@ -224,26 +224,26 @@ event MarketPhaseSet(uint256 indexed marketId, bool duringAssessment, bool onlyR
     bool duringAssessment,
     bool _onlyReputable,
     uint256 base_budget
-    ) public onlyController{
+    ) internal {
     MarketPhaseData storage data = restriction_data[marketId]; 
     data.onlyReputable = _onlyReputable; 
     data.duringAssessment = duringAssessment;
     // data.min_rep_score = calcMinRepScore(marketId);
     data.base_budget = base_budget;
     data.alive = true;
-    emit MarketPhaseSet(marketId, duringAssessment, _onlyReputable, base_budget);
+    emit MarketPhaseSet(marketId, restriction_data[marketId]);
   }
 
   event MarketReputationSet(uint256 indexed marketId, bool onlyReputable);
 
   /// @notice used to transition from reputationphases 
-  function setReputationPhase(
-    uint256 marketId,
-    bool _onlyReputable
-  ) public onlyController {
-    restriction_data[marketId].onlyReputable = _onlyReputable;
-    emit MarketReputationSet(marketId, _onlyReputable);
-  }
+  // function setReputationPhase(
+  //   uint256 marketId,
+  //   bool _onlyReputable
+  // ) public onlyController {
+  //   restriction_data[marketId].onlyReputable = _onlyReputable;
+  //   emit MarketReputationSet(marketId, _onlyReputable);
+  // }
 
 
 event DeactivatedMarket(uint256 indexed marketId, bool atLoss, bool resolve, uint256 rp);
@@ -406,17 +406,17 @@ event MarketDenied(uint256 indexed marketId);
     //TODO: check if this is correct
     // require(controller.getVault(marketId).fetchInstrumentData(marketId).maturityDate > block.timestamp, "market maturity reached");
 
-    if(restriction_data[marketId].duringAssessment) {
-      // restrict attacking via disapproving the utilizer by just shorting a bunch
-     // if(amount>= hedgeAmount) return false; 
+    // if(restriction_data[marketId].duringAssessment) {
+    //   // restrict attacking via disapproving the utilizer by just shorting a bunch
+    //  // if(amount>= hedgeAmount) return false; 
 
-      //else return true;
-    }
-    else{
-      // restrict naked CDS amount
+    //   //else return true;
+    // }
+    // else{
+    //   // restrict naked CDS amount
       
-      // 
-    } 
+    //   // 
+    // } 
 
     return true; 
   }
@@ -441,8 +441,7 @@ event MarketDenied(uint256 indexed marketId);
 
 
   event MarketCollateralUpdate(uint256 marketId, uint256 totalCollateral);
-  event TraderLongCollateralUpdate(uint256 marketId, address manager, uint256 totalCollateral);
-  event TraderShortCollateralUpdate(uint256 marketId, address manager, uint256 totalCollateral);
+  event TraderCollateralUpdate(uint256 marketId, address manager, uint256 totalCollateral, bool isLong);
   /// @notice log how much collateral trader has at stake, 
   /// to be used for redeeming, restricting trades
   function _logTrades(
@@ -465,8 +464,8 @@ event MarketDenied(uint256 indexed marketId);
         longTrades[marketId][trader] -= collateral;
         loggedCollaterals[marketId] -= collateral; 
         }
-        emit TraderLongCollateralUpdate(marketId, trader, longTrades[marketId][trader]);
-      } else{
+        emit TraderCollateralUpdate(marketId, trader, longTrades[marketId][trader], true);
+      } else {
       if (isBuy) {
         // shortCollateral is amount trader pays to buy shortZCB
         shortTrades[marketId][trader] += shortCollateral;
@@ -478,7 +477,7 @@ event MarketDenied(uint256 indexed marketId);
         shortTrades[marketId][trader] -= shortCollateral; 
         loggedCollaterals[marketId] += collateral;
       } 
-      emit TraderShortCollateralUpdate(marketId, trader, shortTrades[marketId][trader]);
+      emit TraderCollateralUpdate(marketId, trader, shortTrades[marketId][trader], false);
     }
     emit MarketCollateralUpdate(marketId, loggedCollaterals[marketId]);
   }
@@ -546,10 +545,10 @@ event MarketDenied(uint256 indexed marketId);
     ) external _lock_ returns(uint256 collateral_redeem_amount, uint256 seniorAmount){
     // TODO conditions/restrictions-> need some time to pass to call this + need some liquidity in pool 
     Vault vault = controller.getVault(marketId); 
-    CoreMarketData memory market = markets[marketId]; 
+    // CoreMarketData memory market = markets[marketId]; 
 
-    require(market.isPool, "!pool"); 
-    require(market.longZCB.balanceOf(msg.sender) >= redeemAmount, "insufficient bal"); 
+    require(markets[marketId].isPool, "!pool"); 
+    require(markets[marketId].longZCB.balanceOf(msg.sender) >= redeemAmount, "insufficient bal"); 
 
     (uint256 psu, uint256 pju, uint256 levFactor ) = vault.poolZCBValue(marketId);
     collateral_redeem_amount = pju.mulWadDown(redeemAmount); 
@@ -565,7 +564,7 @@ event MarketDenied(uint256 indexed marketId);
     if (queuedRepUpdates[msg.sender] > 0){
      unchecked{queuedRepUpdates[msg.sender] -= 1;} 
     }
-    market.bondPool.trustedBurn(msg.sender, redeemAmount, true); 
+    markets[marketId].bondPool.trustedBurn(msg.sender, redeemAmount, true); 
 
     // TODO assert pju stays same 
     // TODO assert need totalAssets and exchange rate to remain same 
@@ -623,7 +622,7 @@ event MarketDenied(uint256 indexed marketId);
               .principal)
         ) {
           restriction_data[_marketId].onlyReputable = false;
-          emit MarketPhaseSet(_marketId, restriction_data[_marketId].duringAssessment, restriction_data[_marketId].onlyReputable, getTraderBudget(_marketId, msg.sender));
+          emit MarketPhaseSet(_marketId, restriction_data[_marketId]);
         }
       }
     }

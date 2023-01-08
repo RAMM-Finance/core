@@ -145,11 +145,14 @@ abstract contract Instrument {
         return locked; 
     }
 
+    event LiquidityTransfer(address indexed to, uint256 amount);
     function transfer_liq(address to, uint256 amount) internal notLocked {
         if (vault.decimal_mismatch()) amount = vault.decSharesToAssets(amount); 
         underlying.transfer(to, amount);
+        emit LiquidityTransfer(to, amount);
     }
 
+    event LiquidityTransferFrom(address indexed to, uint256 amount);
     function transfer_liq_from(address from, address to, uint256 amount) internal notLocked {
         if (vault.decimal_mismatch()) amount = vault.decSharesToAssets(amount); 
         underlying.transferFrom(from, to, amount);
@@ -345,10 +348,12 @@ contract CreditLine is Instrument {
         return true; 
     } 
 
+    event DepositCollateral(uint256 amount);
     /// @notice borrower deposit promised collateral  
     function depositCollateral(uint256 amount) external onlyUtilizer {
         require(collateral!= address(0)); 
         ERC20(collateral).transferFrom(msg.sender, address(this), amount); 
+        emit DepositCollateral(amount);
     }
 
     /// @notice can only redeem collateral when debt is fully paid 
@@ -403,7 +408,8 @@ contract CreditLine is Instrument {
         // Owed interest from last timestamp till now  + any unpaid interest that has accumulated
         return elapsedTime.mulWadDown(interestAPR.mulWadDown(principalOwed)) + accumulated_interest ; 
     }
-     
+
+    event Drawdown(uint256 amount);
     /// @notice Allows a borrower to borrow on their creditline.
     /// This creditline allows only lump sum drawdowns, all approved principal needs to be borrowed
     /// which would start the interest timer 
@@ -420,8 +426,11 @@ contract CreditLine is Instrument {
         interestOwed = notionalInterest;
 
         transfer_liq(msg.sender, principal); 
+
+        emit Drawdown(principal);
     }
 
+    event Repay(uint256 amount);
     /// @notice allows a borrower to repay their loan
     /// Standard repayment structure is repaying interest for the owed principal periodically and
     /// whenever principal is repayed interest owed is decreased proportionally 
@@ -458,6 +467,8 @@ contract CreditLine is Instrument {
         lastRepaymentTime = getCurrentTime();  
 
         transfer_liq_from(msg.sender, address(this), _repay_amount);
+
+        emit Repay(_repay_amount);
 
     }   
 

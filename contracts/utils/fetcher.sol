@@ -368,7 +368,6 @@ contract Fetcher {
             bundle.seniorAPR = bundle.poolData.promisedReturn; 
             bundle.approvalPrice = bundle.poolData.inceptionPrice; 
         }
-
     }
 
     function makeEmptyVaultBundle() pure internal returns (VaultBundle memory) {
