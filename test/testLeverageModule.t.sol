@@ -107,13 +107,13 @@ clabels.push(
         );
                
         vm.prank(address(controller));
-        pool.addAcceptedCollateral(
-            vault_ad,
-            0,
-            precision, 
-            precision*9/10, 
-            true
-        );      
+        // pool.addAcceptedCollateral(
+        //     vault_ad,
+        //     0,
+        //     precision, 
+        //     precision*9/10, 
+        //     true
+        // );      
 
     }
    

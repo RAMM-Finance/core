@@ -339,40 +339,6 @@ contract FetcherTest is Test {
             1
         );
         vm.startPrank(chris);
-        if(data.isPool){
-            controller.addAcceptedCollateral(
-                1,
-                address(col1),
-                0,
-                wad/2,
-                wad/4,
-                true
-            );
-            controller.addAcceptedCollateral(
-                1,
-                address(col2),
-                0,
-                wad/2,
-                wad/4,
-                true
-            );
-            controller.addAcceptedCollateral(
-                1,
-                address(nft1),
-                1,
-                wad/2,
-                wad/4,
-                false
-            );
-            controller.addAcceptedCollateral(
-                1,
-                address(nft2),
-                1,
-                wad/2,
-                wad/4,
-                false
-            );
-        }
 
         console.log("Pool collateral length: ", poolInstrument.getAcceptedCollaterals().length);
         uint256[] memory words = new uint256[](N);

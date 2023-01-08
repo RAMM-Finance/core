@@ -195,6 +195,8 @@ contract MarketManager
     uint256 utilizationRate,
     uint256 marketId 
     ) public onlyController{
+
+    require(param.N <= reputationManager.getTraders().length, "not enough rated traders");
     parameters[marketId] = param; 
     parameters[marketId].s = param.s.mulWadDown(config.WAD - utilizationRate); // experiment
     emit MarketParametersSet(marketId, param);

@@ -19,6 +19,8 @@ import {SafeTransferLib} from "solmate/utils/SafeTransferLib.sol";
 import {ReputationManager} from "./reputationmanager.sol";
 import {PoolInstrument} from "../instruments/poolInstrument.sol";
 
+import {ValidatorManager} from "./validatormanager.sol";
+
 contract Controller {
     using SafeMath for uint256;
     using FixedPointMathLib for uint256;
@@ -34,6 +36,8 @@ contract Controller {
         uint256 approved_principal;
         uint256 approved_yield;
     }
+
+    ValidatorManager validatorManager;
 
 
 
@@ -115,6 +119,10 @@ contract Controller {
 
     function setPoolFactory(address _poolFactory) public onlyManager {
         poolFactory = SyntheticZCBPoolFactory(_poolFactory);
+    }
+
+    function setValidatorManager(address _validatorManager) public onlyManager {
+        validatorManager = ValidatorManager(_validatorManager);
     }
 
     // function verifyAddress(
@@ -229,7 +237,7 @@ contract Controller {
         );
 
           // set validators
-          _validatorSetup(
+          validatorManager.validatorSetup(
             marketId,
             instrumentData.poolData.saleAmount,
             instrumentData.isPool
@@ -251,7 +259,7 @@ contract Controller {
             );          
 
             // set validators
-            _validatorSetup(
+            validatorManager.validatorSetup(
                 marketId,
                 instrumentData.principal,
                 instrumentData.isPool
@@ -307,7 +315,7 @@ contract Controller {
             principal_loss,
             premature
         );
-        _updateValidatorStake(
+        validatorManager.updateValidatorStake(
             marketId,
             approvalDatas[marketId].approved_principal,
             principal_loss
@@ -336,7 +344,7 @@ contract Controller {
             principal_loss,
             premature
         );
-        _updateValidatorStake(
+        validatorManager.updateValidatorStake(
             marketId,
             approvalDatas[marketId].approved_principal,
             principal_loss
@@ -479,17 +487,20 @@ contract Controller {
     }
 
     /// GOD FUNCTION
-    function testApproveMarket(uint256 marketId) public {
+    function testApproveMarket(uint256 marketId) external {
+        require(msg.sender == creator_address, "!owner");
         require(marketCondition(marketId), "market condition not met");
         approveMarket(marketId);
-        marketManager.approveMarket(marketId);
     }
 
     /// @notice called by the validator from validatorApprove when market conditions are met
     /// need to move the collateral in the wCollateral to
-    function approveMarket(uint256 marketId) internal {
+    function approveMarket(uint256 marketId) public {
+        require(msg.sender == address(validatorManager), "!validator");
         Vault vault = vaults[id_parent[marketId]];
         SyntheticZCBPool pool = marketManager.getPool(marketId);
+
+        marketManager.approveMarket(marketId);
 
         require(
             marketManager.getCurrentMarketPhase(marketId) == 3,
@@ -605,45 +616,47 @@ contract Controller {
     }
 
     /*----Validator Logic----*/
-    struct ValidatorData {
-        mapping(address => uint256) sales; // amount of zcb bought per validator
-        mapping(address => bool) staked; // true if address has staked vt (approved)
-        mapping(address => bool) resolved; // true if address has voted to resolve the market
-        address[] validators;
-        uint256 val_cap; // total zcb validators can buy at a discount
-        uint256 avg_price; //price the validators can buy zcb at a discount
-        bool requested; // true if already requested random numbers from array.
-        uint256 totalSales; // total amount of zcb bought;
-        uint256 totalStaked; // total amount of vault token staked.
-        uint256 numApproved;
-        uint256 initialStake; // amount staked
-        uint256 finalStake; // amount of stake recoverable post resolve
-        uint256 numResolved; // number of validators calling resolve on early resolution.
-    }
+    // struct ValidatorData {
+    //     mapping(address => uint256) sales; // amount of zcb bought per validator
+    //     mapping(address => bool) staked; // true if address has staked vt (approved)
+    //     mapping(address => bool) resolved; // true if address has voted to resolve the market
+    //     address[] validators;
+    //     uint256 val_cap; // total zcb validators can buy at a discount
+    //     uint256 avg_price; //price the validators can buy zcb at a discount
+    //     bool requested; // true if already requested random numbers from array.
+    //     uint256 totalSales; // total amount of zcb bought;
+    //     uint256 totalStaked; // total amount of vault token staked.
+    //     uint256 numApproved;
+    //     uint256 initialStake; // amount staked
+    //     uint256 finalStake; // amount of stake recoverable post resolve
+    //     uint256 numResolved; // number of validators calling resolve on early resolution.
+    // }
 
-    mapping(uint256 => uint256) requestToMarketId;
-    mapping(uint256 => ValidatorData) public validator_data;
+    // mapping(uint256 => uint256) requestToMarketId;
+    // mapping(uint256 => ValidatorData) public validator_data;
 
     /// @notice sets the validator cap + valdiator amount
     /// param prinicipal is saleAmount for pool based instruments
     /// @dev called by controller to setup the validator scheme
-    function _validatorSetup(
-        uint256 marketId,
-        uint256 principal,
-        bool isPool
-    ) internal {
-        require(principal != 0, "0 principal");
-        _getValidators(marketId);
-        _setValidatorCap(marketId, principal, isPool);
-        _setValidatorStake(marketId, principal);
-    }
+    // function _validatorSetup(
+    //     uint256 marketId,
+    //     uint256 principal,
+    //     bool isPool
+    // ) internal {
+    //     require(principal != 0, "0 principal");
+    //     _getValidators(marketId);
+    //     _setValidatorCap(marketId, principal, isPool);
+    //     _setValidatorStake(marketId, principal);
+    // }
 
     function getValidatorPrice(uint256 marketId) public view returns (uint256) {
-        return validator_data[marketId].avg_price;
+        return validatorManager.getValidatorPrice(marketId);
+        //return validator_data[marketId].avg_price;
     }
 
     function getValidatorCap(uint256 marketId) public view returns (uint256) {
-        return validator_data[marketId].val_cap;
+        return validatorManager.getValidatorCap(marketId);
+        //return validator_data[marketId].val_cap;
     }
 
     function viewValidators(uint256 marketId)
@@ -651,19 +664,23 @@ contract Controller {
         view
         returns (address[] memory)
     {
-        return validator_data[marketId].validators;
+        return validatorManager.viewValidators(marketId);
+        //return validator_data[marketId].validators;
     }
 
     function getNumApproved(uint256 marketId) public view returns (uint256) {
-        return validator_data[marketId].numApproved;
+        return validatorManager.getNumApproved(marketId);
+        //return validator_data[marketId].numApproved;
     }
 
     function getNumResolved(uint256 marketId) public view returns (uint256) {
-        return validator_data[marketId].numResolved;
+        return validatorManager.getNumResolved(marketId);
+        //return validator_data[marketId].numResolved;
     }
 
     function getTotalStaked(uint256 marketId) public view returns (uint256) {
-        return validator_data[marketId].totalStaked;
+        return validatorManager.getTotalStaked(marketId);
+        //return validator_data[marketId].totalStaked;
     }
 
     function getTotalValidatorSales(uint256 marketId)
@@ -671,56 +688,58 @@ contract Controller {
         view
         returns (uint256)
     {
-        return validator_data[marketId].totalSales;
+        return validatorManager.getTotalValidatorSales(marketId);
+        //return validator_data[marketId].totalSales;
     }
 
     function getInitialStake(uint256 marketId) public view returns (uint256) {
-        return validator_data[marketId].initialStake;
+        return validatorManager.getInitialStake(marketId);
+        //return validator_data[marketId].initialStake;
     }
 
     function getFinalStake(uint256 marketId) public view returns (uint256) {
-        return validator_data[marketId].finalStake;
+        return validatorManager.getFinalStake(marketId);
+        //return validator_data[marketId].finalStake;
     }
 
     /**
    @notice randomly choose validators for market approval, async operation => fulfillRandomness is the callback function.
    @dev for now called on market initialization
    */
-    function _getValidators(uint256 marketId) public {
-        // retrieve traders that meet requirement.
-        // address instrument = market_data[marketId].instrument_address;
-        address utilizer = market_data[marketId].utilizer;
-        (uint256 N, , , , , uint256 r, , ) = marketManager.parameters(marketId);
-        address[] memory selected = reputationManager.filterTraders(
-            r,
-            utilizer
-        );
+    // function _getValidators(uint256 marketId) public {
+    //     // retrieve traders that meet requirement.
+    //     // address instrument = market_data[marketId].instrument_address;
+    //     address utilizer = market_data[marketId].utilizer;
+    //     (uint256 N, , , , , uint256 r, , ) = marketManager.parameters(marketId);
+    //     address[] memory selected = reputationManager.filterTraders(
+    //         r,
+    //         utilizer
+    //     );
 
-        // if there are not enough traders, set validators to all selected traders.
-        if (selected.length <= N) {
-            validator_data[marketId].validators = selected;
+    //     // if there are not enough traders, set validators to all selected traders.
+    //     if (selected.length <= N) {
+    //         validator_data[marketId].validators = selected;
 
-            if (selected.length < N) {
-                marketManager.setN(marketId, selected.length);
-                revert("not enough rated traders");
-            }
+    //         if (selected.length < N) {
+    //             revert("not enough rated traders");
+    //         }
 
-            return;
-        }
+    //         return;
+    //     }
 
-        validator_data[marketId].requested = true;
+    //     validator_data[marketId].requested = true;
 
-        uint256 _requestId = 1;
-        // uint256 _requestId = COORDINATOR.requestRandomWords(
-        //   keyHash,
-        //   subscriptionId,
-        //   requestConfirmations,
-        //   callbackGasLimit,
-        //   uint32(parameters[marketId].N)
-        // );
+    //     uint256 _requestId = 1;
+    //     // uint256 _requestId = COORDINATOR.requestRandomWords(
+    //     //   keyHash,
+    //     //   subscriptionId,
+    //     //   requestConfirmations,
+    //     //   callbackGasLimit,
+    //     //   uint32(parameters[marketId].N)
+    //     // );
 
-        requestToMarketId[_requestId] = marketId;
-    }
+    //     requestToMarketId[_requestId] = marketId;
+    // }
 
     /**
    @notice chainlink callback function, sets validators.
@@ -731,49 +750,50 @@ contract Controller {
         uint256[] memory randomWords //internal
     ) public //override
     {
-        uint256 marketId = requestToMarketId[requestId];
-        (uint256 N, , , , , uint256 r, , ) = marketManager.parameters(marketId);
+        validatorManager.fulfillRandomWords(requestId, randomWords);
+        // uint256 marketId = requestToMarketId[requestId];
+        // (uint256 N, , , , , uint256 r, , ) = marketManager.parameters(marketId);
 
-        assert(randomWords.length == N);
+        // assert(randomWords.length == N);
 
-        // address instrument = market_data[marketId].instrument_address;
-        address utilizer = market_data[marketId].utilizer;
+        // // address instrument = market_data[marketId].instrument_address;
+        // address utilizer = market_data[marketId].utilizer;
 
-        address[] memory temp = reputationManager.filterTraders(r, utilizer);
-        uint256 length = temp.length;
+        // address[] memory temp = reputationManager.filterTraders(r, utilizer);
+        // uint256 length = temp.length;
 
-        // get validators
-        for (uint8 i = 0; i < N; i++) {
-            uint256 j = _weightedRetrieve(temp, length, randomWords[i]);
-            validator_data[marketId].validators.push(temp[j]);
-            temp[j] = temp[length - 1];
-            length--;
-        }
+        // // get validators
+        // for (uint8 i = 0; i < N; i++) {
+        //     uint256 j = _weightedRetrieve(temp, length, randomWords[i]);
+        //     validator_data[marketId].validators.push(temp[j]);
+        //     temp[j] = temp[length - 1];
+        //     length--;
+        // }
     }
 
-    function _weightedRetrieve(
-        address[] memory group,
-        uint256 length,
-        uint256 randomWord
-    ) internal view returns (uint256) {
-        uint256 sum_weights;
+    // function _weightedRetrieve(
+    //     address[] memory group,
+    //     uint256 length,
+    //     uint256 randomWord
+    // ) internal view returns (uint256) {
+    //     uint256 sum_weights;
 
-        for (uint8 i = 0; i < length; i++) {
-            sum_weights += getTraderScore(group[i]); //repToken.getReputationScore(group[i]);
-        }
+    //     for (uint8 i = 0; i < length; i++) {
+    //         sum_weights += getTraderScore(group[i]); //repToken.getReputationScore(group[i]);
+    //     }
 
-        uint256 tmp = randomWord % sum_weights;
+    //     uint256 tmp = randomWord % sum_weights;
 
-        for (uint8 i = 0; i < length; i++) {
-            uint256 wt = getTraderScore(group[i]);
-            if (tmp < wt) {
-                return i;
-            }
-            unchecked {
-                tmp -= wt;
-            }
-        }
-    }
+    //     for (uint8 i = 0; i < length; i++) {
+    //         uint256 wt = getTraderScore(group[i]);
+    //         if (tmp < wt) {
+    //             return i;
+    //         }
+    //         unchecked {
+    //             tmp -= wt;
+    //         }
+    //     }
+    // }
 
     /// @notice allows validators to buy at a discount + automatically stake a percentage of the principal
     /// They can only buy a fixed amount of ZCB, usually a at lot larger amount
@@ -782,37 +802,8 @@ contract Controller {
     /// They also need to hold the corresponding vault, so they are incentivized to assess at a systemic level and avoid highly
     /// correlated instruments triggers controller.approveMarket
     function validatorApprove(uint256 marketId) external returns (uint256) {
-        require(isValidator(marketId, msg.sender), "!Val");
-        require(marketCondition(marketId), "!condition");
-
-        ValidatorData storage valdata = validator_data[marketId];
-        require(!valdata.staked[msg.sender], "!staked");
-
-        // staking logic, TODO optional since will throw error on transfer.
-        // require(ERC20(getVaultAd(marketId)).balanceOf(msg.sender) >= valdata.initialStake, "not enough tokens to stake");
-
-        // staked vault tokens go to controller
-        ERC20(getVaultAd(marketId)).safeTransferFrom(
-            msg.sender,
-            address(this),
-            valdata.initialStake
-        );
-
-        valdata.totalStaked += valdata.initialStake;
-        valdata.staked[msg.sender] = true;
-
-        (uint256 N, , , , , , , ) = marketManager.parameters(marketId);
-        uint256 zcb_for_sale = valdata.val_cap / N;
-        uint256 collateral_required = zcb_for_sale.mulWadDown(
-            valdata.avg_price
-        );
-
-        require(valdata.sales[msg.sender] <= zcb_for_sale, "approved");
-
-        valdata.sales[msg.sender] += zcb_for_sale;
-        valdata.totalSales += (zcb_for_sale + 1); //since division rounds down ??
-        valdata.numApproved += 1;
-
+        
+        (uint256 collateral_required, uint256 zcb_for_sale) = validatorManager.validatorApprove(marketId, msg.sender);
         // marketManager actions on validatorApprove, transfers collateral to marketManager.
         marketManager.validatorApprove(
             marketId,
@@ -834,10 +825,11 @@ contract Controller {
    @notice conditions for approval => validator zcb stake fulfilled + validators have all approved
    */
     function approvalCondition(uint256 marketId) public view returns (bool) {
-        return (validator_data[marketId].totalSales >=
-            validator_data[marketId].val_cap &&
-            validator_data[marketId].validators.length ==
-            validator_data[marketId].numApproved);
+        return validatorManager.approvalCondition(marketId);
+        // return (validator_data[marketId].totalSales >=
+        //     validator_data[marketId].val_cap &&
+        //     validator_data[marketId].validators.length ==
+        //     validator_data[marketId].numApproved);
     }
 
     /**
@@ -848,13 +840,7 @@ contract Controller {
         view
         returns (bool)
     {
-        address[] storage _validators = validator_data[marketId].validators;
-        for (uint256 i = 0; i < _validators.length; i++) {
-            if (_validators[i] == user) {
-                return true;
-            }
-        }
-        return false;
+        return validatorManager.isValidator(marketId, user);
     }
 
     /**
@@ -862,8 +848,9 @@ contract Controller {
    have voted to resolve.
    */
     function resolveCondition(uint256 marketId) public view returns (bool) {
-        return (validator_data[marketId].numResolved ==
-            validator_data[marketId].validators.length);
+        return validatorManager.resolveCondition(marketId);
+        // return (validator_data[marketId].numResolved ==
+        //     validator_data[marketId].validators.length);
     }
 
     /**
@@ -871,119 +858,122 @@ contract Controller {
    principal and principal loss are in the underlying asset of the vault => must be converted to vault shares.
    @dev called by resolveMarket
    */
-    function _updateValidatorStake(
-        uint256 marketId,
-        uint256 principal,
-        uint256 principal_loss
-    ) internal {
-        if (principal_loss == 0) {
-            validator_data[marketId].finalStake = validator_data[marketId]
-                .initialStake;
-            return;
-        }
+    // function _updateValidatorStake(
+    //     uint256 marketId,
+    //     uint256 principal,
+    //     uint256 principal_loss
+    // ) internal {
+    //     if (principal_loss == 0) {
+    //         validator_data[marketId].finalStake = validator_data[marketId]
+    //             .initialStake;
+    //         return;
+    //     }
 
-        ERC4626 vault = ERC4626(vaults[id_parent[marketId]]);
-        uint256 p_shares = vault.convertToShares(principal);
-        uint256 p_loss_shares = vault.convertToShares(principal_loss);
+    //     ERC4626 vault = ERC4626(vaults[id_parent[marketId]]);
+    //     uint256 p_shares = vault.convertToShares(principal);
+    //     uint256 p_loss_shares = vault.convertToShares(principal_loss);
 
-        uint256 totalStaked = validator_data[marketId].totalStaked;
-        uint256 newTotal = totalStaked /
-            2 +
-            (p_shares - p_loss_shares).divWadDown(p_shares).mulWadDown(
-                totalStaked / 2
-            );
+    //     uint256 totalStaked = validator_data[marketId].totalStaked;
+    //     uint256 newTotal = totalStaked /
+    //         2 +
+    //         (p_shares - p_loss_shares).divWadDown(p_shares).mulWadDown(
+    //             totalStaked / 2
+    //         );
 
-        ERC4626(getVaultAd(marketId)).burn(totalStaked - newTotal);
-        validator_data[marketId].totalStaked = newTotal;
+    //     ERC4626(getVaultAd(marketId)).burn(totalStaked - newTotal);
+    //     validator_data[marketId].totalStaked = newTotal;
 
-        validator_data[marketId].finalStake =
-            newTotal /
-            validator_data[marketId].validators.length;
-    }
+    //     validator_data[marketId].finalStake =
+    //         newTotal /
+    //         validator_data[marketId].validators.length;
+    // }
 
     /**
    @notice called by validators to approve resolving the market, after approval.
    */
     function validatorResolve(uint256 marketId) external {
-        require(isValidator(marketId, msg.sender), "!val");
-        require(!validator_data[marketId].resolved[msg.sender], "voted");
+        validatorManager.validatorResolve(marketId, msg.sender);
+        // require(isValidator(marketId, msg.sender), "!val");
+        // require(!validator_data[marketId].resolved[msg.sender], "voted");
 
-        validator_data[marketId].resolved[msg.sender] = true;
-        validator_data[marketId].numResolved++;
+        // validator_data[marketId].resolved[msg.sender] = true;
+        // validator_data[marketId].numResolved++;
     }
 
     /**
    @notice called by validators when the market is resolved or denied to retrieve their stake.
    */
     function unlockValidatorStake(uint256 marketId) external {
-        require(isValidator(marketId, msg.sender), "!validator");
-        require(validator_data[marketId].staked[msg.sender], "!stake");
-        (bool duringMarketAssessment, , , , , ) = marketManager
-            .restriction_data(marketId);
+        validatorManager.unlockValidatorStake(marketId, msg.sender);
+        // require(isValidator(marketId, msg.sender), "!validator");
+        // require(validator_data[marketId].staked[msg.sender], "!stake");
+        // (bool duringMarketAssessment, , , , , ) = marketManager
+        //     .restriction_data(marketId);
 
-        // market early denial, no loss.
-        ERC4626 vault = ERC4626(vaults[id_parent[marketId]]);
-        if (duringMarketAssessment) {
-            ERC20(getVaultAd(marketId)).safeTransfer(
-                msg.sender,
-                validator_data[marketId].initialStake
-            );
-            validator_data[marketId].totalStaked -= validator_data[marketId]
-                .initialStake;
-        } else {
-            // market resolved.
-            ERC20(getVaultAd(marketId)).safeTransfer(
-                msg.sender,
-                validator_data[marketId].finalStake
-            );
-            validator_data[marketId].totalStaked -= validator_data[marketId]
-                .finalStake;
-        }
+        // // market early denial, no loss.
+        // ERC4626 vault = ERC4626(vaults[id_parent[marketId]]);
+        // if (duringMarketAssessment) {
+        //     ERC20(getVaultAd(marketId)).safeTransfer(
+        //         msg.sender,
+        //         validator_data[marketId].initialStake
+        //     );
+        //     validator_data[marketId].totalStaked -= validator_data[marketId]
+        //         .initialStake;
+        // } else {
+        //     // market resolved.
+        //     ERC20(getVaultAd(marketId)).safeTransfer(
+        //         msg.sender,
+        //         validator_data[marketId].finalStake
+        //     );
+        //     validator_data[marketId].totalStaked -= validator_data[marketId]
+        //         .finalStake;
+        // }
 
-        validator_data[marketId].staked[msg.sender] = false;
+        // validator_data[marketId].staked[msg.sender] = false;
     }
 
     /// @notice called when market initialized, calculates the average price and quantities of zcb
     /// validators will buy at a discount when approving
     /// valcap = sigma * princpal.
-    function _setValidatorCap(
-        uint256 marketId,
-        uint256 principal,
-        bool isPool //??
-    ) internal {
-        SyntheticZCBPool bondingPool = marketManager.getPool(marketId);
-        (, uint256 sigma, , , , , , ) = marketManager.parameters(marketId);
-        require(config.isInWad(sigma) && config.isInWad(principal), "paramERR");
-        ValidatorData storage valdata = validator_data[marketId];
+    // function _setValidatorCap(
+    //     uint256 marketId,
+    //     uint256 principal,
+    //     bool isPool //??
+    // ) internal {
+    //     SyntheticZCBPool bondingPool = marketManager.getPool(marketId);
+    //     (, uint256 sigma, , , , , , ) = marketManager.parameters(marketId);
+    //     require(config.isInWad(sigma) && config.isInWad(principal), "paramERR");
+    //     ValidatorData storage valdata = validator_data[marketId];
 
-        uint256 valColCap = (sigma.mulWadDown(principal));
+    //     uint256 valColCap = (sigma.mulWadDown(principal));
 
-        // Get how much ZCB validators need to buy in total, which needs to be filled for the market to be approved
-        uint256 discount_cap = bondingPool.discount_cap();
-        uint256 avgPrice = valColCap.divWadDown(discount_cap);
+    //     // Get how much ZCB validators need to buy in total, which needs to be filled for the market to be approved
+    //     uint256 discount_cap = bondingPool.discount_cap();
+    //     uint256 avgPrice = valColCap.divWadDown(discount_cap);
 
-        valdata.val_cap = discount_cap;
-        valdata.avg_price = avgPrice;
-    }
+    //     valdata.val_cap = discount_cap;
+    //     valdata.avg_price = avgPrice;
+    // }
 
     /**
    @notice sets the amount of vt staked by a single validator for a specific market
    @dev steak should be between 1-0 wad.
    */
-    function _setValidatorStake(uint256 marketId, uint256 principal) internal {
-        //get vault
-        ERC4626 vault = ERC4626(vaults[id_parent[marketId]]);
-        uint256 shares = vault.convertToShares(principal);
-        (, , , , , , , uint256 steak) = marketManager.parameters(marketId);
-        validator_data[marketId].initialStake = steak.mulWadDown(shares);
-    }
+    // function _setValidatorStake(uint256 marketId, uint256 principal) internal {
+    //     //get vault
+    //     ERC4626 vault = ERC4626(vaults[id_parent[marketId]]);
+    //     uint256 shares = vault.convertToShares(principal);
+    //     (, , , , , , , uint256 steak) = marketManager.parameters(marketId);
+    //     validator_data[marketId].initialStake = steak.mulWadDown(shares);
+    // }
 
     function hasApproved(uint256 marketId, address validator)
         public
         view
         returns (bool)
     {
-        return validator_data[marketId].staked[validator];
+        return validatorManager.hasApproved(marketId, validator);
+        // return validator_data[marketId].staked[validator];
     }
 
     /**
@@ -994,18 +984,26 @@ contract Controller {
         onlyManager
         returns (uint256 collateral_amount)
     {
+        collateral_amount = validatorManager.deniedValidator(
+            marketId,
+            validator
+        );
         //??? is this correct
-        collateral_amount = validator_data[marketId]
-            .sales[validator]
-            .mulWadDown(validator_data[marketId].avg_price);
-        delete validator_data[marketId].sales[validator];
+        // collateral_amount = validator_data[marketId]
+        //     .sales[validator]
+        //     .mulWadDown(validator_data[marketId].avg_price);
+        // delete validator_data[marketId].sales[validator];
     }
 
     function redeemValidator(uint256 marketId, address validator)
         external
         onlyManager
     {
-        delete validator_data[marketId].sales[validator];
+        validatorManager.redeemValidator(
+            marketId,
+            validator
+        );
+        //delete validator_data[marketId].sales[validator];
     }
 
     function getValidatorRequiredCollateral(uint256 marketId)
@@ -1013,10 +1011,11 @@ contract Controller {
         view
         returns (uint256)
     {
-        uint256 val_cap = validator_data[marketId].val_cap;
-        (uint256 N, , , , , , , ) = marketManager.parameters(marketId);
-        uint256 zcb_for_sale = val_cap / N;
-        return zcb_for_sale.mulWadDown(validator_data[marketId].avg_price);
+        return validatorManager.getValidatorRequiredCollateral(marketId);
+        // uint256 val_cap = validator_data[marketId].val_cap;
+        // (uint256 N, , , , , , , ) = marketManager.parameters(marketId);
+        // uint256 zcb_for_sale = val_cap / N;
+        // return zcb_for_sale.mulWadDown(validator_data[marketId].avg_price);
     }
 
     function getTraderScore(address trader) public view returns (uint256) {
@@ -1030,40 +1029,40 @@ contract Controller {
 
     /// @notice pool instrument
     /// @notice called by utilizer during assessment
-    function addAcceptedCollateral(
-        uint256 _marketId,
-        address _tokenAddress,
-        uint256 _tokenId,
-        uint256 _maxAmount,
-        uint256 _borrowAmount,
-        bool _isERC20
-    ) external {
-        require(
-            msg.sender == address(market_data[_marketId].utilizer),
-            "only utilizer can call this function"
-        );
-        require(marketManager.getCurrentMarketPhase(_marketId) == 1, "is during assessment");
+    // function addAcceptedCollateral(
+    //     uint256 _marketId,
+    //     address _tokenAddress,
+    //     uint256 _tokenId,
+    //     uint256 _maxAmount,
+    //     uint256 _borrowAmount,
+    //     bool _isERC20
+    // ) external {
+    //     require(
+    //         msg.sender == address(market_data[_marketId].utilizer),
+    //         "only utilizer can call this function"
+    //     );
+    //     require(marketManager.getCurrentMarketPhase(_marketId) == 1, "is during assessment");
         
-        Vault.InstrumentData memory _data = getVault(_marketId).fetchInstrumentData(_marketId);
-        require(_data.isPool, "instrument is not pool");
+    //     Vault.InstrumentData memory _data = getVault(_marketId).fetchInstrumentData(_marketId);
+    //     require(_data.isPool, "instrument is not pool");
         
-        PoolInstrument(address(getVault(_marketId).fetchInstrument(_marketId))).addAcceptedCollateral(
-            _tokenAddress,
-            _tokenId,
-            _maxAmount,
-            _borrowAmount,
-            _isERC20
-        );
+    //     PoolInstrument(address(getVault(_marketId).fetchInstrument(_marketId))).addAcceptedCollateral(
+    //         _tokenAddress,
+    //         _tokenId,
+    //         _maxAmount,
+    //         _borrowAmount,
+    //         _isERC20
+    //     );
 
 
-        // Instrument instrument = fetchInstrument(_marketId);
-        // instrument.addAcceptedCollateral(
-        //     _tokenAddress,
-        //     _tokenId,
-        //     _maxAmount,
-        //     _borrowAmount
-        // );
-    }
+    //     // Instrument instrument = fetchInstrument(_marketId);
+    //     // instrument.addAcceptedCollateral(
+    //     //     _tokenAddress,
+    //     //     _tokenId,
+    //     //     _maxAmount,
+    //     //     _borrowAmount
+    //     // );
+    // }
 
     function pullLeverage(uint256 marketId, uint256 amount)
         external
