@@ -18,6 +18,7 @@ import {SyntheticZCBPoolFactory, SyntheticZCBPool} from "../bonds/synthetic.sol"
 import {SafeTransferLib} from "solmate/utils/SafeTransferLib.sol";
 import {ReputationManager} from "./reputationmanager.sol";
 import {PoolInstrument} from "../instruments/poolInstrument.sol";
+import {LinearCurve} from "../bonds/GBC.sol"; 
 
 import {ValidatorManager} from "./validatorManager.sol";
 
@@ -149,6 +150,7 @@ contract Controller {
         vaults[id_parent[marketId]].trusted_transfer(amount, to);
     }
 
+    event VaultCreated(address indexed vault, uint256 vaultId, address underlying, bool onlyVerified, uint256 r, uint256 assetLimit, uint256 totalAssetLimit, MarketManager.MarketParameters defaultParams);
     /// @notice creates vault
     /// @param underlying: underlying asset for vault
     /// @param _onlyVerified: only verified users can mint shares
@@ -175,9 +177,46 @@ contract Controller {
         );
 
         vaults[vaultId] = newVault;
+
+        emit VaultCreated(address(newVault), vaultId, underlying, _onlyVerified, _r, _asset_limit, _total_asset_limit, default_params);
     }
 
-    event MarketInitiated(uint256 indexed marketId, uint256 indexed vaultId, uint256 indexed recipient, address pool, address longZCB, address shortZCB);
+    function getInstrumentSnapShot(uint256 marketId) external returns (uint256 managerStake, uint256 exposurePercentage, uint256 seniorAPR, uint256 approvalPrice) {
+        MarketManager.CoreMarketData memory data = marketManager.getMarket(marketId); 
+        Controller.ApprovalData memory approvalData = getApprovalData(marketId); 
+        Vault.InstrumentData memory instrumentData = getVault(marketId).fetchInstrumentData(marketId);
+        managerStake = approvalData.managers_stake;
+        exposurePercentage = (approvalData.approved_principal- approvalData.managers_stake).divWadDown(getVault(marketId).totalAssets()+1);
+
+        if(!instrumentData.isPool){
+            uint256 amountDelta;
+            uint256 resultPrice;
+
+            if(approvalData.managers_stake>0){
+                ( amountDelta,  resultPrice) = LinearCurve.amountOutGivenIn(
+                approvalData.managers_stake,
+                0, 
+                data.bondPool.a_initial(), 
+                data.bondPool.b(), 
+                true 
+                );
+            }
+            
+            uint256 seniorYield = instrumentData.faceValue -amountDelta
+                - (instrumentData.principal - approvalData.managers_stake); 
+
+            seniorAPR = approvalData.approved_principal>0
+                ? seniorYield.divWadDown(1+instrumentData.principal - approvalData.managers_stake)
+                : 0; 
+            approvalPrice = resultPrice; 
+        }
+        else{
+            seniorAPR = instrumentData.poolData.promisedReturn; 
+            approvalPrice = instrumentData.poolData.inceptionPrice; 
+        }
+    }
+
+    event MarketInitiated(uint256 indexed marketId, address indexed vault, address indexed recipient, address pool, address longZCB, address shortZCB, Vault.InstrumentData instrumentData);
 
     /// @notice initiates market, called by frontend loan proposal or instrument form submit button.
     /// @dev Instrument should already be deployed
@@ -270,7 +309,7 @@ contract Controller {
         instrumentData.marketId = marketId;
         vault.addProposal(instrumentData);
 
-        emit MarketInitiated(marketId, vaultId, marketId, address(pool), longZCB, shortZCB);
+        emit MarketInitiated(marketId, address(vaults[vaultId]), recipient, address(pool), longZCB, shortZCB, instrumentData);
 
         ad_to_id[recipient] = marketId; //only for testing purposes, one utilizer should be able to create multiple markets
     }
@@ -321,9 +360,10 @@ contract Controller {
             principal_loss
         );
         cleanUpDust(marketId);
+        emit MarketResolved(marketId, atLoss, extra_gain, principal_loss, premature);
     }
 
-    event ResolveMarket(uint256 indexed marketId);
+    event MarketResolved(uint256 indexed marketId, bool atLoss, uint256 extraGain, uint256 principalLoss, bool premature);
 
     /// Resolve function 2
     /// @notice main function called at maturity OR premature resolve of instrument(from early default)
@@ -349,8 +389,9 @@ contract Controller {
             approvalDatas[marketId].approved_principal,
             principal_loss
         );
-        emit ResolveMarket(marketId);
         cleanUpDust(marketId);
+
+        emit MarketResolved(marketId, atLoss, extra_gain, principal_loss, premature);
     }
 
     /// @dev Redemption price, as calculated (only once) at maturity,
@@ -502,6 +543,8 @@ contract Controller {
         approveMarket(marketId);
     }
 
+    event MarketApproved(uint256 indexed marketId, ApprovalData data);
+
     /// @notice called by the validator from validatorApprove when market conditions are met
     /// need to move the collateral in the wCollateral to
     function approveMarket(uint256 marketId) public {
@@ -552,6 +595,8 @@ contract Controller {
 
         // Since funds are transfered from pool to vault, set default liquidity in pool to 0
         pool.resetLiq();
+        
+        emit MarketApproved(marketId, approvalDatas[marketId]);
     }
 
     function poolApproval(
@@ -615,6 +660,7 @@ contract Controller {
         );
     }
 
+    event MarketDenied(uint256 indexed marketId);
     /**
    @dev called by validator denial of market.
    */
@@ -622,6 +668,7 @@ contract Controller {
         vaults[id_parent[marketId]].denyInstrument(marketId);
         cleanUpDust(marketId);
         marketManager.denyMarket(marketId);
+        emit MarketDenied(marketId);
     }
 
     /*----Validator Logic----*/

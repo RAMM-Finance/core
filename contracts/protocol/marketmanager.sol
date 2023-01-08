@@ -214,7 +214,7 @@ contract MarketManager
   //   parameters[marketId].N = _N;
   // }
 
-event MarketPhaseSet(uint256 indexed marketId, bool duringAssessment, bool onlyReputable, uint256 base_budget);
+event MarketPhaseSet(uint256 indexed marketId, MarketPhaseData data);
 
   /// @notice sets market phase data
   /// @dev called on market initialization by controller
@@ -231,7 +231,7 @@ event MarketPhaseSet(uint256 indexed marketId, bool duringAssessment, bool onlyR
     // data.min_rep_score = calcMinRepScore(marketId);
     data.base_budget = base_budget;
     data.alive = true;
-    emit MarketPhaseSet(marketId, duringAssessment, _onlyReputable, base_budget);
+    emit MarketPhaseSet(marketId, restriction_data[marketId]);
   }
 
   event MarketReputationSet(uint256 indexed marketId, bool onlyReputable);
@@ -465,7 +465,7 @@ event MarketDenied(uint256 indexed marketId);
         loggedCollaterals[marketId] -= collateral; 
         }
         emit TraderCollateralUpdate(marketId, trader, longTrades[marketId][trader], true);
-      } else{
+      } else {
       if (isBuy) {
         // shortCollateral is amount trader pays to buy shortZCB
         shortTrades[marketId][trader] += shortCollateral;
@@ -546,10 +546,10 @@ event MarketDenied(uint256 indexed marketId);
     ) external _lock_ returns(uint256 collateral_redeem_amount, uint256 seniorAmount){
     // TODO conditions/restrictions-> need some time to pass to call this + need some liquidity in pool 
     Vault vault = controller.getVault(marketId); 
-    CoreMarketData memory market = markets[marketId]; 
+    // CoreMarketData memory market = markets[marketId]; 
 
-    require(market.isPool, "!pool"); 
-    require(market.longZCB.balanceOf(msg.sender) >= redeemAmount, "insufficient bal"); 
+    require(markets[marketId].isPool, "!pool"); 
+    require(markets[marketId].longZCB.balanceOf(msg.sender) >= redeemAmount, "insufficient bal"); 
 
     (uint256 psu, uint256 pju, uint256 levFactor ) = vault.poolZCBValue(marketId);
     collateral_redeem_amount = pju.mulWadDown(redeemAmount); 
@@ -565,7 +565,7 @@ event MarketDenied(uint256 indexed marketId);
     if (queuedRepUpdates[msg.sender] > 0){
      unchecked{queuedRepUpdates[msg.sender] -= 1;} 
     }
-    market.bondPool.trustedBurn(msg.sender, redeemAmount, true); 
+    markets[marketId].bondPool.trustedBurn(msg.sender, redeemAmount, true); 
 
     // TODO assert pju stays same 
     // TODO assert need totalAssets and exchange rate to remain same 
@@ -617,7 +617,7 @@ event MarketDenied(uint256 indexed marketId);
               .principal)
         ) {
           restriction_data[_marketId].onlyReputable = false;
-          emit MarketPhaseSet(_marketId, restriction_data[_marketId].duringAssessment, restriction_data[_marketId].onlyReputable, getTraderBudget(_marketId, msg.sender));
+          emit MarketPhaseSet(_marketId, restriction_data[_marketId]);
         }
       }
     }
