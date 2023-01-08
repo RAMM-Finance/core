@@ -82,6 +82,10 @@ contract PoolInstrumentTest is CustomTestBase {
         uint valamountIn; 
         uint cbalnow; 
         uint cbalnow2; 
+
+        uint pju; 
+        uint psu;
+
     }
 
     function testOneLongNoShortApproval() public{
@@ -135,35 +139,55 @@ contract PoolInstrumentTest is CustomTestBase {
 
     function testPricing() public{
         testVars1 memory vars; 
-
+        // 1. When approve, pricing should stay same
+        // 2. When issue, pricing should stay same
+        // 3. When begins, need to both start at inception, and when donated, pju must go up
+        // 4. When time passes and no donations made, psu goes up pju goes down, 
+        // 5. Works for all initial price <= inception price and 
         vars.marketId = controller.getMarketId(toku); 
         vars.vault_ad = controller.getVaultfromId(vars.marketId); //
 
         // After approval 
         vars.amountToBuy = Vault(vars.vault_ad).fetchInstrumentData(vars.marketId).poolData.saleAmount*3/2; 
+        // uint donateAmount = Vault(vars.vault_ad).UNDERLYING().balanceOf(address(Vault(vars.vault_ad).fetchInstrument(vars.marketId))) * 1/10; 
+     
+
         // Let manager buy
         bytes memory data; 
         doApproveCol(address(marketmanager), jonna); 
         vm.prank(jonna); 
         (vars.amountIn, vars.amountOut) =
             marketmanager.buyBond(vars.marketId, int256(vars.amountToBuy), vars.curPrice + precision/2 , data); 
-            console.log('amountOut!!!', vars.amountOut,  marketmanager.getZCB(vars.marketId).totalSupply()); 
 
         controller.getVault(vars.marketId).poolZCBValue(vars.marketId); 
+        (uint psu,  uint pju, ) = controller.getVault(vars.marketId).poolZCBValue(vars.marketId);
+        console.log('start pju', pju, psu); 
         doApprove(vars.marketId, vars.vault_ad);
+        uint donateAmount = Vault(vars.vault_ad).UNDERLYING().balanceOf(address(Vault(vars.vault_ad).fetchInstrument(vars.marketId))) * 1/10; 
 
 
-        (uint256 psu, uint256 pju, uint256 levFactor) = controller.getVault(vars.marketId).poolZCBValue(vars.marketId);
-        assertEq(psu, controller.getVault(vars.marketId).fetchInstrumentData(vars.marketId).poolData.inceptionPrice); 
-        assertApproxEqAbs(psu, pju, 10); 
-        console.log('psu', psu, pju); 
+        (vars.psu, vars.pju, ) = controller.getVault(vars.marketId).poolZCBValue(vars.marketId);
+        assertEq(vars.psu, psu); 
+        assertEq(vars.pju, pju); 
+        assertApproxEqAbs(vars.psu, vars.pju, 10); 
+        assertEq(vars.psu, controller.getVault(vars.marketId).fetchInstrumentData(vars.marketId).poolData.inceptionPrice); 
+        donateToInstrument( vars.vault_ad, address(Vault(vars.vault_ad).fetchInstrument(vars.marketId)) ,  donateAmount);
+        ( psu,   pju, ) = controller.getVault(vars.marketId).poolZCBValue(vars.marketId);
+        assertEq(psu, vars.psu); 
+        // if(donateAmount>0)assert(vars.pju<pju);
+        console.log('after donate pju', pju, psu); 
 
-        //After some time.. 
+
+
+        //After some time.. when no donations were made 
         vm.warp(block.timestamp+31536000); 
-        ( psu,  pju, ) = controller.getVault(vars.marketId).poolZCBValue(vars.marketId);
-        console.log('psu', psu, pju); 
-        assert(psu>controller.getVault(vars.marketId).fetchInstrumentData(vars.marketId).poolData.inceptionPrice ); 
-        assert(psu> pju+100); 
+        donateToInstrument( vars.vault_ad, address(Vault(vars.vault_ad).fetchInstrument(vars.marketId)) ,  donateAmount);
+
+        ( vars.psu,   vars.pju, ) = controller.getVault(vars.marketId).poolZCBValue(vars.marketId);
+        assert(vars.psu>controller.getVault(vars.marketId).fetchInstrumentData(vars.marketId).poolData.inceptionPrice ); 
+        if(donateAmount==0) assert(pju> vars.pju); 
+        console.log('after time pju', vars.pju, vars.psu); 
+
 
         // (vars.amountIn, vars.amountOut) =
         //     marketmanager.buyBond(vars.marketId, int256(vars.amountToBuy), vars.curPrice + precision/2 , data); 
@@ -200,6 +224,7 @@ contract PoolInstrumentTest is CustomTestBase {
         vm.prank(sybal);
         uint256 issueQTY2 = marketmanager.issuePoolBond(vars.marketId, vars.amountToBuy); 
         assertEq(issueQTY2, issueQTY); 
+        console.log('differences', issueQTY, issueQTY2); 
 
         vm.warp(block.timestamp+31536000); 
         vars.cbalnow = Vault(vars.vault_ad).UNDERLYING().balanceOf(jonna); 

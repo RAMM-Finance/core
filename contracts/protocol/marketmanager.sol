@@ -526,12 +526,12 @@ event MarketDenied(uint256 indexed marketId);
     // underlying.approve(address(vault.Instruments(_marketId)), _amountIn); 
     // vault.Instruments(_marketId).pullRawFunds(_amountIn); 
 
-    issueQTY = _amountIn.divWadDown(pju); 
+    issueQTY = _amountIn.divWadUp(pju); //TODO rounding errs
     markets[_marketId].bondPool.trustedDiscountedMint(msg.sender, issueQTY); 
 
     // Need to transfer funds automatically to the instrument, seniorAmount is longZCB * levFactor * psu  
     vault.depositIntoInstrument(_marketId, issueQTY.mulWadDown(config.WAD + levFactor).mulWadDown(psu), true); 
-    console.log('how much??', issueQTY.mulWadDown(levFactor).mulWadDown(psu)); 
+    console.log('what changes', pju,  _amountIn,issueQTY); 
     //TODO Need totalAssets and exchange rate to remain same assertion 
 
     reputationManager.recordPull(msg.sender, _marketId, issueQTY,

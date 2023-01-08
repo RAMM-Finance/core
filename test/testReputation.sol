@@ -245,7 +245,6 @@ contract ReputationSystemTests is CustomTestBase {
 
         vars.vault_ad = address(controller.getVault(vars.marketId)); //
         vars.amountToBuy = Vault(vars.vault_ad).fetchInstrumentData(vars.marketId).principal/2; 
-
         // Let manager buy
         bytes memory data; 
         doApproveCol(address(marketmanager), jonna); 
@@ -285,8 +284,7 @@ contract ReputationSystemTests is CustomTestBase {
         vm.startPrank(toku); 
         CoveredCallOTC(address(Vault(vars.vault_ad).fetchInstrument(vars.marketId))).claim(); 
         vm.stopPrank(); 
-        donateToInstrument(vars.vault_ad,  
-            address(Vault(vars.vault_ad).fetchInstrument(vars.marketId)), donateamount); 
+
 
         // vm.startPrank(toku); 
         // CoveredCallOTC( address(Vault(vars.vault_ad).fetchInstrument(vars.marketId))).claim(); 
@@ -303,6 +301,7 @@ contract ReputationSystemTests is CustomTestBase {
 
         uint midRep = reputationManager.trader_scores(jonna); 
         console.log('start', startRep, midRep); 
+        // why is the redemption price weird? 
 
         // if(donateamount==0) {
         //     assert(midRep <  startRep); 
