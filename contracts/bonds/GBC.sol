@@ -833,7 +833,8 @@ library LinearCurve{
         uint256 s, 
         uint256 a, 
         uint256 b, 
-        bool up) 
+        bool up
+        ) 
         public 
         pure 
         returns(uint256 amountDelta, uint256 resultPrice) {

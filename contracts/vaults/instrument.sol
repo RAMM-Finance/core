@@ -183,15 +183,19 @@ abstract contract Instrument {
         return locked; 
     }
 
+    // event InstrumentTransfer(address indexed to, uint256 amount);
+    // event InstrumentTranferFrom(address indexed from, address indexed to, uint256 amount);
 
     function transfer_liq(address to, uint256 amount) internal notLocked {
         if (vault.decimal_mismatch()) amount = vault.decSharesToAssets(amount); 
         underlying.transfer(to, amount);
+        // emit InstrumentTransfer(to, amount);
     }
 
     function transfer_liq_from(address from, address to, uint256 amount) internal notLocked {
         if (vault.decimal_mismatch()) amount = vault.decSharesToAssets(amount); 
         underlying.transferFrom(from, to, amount);
+        // emit InstrumentTranferFrom(from, to, amount);
     }
 
     /// @notice called before resolve, to avoid calculating redemption price based on manipulations 

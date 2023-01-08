@@ -540,8 +540,6 @@ contract Controller {
 
         approvalDatas[marketId].managers_stake = managerCollateral;
 
-        emit MarketApproved(marketId, approvalDatas[marketId].approved_principal, approvalDatas[marketId].approved_yield, approvalDatas[marketId].managers_stake);
-
         // TODO vault exchange rate should not change
         // pull from pool to vault, which will be used to fund the instrument
 
@@ -550,6 +548,7 @@ contract Controller {
 
         // Since funds are transfered from pool to vault, set default liquidity in pool to 0
         pool.resetLiq();
+        emit MarketApproved(marketId, approvalDatas[marketId].approved_principal, approvalDatas[marketId].approved_yield, approvalDatas[marketId].managers_stake);
     }
 
     function poolApproval(
@@ -611,6 +610,13 @@ contract Controller {
             proposed_principal,
             proposed_yield
         );
+    }
+
+    function testDenyMarket(uint256 marketId) external {
+        vaults[id_parent[marketId]].denyInstrument(marketId);
+        cleanUpDust(marketId);
+        marketManager.denyMarket(marketId);
+        emit MarketDenied(marketId);
     }
 
     event MarketDenied(uint256 indexed marketId);
