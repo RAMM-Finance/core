@@ -39,7 +39,7 @@ contract Vault is ERC4626{
     uint256 public total_asset_limit; 
 
     mapping(Instrument => InstrumentData) public instrument_data;
-    mapping(address => uint256) public  num_proposals;
+    // mapping(address => uint256) public  num_proposals;
     mapping(uint256=> Instrument) public Instruments; //marketID-> Instrument
     mapping(uint256 => bool) resolveBeforeMaturity;
     mapping(uint256=>ResolveVar) prepareResolveBlock;
@@ -117,7 +117,11 @@ contract Vault is ERC4626{
         require(UNDERLYING.decimals() == 18, "decimals"); 
         BASE_UNIT = 1e18; 
         controller = Controller(_controller);
-        set_minting_conditions( _onlyVerified,  _r, _asset_limit, _total_asset_limit); 
+        //set_minting_conditions( _onlyVerified,  _r, _asset_limit, _total_asset_limit); 
+        onlyVerified = _onlyVerified; 
+        r = _r; 
+        asset_limit = _asset_limit; 
+        total_asset_limit = _total_asset_limit; 
         default_params = _default_params; 
     }
 
@@ -130,19 +134,23 @@ contract Vault is ERC4626{
         return instrument_data[_instrument];
     }
     
-    modifier onlyController(){
+    function _onlyController() view internal {
         require(address(controller) == msg.sender || msg.sender == owner || address(this) == msg.sender ,  "is not controller"); 
+    }
+
+    modifier onlyController(){
+        _onlyController();
         _;
     }
 
     /// @notice called by controller at maturity 
-    function controller_burn(uint256 amount, address bc_address) external onlyController {
-        _burn(bc_address,amount); 
-    }
+    // function controller_burn(uint256 amount, address bc_address) external onlyController {
+    //     _burn(bc_address,amount); 
+    // }
     /// @notice called by controller at maturity, since redeem amount > balance in bc
-    function controller_mint(uint256 amount, address to) external onlyController {
-        _mint(to , amount); 
-    }
+    // function controller_mint(uint256 amount, address to) external onlyController {
+    //     _mint(to , amount); 
+    // }
     /// @notice amount is always in WAD, so need to convert if decimals mismatch
     function trusted_transfer(uint256 amount, address to) external onlyController{
         if (decimal_mismatch) amount = decSharesToAssets(amount); 
@@ -154,9 +162,9 @@ contract Vault is ERC4626{
     }
 
     /// @notice burns all balance of address 
-    function burnAll(address to) private{
-      _burn(to, balanceOf[to]); 
-    }
+    // function burnAll(address to) private{
+    //   _burn(to, balanceOf[to]); 
+    // }
 
   struct localVars{
     uint256 promised_return; 
@@ -251,11 +259,11 @@ contract Vault is ERC4626{
     function depositIntoInstrument(
       uint256 marketId, 
       uint256 underlyingAmount,
-      bool isPool) public virtual
+      bool isPool) onlyTrustedInstrument(fetchInstrument(marketId)) public virtual
   //onlyManager
     {
       Instrument instrument = fetchInstrument(marketId); 
-      require(instrument_data[instrument].trusted, "UNTRUSTED Instrument");
+      // require(instrument_data[instrument].trusted, "UNTRUSTED Instrument");
 
       // if (decimal_mismatch) underlyingAmount = decSharesToAssets(underlyingAmount); 
 
@@ -284,13 +292,22 @@ contract Vault is ERC4626{
       emit InstrumentDeposit(marketId, address(instrument), underlyingAmount, isPool);
     }
 
+    modifier onlyTrustedInstrument(Instrument instrument) {
+      _onlyTrustedInstrument(instrument);
+      _;
+    }
+
+    function _onlyTrustedInstrument(Instrument instrument) internal view {
+      require(instrument_data[instrument].trusted, "UNTRUSTED Instrument");
+    }
+
     event InstrumentWithdrawal(uint256 indexed marketId, address indexed instrument, uint256 amount);
     /// @notice Withdraw a specific amount of underlying tokens from a Instrument.
     function withdrawFromInstrument(
       Instrument instrument, 
       uint256 underlyingAmount, 
-      bool redeem) internal virtual {
-      require(instrument_data[instrument].trusted, "UNTRUSTED Instrument");
+      bool redeem) onlyTrustedInstrument(instrument) internal virtual {
+      // require(instrument_data[instrument].trusted, "UNTRUSTED Instrument");
       
       // if (decimal_mismatch) underlyingAmount = decSharesToAssets(underlyingAmount); 
 
@@ -322,7 +339,7 @@ contract Vault is ERC4626{
       withdrawFromInstrument(fetchInstrument(marketId), underlyingAmount, false);
     }
 
-    event InstrumentTrusted(uint256 indexed marketId, address indexed instrument, uint256 principal, uint256 expectedYield);
+    event InstrumentTrusted(uint256 indexed marketId, address indexed instrument, uint256 principal, uint256 expectedYield, uint256 maturityDate);
     /// @notice Stores a Instrument as trusted when its approved
     function trustInstrument(
       uint256 marketId,
@@ -340,14 +357,15 @@ contract Vault is ERC4626{
 
         depositIntoInstrument(marketId, data.approved_principal - data.managers_stake, false);
         
-        setMaturityDate(marketId);
+        // setMaturityDate(marketId);
+        instrument_data[fetchInstrument(marketId)].maturityDate = instrument_data[fetchInstrument(marketId)].duration + block.timestamp;
 
         fetchInstrument(marketId).onMarketApproval(data.approved_principal, data.approved_yield); 
 
       } else{
         depositIntoInstrument(marketId, data.approved_principal - data.managers_stake, true);
       }
-      emit InstrumentTrusted(marketId, address(Instruments[marketId]), data.approved_principal, data.approved_yield);
+      emit InstrumentTrusted(marketId, address(Instruments[marketId]), data.approved_principal, data.approved_yield, instrument_data[fetchInstrument(marketId)].maturityDate);
     }
 
     /// @notice fetches how much asset the instrument has in underlying. 
@@ -434,9 +452,9 @@ contract Vault is ERC4626{
     }
 
     function fetchPoolTrancheData(uint256 marketId) public view returns(uint256, uint256, uint256, uint256, uint256){
-      InstrumentData memory data = instrument_data[Instruments[marketId]]; 
-      return (data.poolData.promisedReturn, data.poolData.inceptionTime, 
-            data.poolData.inceptionPrice, data.poolData.leverageFactor, data.poolData.managementFee); 
+      // InstrumentData memory data = instrument_data[Instruments[marketId]]; 
+      return (instrument_data[Instruments[marketId]].poolData.promisedReturn, instrument_data[Instruments[marketId]].poolData.inceptionTime, 
+            instrument_data[Instruments[marketId]].poolData.inceptionPrice, instrument_data[Instruments[marketId]].poolData.leverageFactor, instrument_data[Instruments[marketId]].poolData.managementFee); 
     }
   
     event InstrumentRemoved(uint256 indexed marketId, address indexed instrumentAddress);
@@ -478,7 +496,7 @@ contract Vault is ERC4626{
     //   bool isPool
     // );
 
-    event ProposalAdded(InstrumentData data);
+    // event ProposalAdded(InstrumentData data);
     /// @notice add instrument proposal created by the Utilizer 
     /// @dev Instrument instance should be created before this is called
     /// need to add authorization
@@ -492,21 +510,21 @@ contract Vault is ERC4626{
         require(data.principal >= BASE_UNIT, "Needs to be in decimal format"); 
         require(data.marketId > 0, "must be valid instrument");
       }
-        num_proposals[msg.sender] ++; 
+        // num_proposals[msg.sender] ++; 
         // TODO indexed by id
         instrument_data[Instrument(data.instrument_address)] = data;  
 
         Instruments[data.marketId] = Instrument(data.instrument_address);
-        emit ProposalAdded(data);
+        // emit ProposalAdded(data);
     }
 
-    event MaturityDateSet(uint256 indexed marketId, address indexed instrument, uint256 maturityDate);
+    //event MaturityDateSet(uint256 indexed marketId, address indexed instrument, uint256 maturityDate);
   
-    function setMaturityDate(uint256 marketId) internal {
+    // function setMaturityDate(uint256 marketId) internal {
 
-        instrument_data[fetchInstrument(marketId)].maturityDate = instrument_data[fetchInstrument(marketId)].duration + block.timestamp;
-        emit MaturityDateSet(marketId, address(fetchInstrument(marketId)), instrument_data[fetchInstrument(marketId)].maturityDate);
-    }
+    //     instrument_data[fetchInstrument(marketId)].maturityDate = instrument_data[fetchInstrument(marketId)].duration + block.timestamp;
+    //     emit MaturityDateSet(marketId, address(fetchInstrument(marketId)), instrument_data[fetchInstrument(marketId)].maturityDate);
+    // }
 
     /// @notice function called when instrument resolves from within
     function pingMaturity(address instrument, bool premature) external {
@@ -538,7 +556,7 @@ contract Vault is ERC4626{
       }
 
 
-    event InstrumentResolve(uint256 indexed marketId, uint256 instrumentBalance, bool atLoss, uint256 extraGain, uint256 totalLoss, bool prematureResolve);
+    //event InstrumentResolve(uint256 indexed marketId, uint256 instrumentBalance, bool atLoss, uint256 extraGain, uint256 totalLoss, bool prematureResolve);
     /// @notice RESOLVE FUNCTION #2
     /// @dev In cases of default, needs to be called AFTER the principal recouperation attempts 
     /// like liquidations, auctions, etc such that the redemption price takes into account the maturity balance
@@ -551,10 +569,10 @@ contract Vault is ERC4626{
         require(_instrument.isLocked(), "Not Locked");
         // require(rvar.isPrepared && rvar.endBlock < block.number, "can't resolve"); 
 
-        uint256 bal = UNDERLYING.balanceOf(address(this)); 
+        // uint256 bal = UNDERLYING.balanceOf(address(this)); 
         uint256 instrument_balance = _instrument.getMaturityBalance(); 
 
-        InstrumentData memory data = instrument_data[_instrument];
+        // InstrumentData memory data = instrument_data[_instrument];
 
         bool prematureResolve = resolveBeforeMaturity[marketId]; 
         bool atLoss; 
@@ -564,22 +582,22 @@ contract Vault is ERC4626{
         // If resolved at predetermined maturity date, loss is defined by
         // the event the instrument has paid out all its yield + principal 
         if (!prematureResolve){
-            atLoss = instrument_balance < data.faceValue;
-            total_loss = atLoss ? data.faceValue - instrument_balance : 0;
-            extra_gain = !atLoss ? instrument_balance - data.faceValue : 0;
+            atLoss = instrument_balance < instrument_data[_instrument].faceValue;
+            total_loss = atLoss ? instrument_data[_instrument].faceValue - instrument_balance : 0;
+            extra_gain = !atLoss ? instrument_balance - instrument_data[_instrument].faceValue : 0;
         }
 
         // If resolved before predetermined maturity date, loss is defined by 
         // the event the instrument has balance less then principal 
         else {
-            atLoss = instrument_balance < data.principal; 
-            total_loss = atLoss? data.principal - instrument_balance :0; 
+            atLoss = instrument_balance < instrument_data[_instrument].principal; 
+            total_loss = atLoss? instrument_data[_instrument].principal - instrument_balance :0; 
         }
 
         withdrawFromInstrument(_instrument, instrument_balance, true);
-        removeInstrument(data.marketId);
+        removeInstrument(instrument_data[_instrument].marketId);
 
-        emit InstrumentResolve(marketId, instrument_balance, atLoss, extra_gain, total_loss, prematureResolve);
+        //emit InstrumentResolve(marketId, instrument_balance, atLoss, extra_gain, total_loss, prematureResolve);
 
         return(atLoss, extra_gain, total_loss, prematureResolve); 
     }
@@ -621,16 +639,16 @@ contract Vault is ERC4626{
     }
 
     /// @notice called when constructed, params set by the creater of the vault 
-    function set_minting_conditions(
-      bool _onlyVerified, 
-      uint256 _r, 
-      uint256 _asset_limit,
-      uint256 _total_asset_limit) internal{
-        onlyVerified = _onlyVerified; 
-        r = _r; 
-        asset_limit = _asset_limit; 
-        total_asset_limit = _total_asset_limit; 
-    } 
+    // function set_minting_conditions(
+    //   bool _onlyVerified, 
+    //   uint256 _r, 
+    //   uint256 _asset_limit,
+    //   uint256 _total_asset_limit) internal{
+    //     onlyVerified = _onlyVerified; 
+    //     r = _r; 
+    //     asset_limit = _asset_limit; 
+    //     total_asset_limit = _total_asset_limit; 
+    // } 
 
 
     function get_vault_params() public view returns(MarketManager.MarketParameters memory){
@@ -662,8 +680,8 @@ contract Vault is ERC4626{
     }
 
     function viewPrincipalAndYield(uint256 marketId) public view returns(uint256,uint256){
-        InstrumentData memory data = instrument_data[Instruments[marketId]];
-        return (data.principal, data.expectedYield); 
+        // InstrumentData memory data = instrument_data[Instruments[marketId]];
+        return (instrument_data[Instruments[marketId]].principal, instrument_data[Instruments[marketId]].expectedYield); 
     }
 
     /// @notice a minting restrictor is set for different vaults 

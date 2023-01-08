@@ -19,7 +19,7 @@ import {SafeTransferLib} from "solmate/utils/SafeTransferLib.sol";
 import {ReputationManager} from "./reputationmanager.sol";
 import {PoolInstrument} from "../instruments/poolInstrument.sol";
 
-import {ValidatorManager} from "./validatormanager.sol";
+import {ValidatorManager} from "./validatorManager.sol";
 
 contract Controller {
     using SafeMath for uint256;

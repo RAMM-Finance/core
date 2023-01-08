@@ -67,8 +67,7 @@ contract VaultFactory{
        owner, 
        //Params 
        _onlyVerified,  _r, _asset_limit, _total_asset_limit,
-       default_params 
-
+       default_params
        ); 
     _isVault[address(vault)] = true; 
     numVaults++;
