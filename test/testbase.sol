@@ -31,7 +31,7 @@ contract CustomTestBase is Test {
     CreditLine instrument;
     SimpleNFTPool nftPool; 
     LeverageModule leverageModule; 
-
+    ValidatorManager validatorManager; 
     address deployer = 0xb4c79daB8f259C7Aee6E5b2Aa729821864227e84;
     uint256 unit = 10**18; 
     uint256 constant precision = 1e18;
@@ -278,6 +278,7 @@ contract CustomTestBase is Test {
         //     vm.prank(vals[i]);
         //     controller.validatorApprove(marketId);
         // }
+        vm.prank(deployer); 
         controller.testApproveMarket(marketId);
     }
    

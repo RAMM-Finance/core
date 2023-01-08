@@ -475,10 +475,19 @@ contract Controller {
                     .fetchInstrumentData(marketId)
                     .poolData
                     .saleAmount);
+            console.log('marketcondition', marketManager.loggedCollaterals(marketId), 
+               getVault(marketId)
+                    .fetchInstrumentData(marketId)
+                    .poolData
+                    .saleAmount); 
         } else {
             uint256 principal = getVault(marketId)
                 .fetchInstrumentData(marketId)
                 .principal;
+                console.log('marketcondition', marketManager.loggedCollaterals(marketId), 
+                principal.mulWadDown(
+                    marketManager.getParameters(marketId).alpha
+                )); 
             return (marketManager.loggedCollaterals(marketId) >=
                 principal.mulWadDown(
                     marketManager.getParameters(marketId).alpha
@@ -496,11 +505,10 @@ contract Controller {
     /// @notice called by the validator from validatorApprove when market conditions are met
     /// need to move the collateral in the wCollateral to
     function approveMarket(uint256 marketId) public {
-        require(msg.sender == address(validatorManager), "!validator");
+        require(msg.sender == address(validatorManager) || msg.sender == creator_address, "!validator");
         Vault vault = vaults[id_parent[marketId]];
         SyntheticZCBPool pool = marketManager.getPool(marketId);
 
-        marketManager.approveMarket(marketId);
 
         require(
             marketManager.getCurrentMarketPhase(marketId) == 3,
@@ -510,6 +518,7 @@ contract Controller {
             vault.instrumentApprovalCondition(marketId),
             "!instrumentCondition"
         );
+        marketManager.approveMarket(marketId);
 
         (, , , , , , bool isPool) = marketManager.markets(marketId);
         uint256 managerCollateral = marketManager.loggedCollaterals(marketId);

@@ -66,6 +66,8 @@ clabels.push(
         controller.setVaultFactory(address(vaultFactory));
         controller.setPoolFactory(address(poolFactory)); 
         controller.setReputationManager(address(reputationManager));
+        validatorManager = new ValidatorManager(address(controller), address(marketmanager),address(reputationManager) );        
+        controller.setValidatorManager(address(validatorManager)); 
         vm.stopPrank(); 
 
         controller.createVault(
@@ -107,13 +109,13 @@ clabels.push(
         );
                
         vm.prank(address(controller));
-        // pool.addAcceptedCollateral(
-        //     vault_ad,
-        //     0,
-        //     precision, 
-        //     precision*9/10, 
-        //     true
-        // );      
+        pool.addAcceptedCollateral(
+            vault_ad,
+            0,
+            precision, 
+            precision*9/10, 
+            true
+        );      
 
     }
    

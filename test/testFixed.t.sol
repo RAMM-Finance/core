@@ -3,7 +3,7 @@ pragma solidity ^0.8.4;
 
 import "forge-std/Test.sol";
 import "forge-std/console.sol";
-import "../contracts/protocol/controller.sol";
+import  "../contracts/protocol/controller.sol";
 import {MarketManager} from "../contracts/protocol/marketmanager.sol";
 import {ReputationNFT} from "../contracts/protocol/reputationtoken.sol";
 import {Cash} from "../contracts/utils/Cash.sol";
@@ -44,6 +44,8 @@ contract FixedTest is CustomTestBase {
         controller.setVaultFactory(address(vaultFactory));
         controller.setPoolFactory(address(poolFactory)); 
         controller.setReputationManager(address(reputationManager));
+        validatorManager = new ValidatorManager(address(controller), address(marketmanager),address(reputationManager) );       
+        controller.setValidatorManager(address(validatorManager)); 
         vm.stopPrank(); 
 
         controller.createVault(
