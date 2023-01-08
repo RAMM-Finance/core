@@ -224,6 +224,10 @@ contract GranularBondingCurve{
             slot0.point = state.point; 
             slot0Start.point = state.point; 
         }
+        
+        if (moveUp) require(priceLimit>= state.curPrice, "Slippage err" ); 
+        else require(priceLimit<= state.curPrice, "Slippage err" ); 
+        priceLimit = pointToPrice(priceToPoint(priceLimit)); 
 
         while (state.amountSpecifiedRemaining !=0 && state.curPrice != priceLimit){
             StepComputations memory step; 

@@ -243,10 +243,13 @@ contract Controller {
             instrumentData.isPool
         );
         } else {
+            MarketManager.MarketParameters memory params = marketManager.getParameters(marketId); 
             pool.calculateInitCurveParams(
                 instrumentData.principal,
                 instrumentData.expectedYield,
-                marketManager.getParameters(marketId).sigma
+                params.sigma, 
+                params.alpha, 
+                params.delta
             );
 
             marketManager.newMarket(

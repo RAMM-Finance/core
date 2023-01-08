@@ -531,7 +531,6 @@ event MarketDenied(uint256 indexed marketId);
 
     // Need to transfer funds automatically to the instrument, seniorAmount is longZCB * levFactor * psu  
     vault.depositIntoInstrument(_marketId, issueQTY.mulWadDown(config.WAD + levFactor).mulWadDown(psu), true); 
-    console.log('what changes', pju,  _amountIn,issueQTY); 
     //TODO Need totalAssets and exchange rate to remain same assertion 
 
     reputationManager.recordPull(msg.sender, _marketId, issueQTY,
@@ -590,10 +589,16 @@ event MarketDenied(uint256 indexed marketId);
     CoreMarketData memory marketData = markets[_marketId]; 
     SyntheticZCBPool bondPool = marketData.bondPool; 
     
+
     // During assessment, real bonds are issued from utilizer, they are the sole LP 
     if (restriction_data[_marketId].duringAssessment){
+      // TODO fix pricelimit  
 
       (amountIn, amountOut) = bondPool.takerOpen(true, _amountIn, _priceLimit, abi.encode(msg.sender)); 
+
+      // uint256 upperBound = bondPool.upperBound(); 
+      if( bondPool.upperBound() !=0 &&  bondPool.upperBound() < bondPool.getCurPrice()) revert("Exceeds Price Bound"); 
+
       //Need to log assessment trades for updating reputation scores or returning collateral when market denied 
       _logTrades(_marketId, msg.sender, amountIn, 0, true, true);
 
@@ -638,6 +643,11 @@ event MarketDenied(uint256 indexed marketId);
       //   (uint256 escrowAmount, uint128 crossId) = bondPool.makerOpen(point, uint256(_amountIn), true, msg.sender); 
       // }
     }
+
+    uint amountIn_ = _amountIn> 0? uint256(_amountIn) : uint256(-_amountIn); 
+    if(_amountIn> 0)require(amountIn_ == amountIn , "AMM not enough Liq") ; 
+    else require(amountIn_==amountOut, "AMM not enough Liq"); 
+
     emit BondBuy(_marketId, msg.sender, amountIn, amountOut); // get current price as well.
   }
 
@@ -976,5 +986,9 @@ event MarketDenied(uint256 indexed marketId);
     // Before redeem_transfer is called all funds for this instrument should be back in the vault
     controller.redeem_transfer(collateral_amount - uint256(position.debt), msg.sender, marketId);
   }
+
+  function min(uint256 a, uint256 b) internal pure returns (uint256) {
+        return a <= b ? a : b;
+    }
 }
 

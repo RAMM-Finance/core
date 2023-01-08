@@ -48,7 +48,7 @@ contract SyntheticZCBPool is BoundedDerivativesPool{
     uint256 public b;
     uint256 public discount_cap; 
     uint256 public discountedReserves; 
-
+    uint256 public upperBound; 
     address public immutable controller; 
     uint256 public constant precision = 1e18; 
     constructor(address base, 
@@ -68,13 +68,16 @@ contract SyntheticZCBPool is BoundedDerivativesPool{
     function calculateInitCurveParams(
         uint256 P, 
         uint256 I, 
-        uint256 sigma) external {
+        uint256 sigma,
+        uint256 alpha, 
+        uint256 delta) external {
         require(msg.sender == controller, "unauthorized"); 
         b_initial = (2*P).divWadDown(P+I) - precision; 
         a_initial = (precision-b_initial).divWadDown(P+I); 
 
         // Calculate and store maximum tokens for discounts, and get new initial price after saving for discounts
         (discount_cap, b) = LinearCurve.amountOutGivenIn(P.mulWadDown(sigma), 0, a_initial, b_initial, true);
+        (, upperBound )= LinearCurve.amountOutGivenIn(P.mulWadDown(alpha+delta), 0, a_initial, b_initial,true); 
 
         // Set initial liquidity and price 
         setLiquidity(uint128(precision.divWadDown(a_initial))); 

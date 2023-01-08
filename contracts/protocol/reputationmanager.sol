@@ -111,12 +111,43 @@ contract ReputationManager {
             
             else if(bondPrice <= avgPrice && bondPrice < 1e18)
                 _updateReputation(marketId, trader, false, avgPrice-bondPrice, newLog);  
-            console.log('bondpriceavgprice', avgPrice, bondPrice); 
             // Redeeming everything at maturity 
             delete repLogs[trader][marketId];             
         }
 
 
+    }
+
+    /// @notice given a hypoethetical bond price, calculate how much reputation one will gain
+    function expectedRepGain(
+        address trader, 
+        uint256 marketId, 
+        uint256 bondPrice, 
+        uint256 incremntalAmount, 
+        uint256 incrementalBondAmount) external view returns(int256 expectedGain){
+        RepLog memory log = repLogs[trader][marketId]; 
+
+        uint256 avgPrice = (log.collateralAmount+incremntalAmount)
+            .divWadDown(log.bondAmount + incrementalBondAmount); 
+        uint256 priceChange = bondPrice- avgPrice; 
+        uint256 implied_probs; 
+
+        if(log.perpetual){
+            implied_probs = log.collateralAmount.divWadDown(log.budget); 
+            expectedGain = (bondPrice >= avgPrice)
+                ? int256(priceChange.mulWadDown(implied_probs))
+                : -int256(priceChange.mulWadDown(implied_probs)); 
+        } else {
+            implied_probs = calcImpliedProbability(
+                log.bondAmount, 
+                log.collateralAmount, 
+                log.budget
+                ); 
+            if(bondPrice>= 1e18)
+                expectedGain = int256(priceChange.mulWadDown(implied_probs)); 
+            else if(bondPrice <= avgPrice && bondPrice < 1e18)
+                expectedGain = -int256(priceChange.mulWadDown(implied_probs)); 
+        }
     }
 
     /// @notice when market is resolved(maturity/early default), calculates score
@@ -143,10 +174,8 @@ contract ReputationManager {
                         // : implied_probs.mulDivDown(implied_probs, config.WAD);
 
         if (increment) {
-            console.log('increment', change); 
             incrementScore(trader, change);
         } else {
-            console.log('decrement', change); 
             decrementScore(trader, change);
         }
     }

@@ -148,7 +148,7 @@ contract ReputationSystemTests is CustomTestBase {
         doApproveCol(address(marketmanager), jonna); 
         vm.prank(jonna); 
         (vars.amountIn2, vars.amountOut2) =
-            marketmanager.buyBond(vars.marketId, int256(vars.amountToBuy), vars.curPrice + precision/2 , data); 
+            marketmanager.buyBond(vars.marketId, int256(vars.amountToBuy), precision , data); 
 
         ReputationManager.RepLog memory log = reputationManager.getRepLog(jonna, vars.marketId);
         assertEq(log.collateralAmount , vars.amountIn2); 
@@ -157,7 +157,7 @@ contract ReputationSystemTests is CustomTestBase {
         // buy again 
         vm.prank(jonna); 
         (vars.amountIn, vars.amountOut) =
-            marketmanager.buyBond(vars.marketId, int256(vars.amountToBuy), vars.curPrice + precision/2 , data); 
+            marketmanager.buyBond(vars.marketId, int256(vars.amountToBuy), precision , data); 
         ReputationManager.RepLog memory log2 = reputationManager.getRepLog(jonna, vars.marketId);
         assertEq(log2.collateralAmount, log.collateralAmount + vars.amountIn ); 
         assertEq(log2.bondAmount, log.bondAmount + vars.amountOut);
@@ -244,13 +244,13 @@ contract ReputationSystemTests is CustomTestBase {
         vars.marketId = controller.getMarketId(toku); 
 
         vars.vault_ad = address(controller.getVault(vars.marketId)); //
-        vars.amountToBuy = Vault(vars.vault_ad).fetchInstrumentData(vars.marketId).principal/2; 
+        vars.amountToBuy = Vault(vars.vault_ad).fetchInstrumentData(vars.marketId).principal/3; 
         // Let manager buy
         bytes memory data; 
         doApproveCol(address(marketmanager), jonna); 
         vm.prank(jonna); 
         (vars.amountIn2, vars.amountOut2) =
-            marketmanager.buyBond(vars.marketId, int256(vars.amountToBuy), vars.curPrice + precision/2 , data); 
+            marketmanager.buyBond(vars.marketId, int256(vars.amountToBuy/2), precision , data); 
 
         ReputationManager.RepLog memory log = reputationManager.getRepLog(jonna, vars.marketId);
         assertEq(log.collateralAmount , vars.amountIn2); 
@@ -259,7 +259,7 @@ contract ReputationSystemTests is CustomTestBase {
         // buy again 
         vm.prank(jonna); 
         (vars.amountIn, vars.amountOut) =
-            marketmanager.buyBond(vars.marketId, int256(vars.amountToBuy), vars.curPrice + precision/2 , data); 
+            marketmanager.buyBond(vars.marketId, int256(vars.amountToBuy), precision , data); 
         ReputationManager.RepLog memory log2 = reputationManager.getRepLog(jonna, vars.marketId);
         assertEq(log2.collateralAmount, log.collateralAmount + vars.amountIn ); 
         assertEq(log2.bondAmount, log.bondAmount + vars.amountOut);

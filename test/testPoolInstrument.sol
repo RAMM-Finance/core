@@ -103,7 +103,7 @@ contract PoolInstrumentTest is CustomTestBase {
         doApproveCol(address(marketmanager), jonna); 
         vm.prank(jonna); 
         (vars.amountIn, vars.amountOut) =
-            marketmanager.buyBond(vars.marketId, int256(vars.amountToBuy), vars.curPrice + precision/2 , data); 
+            marketmanager.buyBond(vars.marketId, int256(vars.amountToBuy), precision , data); 
 
         assertApproxEqAbs(vars.amountIn, vars.amountToBuy, 10); 
         assertEq(marketmanager.loggedCollaterals(vars.marketId),vars.amountIn); 
@@ -157,7 +157,7 @@ contract PoolInstrumentTest is CustomTestBase {
         doApproveCol(address(marketmanager), jonna); 
         vm.prank(jonna); 
         (vars.amountIn, vars.amountOut) =
-            marketmanager.buyBond(vars.marketId, int256(vars.amountToBuy), vars.curPrice + precision/2 , data); 
+            marketmanager.buyBond(vars.marketId, int256(vars.amountToBuy), precision , data); 
 
         controller.getVault(vars.marketId).poolZCBValue(vars.marketId); 
         (uint psu,  uint pju, ) = controller.getVault(vars.marketId).poolZCBValue(vars.marketId);
@@ -210,7 +210,7 @@ contract PoolInstrumentTest is CustomTestBase {
         doInvest(vars.vault_ad, gatdang, precision * 100000);
         vm.prank(jonna); 
         (vars.amountIn, vars.amountOut) =
-            marketmanager.buyBond(vars.marketId, int256(vars.amountToBuy), vars.curPrice + precision/2 , data); 
+            marketmanager.buyBond(vars.marketId, int256(vars.amountToBuy), precision , data); 
         // let validator invest to vault and approve 
         doApprove(vars.marketId, vars.vault_ad);
 
@@ -266,7 +266,7 @@ contract PoolInstrumentTest is CustomTestBase {
         doApproveCol(address(marketmanager), jonna); 
         vm.prank(jonna); 
         (vars.amountIn, vars.amountOut) =
-            marketmanager.buyBond(vars.marketId, int256(vars.amountToBuy), vars.curPrice + precision/2 , data); 
+            marketmanager.buyBond(vars.marketId, int256(vars.amountToBuy), precision , data); 
         doApprove(vars.marketId, vars.vault_ad);
 
         vm.prank(jonna); 
@@ -291,7 +291,7 @@ contract PoolInstrumentTest is CustomTestBase {
         doApproveCol(address(marketmanager), jonna); 
         vm.prank(jonna); 
         (vars.amountIn, vars.amountOut) =
-            marketmanager.buyBond(vars.marketId, int256(vars.amountToBuy), vars.curPrice + precision/2 , data); 
+            marketmanager.buyBond(vars.marketId, int256(vars.amountToBuy), precision , data); 
         // let validator invest to vault and approve 
         doApprove(vars.marketId, vars.vault_ad);
         doInvest(vars.vault_ad, gatdang, precision * 100000);
@@ -357,7 +357,7 @@ contract PoolInstrumentTest is CustomTestBase {
         doApproveCol(address(marketmanager), jonna); 
         vm.prank(jonna); 
         (vars.amountIn, vars.amountOut) =
-            marketmanager.buyBond(vars.marketId, int256(vars.amountToBuy), vars.curPrice + precision/2 , data); 
+            marketmanager.buyBond(vars.marketId, int256(vars.amountToBuy), precision , data); 
 
         // let validator invest to vault and approve, 
         // After approval, should remain same exchange rate
@@ -375,11 +375,11 @@ contract PoolInstrumentTest is CustomTestBase {
         marketmanager.issuePoolBond(vars.marketId, vars.amountToBuy); 
         assertEq(exchangeRate1, Vault(vars.vault_ad).previewMint(1e18));
 
-        console.log('doing trade'); 
-        vars.curPrice = marketmanager.getPool(vars.marketId).getCurPrice();
-        (vars.amountIn, vars.amountOut) =
-            marketmanager.buyBond(vars.marketId, int256(vars.amountToBuy), vars.curPrice *11/10, data); 
-        console.log('amountIn, amountout', vars.amountIn, vars.amountOut); 
+        // console.log('doing trade'); 
+        // vars.curPrice = marketmanager.getPool(vars.marketId).getCurPrice();
+        // (vars.amountIn, vars.amountOut) =
+        //     marketmanager.buyBond(vars.marketId, int256(vars.amountToBuy), vars.curPrice *11/10, data); 
+        // console.log('amountIn, amountout', vars.amountIn, vars.amountOut); 
 
     }
 

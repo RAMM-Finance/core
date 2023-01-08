@@ -130,7 +130,7 @@ contract FixedTest is CustomTestBase {
         doApproveCol(address(marketmanager), jonna); 
         vm.prank(jonna); 
         (vars.amountIn, vars.amountOut) =
-            marketmanager.buyBond(vars.marketId, int256(vars.amountToBuy), vars.curPrice + precision/10 , data); 
+            marketmanager.buyBond(vars.marketId, int256(vars.amountToBuy), vars.curPrice + precision , data); 
         assertApproxEqAbs(vars.amountIn, vars.amountToBuy, 10); 
         assertEq(marketmanager.loggedCollaterals(vars.marketId),vars.amountIn); 
         assert(controller.marketCondition(vars.marketId)); 
