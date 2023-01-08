@@ -174,7 +174,7 @@ contract Vault is ERC4626{
     uint256 managementFee; 
 
     uint256 srpPlusOne; 
-    uint256 totalAssetsHeld; 
+    uint256 totalAssetsHeldScaled; 
     uint256 juniorSupply;
     uint256 seniorSupply; 
 
@@ -203,28 +203,27 @@ contract Vault is ERC4626{
     // Get total assets held by the instrument 
     vars.juniorSupply = controller.getTotalSupply(marketId); 
     vars.seniorSupply = vars.juniorSupply.mulWadDown(vars.leverageFactor); 
-    vars.totalAssetsHeld = instrumentAssetOracle(marketId, vars.juniorSupply, vars.seniorSupply); 
+    vars.totalAssetsHeldScaled = instrumentAssetOracle(marketId, vars.juniorSupply, vars.seniorSupply)
+      .mulWadDown(vars.inceptionPrice); 
 
     if (vars.seniorSupply == 0) return(vars.srpPlusOne,vars.srpPlusOne,levFactor); 
     
     // Check if all seniors can redeem
-    if (vars.totalAssetsHeld >= vars.srpPlusOne.mulWadDown(vars.seniorSupply))
+    if (vars.totalAssetsHeldScaled >= vars.srpPlusOne.mulWadDown(vars.seniorSupply))
       psu = vars.srpPlusOne; 
     else{
-      psu = vars.totalAssetsHeld.divWadDown(vars.seniorSupply);
+      psu = vars.totalAssetsHeldScaled.divWadDown(vars.seniorSupply);
       vars.belowThreshold = true;  
     }
-
-
     // should be 0 otherwise 
-    if(!vars.belowThreshold) pju = (vars.totalAssetsHeld 
+    if(!vars.belowThreshold) pju = (vars.totalAssetsHeldScaled 
       - vars.srpPlusOne.mulWadDown(vars.seniorSupply)).divWadDown(vars.juniorSupply); 
-    // uint pju_ = (BASE_UNIT+ vars.leverageFactor).mulWadDown(previewMint(BASE_UNIT*8/10)) 
-    //   -  vars.srpPlusOne.mulWadDown(vars.leverageFactor);
+    uint pju_ = (BASE_UNIT+ vars.leverageFactor).mulWadDown(previewMint(BASE_UNIT.mulWadDown(vars.inceptionPrice))) 
+      -  vars.srpPlusOne.mulWadDown(vars.leverageFactor);
+
     // assert(pju_ >= pju-10 || pju_ <= pju+10); 
         // console.log('ok????'); 
-    console.log("totalAsset, srp*supply, pju", vars.totalAssetsHeld, vars.srpPlusOne, 
-      pju); 
+
     }
 
     event InstrumentHarvest(address indexed instrument, uint256 totalInstrumentHoldings, uint256 instrument_balance, uint256 mag, bool sign); //sign is direction of mag, + or -.
@@ -363,19 +362,20 @@ contract Vault is ERC4626{
         fetchInstrument(marketId).onMarketApproval(data.approved_principal, data.approved_yield); 
 
       } else{
+        instrument_data[Instruments[marketId]].poolData.inceptionTime = block.timestamp; 
         depositIntoInstrument(marketId, data.approved_principal - data.managers_stake, true);
       }
       emit InstrumentTrusted(marketId, address(Instruments[marketId]), data.approved_principal, data.approved_yield, instrument_data[fetchInstrument(marketId)].maturityDate);
     }
 
     /// @notice fetches how much asset the instrument has in underlying. 
-    function instrumentAssetOracle(uint256 marketId, uint256 juniorSupply, uint256 seniorSupply) public view returns(uint256){
+    function instrumentAssetOracle(
+      uint256 marketId, 
+      uint256 juniorSupply, 
+      uint256 seniorSupply) public view returns(uint256){
       // Default balance oracle 
       ERC4626 instrument = ERC4626(address(Instruments[marketId])); 
-      console.log('previewdeposit,juniorsupply', instrument.previewMint(BASE_UNIT), juniorSupply); 
-      return (juniorSupply + seniorSupply).mulWadDown(instrument.previewMint(BASE_UNIT))*8/10; 
-      // return (juniorSupply + seniorSupply).mulWadDown(BASE_UNIT*8/10); 
-      //return instrument_data[Instruments[marketId]].balance; 
+      return (juniorSupply + seniorSupply).mulWadDown(instrument.previewMint(BASE_UNIT)); 
       //TODO custom oracle 
     }
 
@@ -399,9 +399,9 @@ contract Vault is ERC4626{
     //onlyOwner 
     { 
       // if amount=0, push everything this vault have 
-      uint256 depositAmount = amount==0
-        ? UNDERLYING.balanceOf(address(this))
-        : amount; 
+      uint256 bal = UNDERLYING.balanceOf(address(this)); 
+      require(amount<= bal, "push exceeds liq"); 
+      uint256 depositAmount = amount==0 ? bal : amount; 
 
       depositIntoInstrument(0, depositAmount, true); 
     }
@@ -415,8 +415,8 @@ contract Vault is ERC4626{
       // shares this vault has of it. 
       Instrument instrument = fetchInstrument(0); 
       uint256 shares = ERC4626(address(instrument)).balanceOf(address(this)); 
-      require(amount <= ERC4626(address(instrument)).previewMint(shares), "!!liq" ); 
-      require(instrument.isLiquid(amount), "!liq");
+      require(amount <= ERC4626(address(instrument)).previewMint(shares), "!!liq1" ); 
+      require(instrument.isLiquid(amount), "!liq2");
 
       ERC4626(address(instrument)).withdraw(amount, address(this), address(this)); 
 

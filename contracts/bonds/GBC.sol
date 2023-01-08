@@ -253,7 +253,7 @@ contract GranularBondingCurve{
             {console.log('________'); 
             console.log('CURPRICE', state.curPrice); 
             console.log('trading; liquidity, amountleft', state.liquidity); 
-            console.log(uint256(-state.amountSpecifiedRemaining));
+            console.log(uint256(state.amountSpecifiedRemaining));
             console.log('nextpricelimit/pointnext', step.priceNextLimit, step.pointNext);           
             console.log('a', vars.a); }
             console.log('amountinandout', step.amountIn, step.amountOut); 
