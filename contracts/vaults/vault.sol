@@ -335,6 +335,8 @@ contract Vault is ERC4626{
       UNDERLYING.transfer(pushTo, instrumentPullAmount); 
 
       //TODO instrument balance should decrease to 0 and stay solvent  
+      //TODO can everyone redeem? does vault's instument share balance change when
+      // mint-> redeem at different pjus? 
       withdrawFromInstrument(fetchInstrument(marketId), underlyingAmount, false);
     }
 

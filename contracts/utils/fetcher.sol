@@ -207,7 +207,7 @@ contract Fetcher {
             vaultBundle.totalProtection += marketBundle[i].totalCollateral; 
         }
         uint256 goalUtilizationRate = 9e17; //90% utilization goal? 
-        if(vaultBundle.totalEstimatedAPR <= goalUtilizationRate)
+        if(vaultBundle.utilizationRate <= goalUtilizationRate )
         vaultBundle.goalAPR = (goalUtilizationRate.divWadDown(1+vaultBundle.utilizationRate)).mulWadDown(vaultBundle.totalEstimatedAPR); 
         else vaultBundle.goalAPR = vaultBundle.totalEstimatedAPR ; 
     }
@@ -339,8 +339,11 @@ contract Fetcher {
         MarketManager.CoreMarketData memory data = marketmanager.getMarket(mid); 
         Controller.ApprovalData memory approvalData = controller.getApprovalData(mid); 
         bundle.managers_stake = approvalData.managers_stake;
-        bundle.exposurePercentage = (approvalData.approved_principal- approvalData.managers_stake).divWadDown(
+
+        bundle.exposurePercentage = (bundle.balance).divWadDown(
             controller.getVault(mid).totalAssets()+1);
+        bundle.seniorAPR = bundle.poolData.promisedReturn; 
+        bundle.approvalPrice = bundle.poolData.inceptionPrice; 
 
         if(!bundle.isPool){
             uint256 amountDelta;
@@ -364,10 +367,7 @@ contract Fetcher {
                 : 0; 
             bundle.approvalPrice = resultPrice; 
         }
-        else{
-            bundle.seniorAPR = bundle.poolData.promisedReturn; 
-            bundle.approvalPrice = bundle.poolData.inceptionPrice; 
-        }
+
     }
 
     function makeEmptyVaultBundle() pure internal returns (VaultBundle memory) {

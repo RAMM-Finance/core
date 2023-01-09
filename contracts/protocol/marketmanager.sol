@@ -517,13 +517,14 @@ event MarketDenied(uint256 indexed marketId);
     _canIssue(msg.sender, int256(_amountIn), _marketId);  
     Vault vault = controller.getVault(_marketId); 
     ERC20 underlying = ERC20(address(markets[_marketId].bondPool.BaseToken())); 
+    address instrument = address(vault.Instruments(_marketId)); 
 
     // Get price and sell longZCB with this price
     (uint256 psu, uint256 pju, uint256 levFactor ) = vault.poolZCBValue(_marketId);
 
     underlying.transferFrom(msg.sender, address(this), _amountIn);
-    // underlying.approve(address(vault.Instruments(_marketId)), _amountIn); 
-    // vault.Instruments(_marketId).pullRawFunds(_amountIn); 
+    underlying.approve(instrument, _amountIn); 
+    ERC4626(instrument).deposit(_amountIn, address(vault)); 
 
     issueQTY = _amountIn.divWadUp(pju); //TODO rounding errs
     markets[_marketId].bondPool.trustedDiscountedMint(msg.sender, issueQTY); 
@@ -531,7 +532,7 @@ event MarketDenied(uint256 indexed marketId);
     // Need to transfer funds automatically to the instrument, seniorAmount is longZCB * levFactor * psu  
     vault.depositIntoInstrument(_marketId, issueQTY.mulWadDown(config.WAD + levFactor).mulWadDown(psu), true); 
     //TODO Need totalAssets and exchange rate to remain same assertion 
-
+    //TODO vault always has to have more shares, all shares minted goes to vault 
     reputationManager.recordPull(msg.sender, _marketId, issueQTY,
        _amountIn, getTraderBudget( _marketId, msg.sender), true); 
       
@@ -548,7 +549,6 @@ event MarketDenied(uint256 indexed marketId);
     CoreMarketData memory market = markets[marketId]; 
 
     require(market.isPool, "!pool"); 
-    require(market.longZCB.balanceOf(msg.sender) >= redeemAmount, "insufficient bal"); 
 
     (uint256 psu, uint256 pju, uint256 levFactor ) = vault.poolZCBValue(marketId);
     collateral_redeem_amount = pju.mulWadDown(redeemAmount); 
