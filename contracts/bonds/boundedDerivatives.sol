@@ -50,7 +50,7 @@ contract BoundedDerivativesPool is GranularBondingCurve{
         BaseToken.transfer(recipient, amountOut); 
     }
 
-    function baseBal() public view returns(uint256){
+    function baseBal() internal view returns(uint256){
         return BaseToken.balanceOf(address(this)); 
     }
 
@@ -389,51 +389,51 @@ contract BoundedDerivativesPool is GranularBondingCurve{
         }
     }
 
-    function provideLiquidity(
-        uint16 pointLower,
-        uint16 pointUpper,
-        uint128 amount, 
-        bytes calldata data 
-        ) external {
+    // TODO separate contracts 
+    // function provideLiquidity(
+    //     uint16 pointLower,
+    //     uint16 pointUpper,
+    //     uint128 amount, 
+    //     bytes calldata data 
+    //     ) external {
 
-        (uint256 amount0, uint256 amount1) = provide(
-            msg.sender, 
-            pointLower, 
-            pointUpper, 
-            amount, 
-            data 
-        ); 
-        BaseToken.transferFrom(msg.sender, address(this), amount0); 
-        // TradeToken.transferFrom(msg.sender, address(this), amount1);
-        TradeToken.burn(msg.sender, amount1);
-    }
+    //     (uint256 amount0, uint256 amount1) = provide(
+    //         msg.sender, 
+    //         pointLower, 
+    //         pointUpper, 
+    //         amount, 
+    //         data 
+    //     ); 
+    //     BaseToken.transferFrom(msg.sender, address(this), amount0); 
+    //     // TradeToken.transferFrom(msg.sender, address(this), amount1);
+    //     TradeToken.burn(msg.sender, amount1);
+    // }
 
-    function withdrawLiquidity(
-        uint16 pointLower,
-        uint16 pointUpper,
-        uint128 amount, 
-        bytes calldata data 
-        )external{
+    // function withdrawLiquidity(
+    //     uint16 pointLower,
+    //     uint16 pointUpper,
+    //     uint128 amount, 
+    //     bytes calldata data 
+    //     )external{
 
-        (uint256 amountBase, uint256 amountTrade) = remove(
-            msg.sender, 
-            pointLower, 
-            pointUpper, 
-            amount
-        ); 
+    //     (uint256 amountBase, uint256 amountTrade) = remove(
+    //         msg.sender, 
+    //         pointLower, 
+    //         pointUpper, 
+    //         amount
+    //     ); 
       
-        collect(
-            msg.sender, 
-            pointLower,
-            pointUpper,
-            type(uint128).max,
-            type(uint128).max
-        ); 
+    //     collect(
+    //         msg.sender, 
+    //         pointLower,
+    //         pointUpper,
+    //         type(uint128).max,
+    //         type(uint128).max
+    //     ); 
 
-        BaseToken.transfer(msg.sender,  amountBase); 
-        TradeToken.mint(msg.sender, amountTrade); 
-    }
-    function getTraderPosition()external view{}
+    //     BaseToken.transfer(msg.sender,  amountBase); 
+    //     TradeToken.mint(msg.sender, amountTrade); 
+    // }
 
     //TODO fees, skipping uninit for gas, below functions
     // possible attacks: manipulation of price with no liquidityregions, add a bid/ask and a naive 

@@ -102,8 +102,8 @@ contract SyntheticZCBPool is BoundedDerivativesPool{
         b = initPrice; 
 
         // How much total discounts are validators and managers getting
-        managementFee = discount_cap.mulWadDown(endPrice) 
-            - saleAmount.mulWadDown(sigma) + saleAmountQty.mulWadDown(endPrice) - saleAmount ; 
+        // managementFee = discount_cap.mulWadDown(endPrice) 
+        //     - saleAmount.mulWadDown(sigma) + saleAmountQty.mulWadDown(endPrice) - saleAmount ; 
 
         // set initial liquidity and price 
         setLiquidity(uint128(precision.divWadDown(a))); 
@@ -155,7 +155,4 @@ contract SyntheticZCBPool is BoundedDerivativesPool{
         amortizeLiq(); 
     }
 
-    function cBal() external view returns(uint256){
-        return BaseToken.balanceOf(address(this)); 
-    }
 }

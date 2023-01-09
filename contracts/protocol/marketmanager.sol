@@ -545,10 +545,10 @@ event MarketDenied(uint256 indexed marketId);
     ) external _lock_ returns(uint256 collateral_redeem_amount, uint256 seniorAmount){
     // TODO conditions/restrictions-> need some time to pass to call this + need some liquidity in pool 
     Vault vault = controller.getVault(marketId); 
-    // CoreMarketData memory market = markets[marketId]; 
+    CoreMarketData memory market = markets[marketId]; 
 
-    require(markets[marketId].isPool, "!pool"); 
-    require(markets[marketId].longZCB.balanceOf(msg.sender) >= redeemAmount, "insufficient bal"); 
+    require(market.isPool, "!pool"); 
+    require(market.longZCB.balanceOf(msg.sender) >= redeemAmount, "insufficient bal"); 
 
     (uint256 psu, uint256 pju, uint256 levFactor ) = vault.poolZCBValue(marketId);
     collateral_redeem_amount = pju.mulWadDown(redeemAmount); 
@@ -564,7 +564,7 @@ event MarketDenied(uint256 indexed marketId);
     if (queuedRepUpdates[msg.sender] > 0){
      unchecked{queuedRepUpdates[msg.sender] -= 1;} 
     }
-    markets[marketId].bondPool.trustedBurn(msg.sender, redeemAmount, true); 
+    market.bondPool.trustedBurn(msg.sender, redeemAmount, true); 
 
     // TODO assert pju stays same 
     // TODO assert need totalAssets and exchange rate to remain same 
@@ -596,7 +596,7 @@ event MarketDenied(uint256 indexed marketId);
       (amountIn, amountOut) = bondPool.takerOpen(true, _amountIn, _priceLimit, abi.encode(msg.sender)); 
 
       // uint256 upperBound = bondPool.upperBound(); 
-      if( bondPool.upperBound() !=0 &&  bondPool.upperBound() < bondPool.getCurPrice()) revert("Exceeds Price Bound"); 
+      if( bondPool.upperBound() !=0 &&  bondPool.upperBound() < bondPool.getCurPrice()) revert("bound"); 
 
       //Need to log assessment trades for updating reputation scores or returning collateral when market denied 
       _logTrades(_marketId, msg.sender, amountIn, 0, true, true);
@@ -643,9 +643,8 @@ event MarketDenied(uint256 indexed marketId);
       // }
     }
 
-    uint amountIn_ = _amountIn> 0? uint256(_amountIn) : uint256(-_amountIn); 
-    if(_amountIn> 0)require(amountIn_ == amountIn , "AMM not enough Liq") ; 
-    else require(amountIn_==amountOut, "AMM not enough Liq"); 
+    if(_amountIn> 0)require(uint256(_amountIn) == amountIn, " !liq") ; 
+    else require(uint256(-_amountIn)==amountOut, "!liq"); 
 
     emit BondBuy(_marketId, msg.sender, amountIn, amountOut); // get current price as well.
   }
@@ -673,14 +672,15 @@ event MarketDenied(uint256 indexed marketId);
 
     }
     else{
-      controller.deduct_selling_fee( _marketId ); //TODO, if validator or manager, deduct reputation 
+      // controller.deduct_selling_fee( _marketId ); //TODO, if validator or manager, deduct reputation 
 
-      (uint16 point, bool isTaker) = abi.decode(_tradeRequestData, (uint16,bool ));
-      if(isTaker) (amountIn, amountOut) = bondPool.takerClose(
+      // (uint16 point, bool isTaker) = abi.decode(_tradeRequestData, (uint16,bool ));
+      // if(isTaker) 
+      (amountIn, amountOut) = bondPool.takerClose(
               true, int256(_amountIn), _priceLimit, abi.encode(msg.sender));
-      else {
-        (uint256 escrowAmount, uint128 crossId) = bondPool.makerClose(point, uint256(_amountIn), true, msg.sender);        
-      }
+      // else {
+      //   (uint256 escrowAmount, uint128 crossId) = bondPool.makerClose(point, uint256(_amountIn), true, msg.sender);        
+      // }
     }
 
     reputationManager.recordPush(msg.sender, _marketId, bondPool.getCurPrice(), true, amountIn); 
@@ -709,13 +709,13 @@ event MarketDenied(uint256 indexed marketId);
     else{
       //deduct_selling_fee(); //if naked CDS( staked vault)
 
-      (uint16 point, bool isTaker) = abi.decode(_tradeRequestData, (uint16,bool ));
-      if (isTaker)
+      // (uint16 point, bool isTaker) = abi.decode(_tradeRequestData, (uint16,bool ));
+      // if (isTaker)
         (amountOut, amountIn) = bondPool.takerOpen(false, int256(_amountIn), _priceLimit, abi.encode(msg.sender));
       
-      else{
-        (uint256 escrowAmount, uint128 crossId) = bondPool.makerOpen(point, uint256(_amountIn), false, msg.sender);
-      }
+      // else{
+      //   (uint256 escrowAmount, uint128 crossId) = bondPool.makerOpen(point, uint256(_amountIn), false, msg.sender);
+      // }
     }
   }
 
@@ -737,13 +737,13 @@ event MarketDenied(uint256 indexed marketId);
      // deduct_selling_fee(); 
     }
     else{
-      (uint16 point, bool isTaker) = abi.decode(_tradeRequestData, (uint16,bool ));
-      if (isTaker)
+      // (uint16 point, bool isTaker) = abi.decode(_tradeRequestData, (uint16,bool ));
+      // if (isTaker)
         (amountOut, amountIn) = bondPool.takerClose(false, -int256(_amountIn), _priceLimit, abi.encode(msg.sender));
       
-      else{
-        (uint256 escrowAmount, uint128 crossId) = bondPool.makerClose(point, _amountIn, false, msg.sender);
-      }
+      // else{
+      //   (uint256 escrowAmount, uint128 crossId) = bondPool.makerClose(point, _amountIn, false, msg.sender);
+      // }
     }
   }
 

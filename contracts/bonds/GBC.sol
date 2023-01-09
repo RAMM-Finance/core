@@ -225,8 +225,7 @@ contract GranularBondingCurve{
             slot0Start.point = state.point; 
         }
         
-        if (moveUp) require(priceLimit>= state.curPrice, "Slippage err" ); 
-        else require(priceLimit<= state.curPrice, "Slippage err" ); 
+        require(moveUp? priceLimit>= state.curPrice : priceLimit<= state.curPrice, "plimitERR" ); 
         priceLimit = pointToPrice(priceToPoint(priceLimit)); 
 
         while (state.amountSpecifiedRemaining !=0 && state.curPrice != priceLimit){
@@ -396,7 +395,7 @@ contract GranularBondingCurve{
         Slot0 memory _slot0 = slot0; 
 
         Position.Info storage position = positions.get(recipient, point, point+1);
-        require(priceToPoint(uint256(slot0.curPrice)) == point, "Not current price"); 
+        require(priceToPoint(uint256(_slot0.curPrice)) == point, "Not cur price"); 
 
         // Assume trying to withdraw all liquidity provided 
         uint128 liqToWithdraw = isAsk ? position.askLiq : position.bidLiq; 

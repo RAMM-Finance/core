@@ -69,10 +69,6 @@ contract Controller {
     SyntheticZCBPoolFactory poolFactory;
     ReputationManager reputationManager;
 
-    uint256 constant TWITTER_UNRATED_GROUP_ID =
-        16106950158033643226105886729341667676405340206102109927577753383156646348711;
-    bytes32 private constant signal = bytes32("twitter-unrated");
-    uint256 constant MIN_DURATION = 1 days;
 
     /* ========== MODIFIERS ========== */
     modifier onlyValidator(uint256 marketId) {
@@ -439,21 +435,21 @@ contract Controller {
         // TODO edgecase redemption price calculations
     }
 
-    uint256 public constant riskTransferPenalty = 1e17;
+    // uint256 public constant riskTransferPenalty = 1e17;
 
-    /// @notice deduce fees for non vault stakers, should go down as maturity time approach 0
-    function deduct_selling_fee(uint256 marketId)
-        public
-        view
-        returns (uint256)
-    {
-        // Linearly decreasing fee
-        uint256 normalizedTime = ((getVault(marketId)
-            .fetchInstrumentData(marketId)
-            .maturityDate - block.timestamp) * config.WAD) /
-            getVault(marketId).fetchInstrumentData(marketId).duration;
-        return normalizedTime.mulWadDown(riskTransferPenalty);
-    }
+    // /// @notice deduce fees for non vault stakers, should go down as maturity time approach 0
+    // function deduct_selling_fee(uint256 marketId)
+    //     public
+    //     view
+    //     returns (uint256)
+    // {
+    //     // Linearly decreasing fee
+    //     uint256 normalizedTime = ((getVault(marketId)
+    //         .fetchInstrumentData(marketId)
+    //         .maturityDate - block.timestamp) * config.WAD) /
+    //         getVault(marketId).fetchInstrumentData(marketId).duration;
+    //     return normalizedTime.mulWadDown(riskTransferPenalty);
+    // }
 
     /// @notice When market resolves, should collect remaining liquidity and/or dust from
     /// the pool and send them back to the vault
