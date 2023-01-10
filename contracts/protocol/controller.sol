@@ -252,6 +252,7 @@ contract Controller {
         if (instrumentData.isPool) {
           require(instrumentData.poolData.initPrice<= 1e18 
             && instrumentData.poolData.initPrice< instrumentData.poolData.inceptionPrice, "PRICE ERR"); 
+          require(instrumentData.poolData.promisedReturn>0, "RETURN ERR"); 
           instrumentData.poolData.inceptionTime = block.timestamp;
 
           instrumentData.poolData.managementFee = pool
@@ -576,7 +577,7 @@ contract Controller {
                 marketManager.getZCB(marketId).totalSupply(),
                 vault.fetchInstrumentData(marketId).poolData
             );
-          require(ERC4626(instrument).deposit(managerCollateral, address(this))>0, "DEPOSIT_FAILED");
+          require(ERC4626(instrument).deposit(managerCollateral, address(vault))>0, "DEPOSIT_FAILED");
         } else {
             if (vault.getInstrumentType(marketId) == 0)
                 creditApproval(marketId, pool);
@@ -611,12 +612,7 @@ contract Controller {
                 .mulWadDown(data.inceptionPrice),
             0
         );
-        console.log(
-            "principal",
-            juniorSupply
-                .mulWadDown(config.WAD + data.leverageFactor)
-                .mulWadDown(data.inceptionPrice)
-        );
+
     }
 
     /// @notice receives necessary market information. Only applicable for creditlines

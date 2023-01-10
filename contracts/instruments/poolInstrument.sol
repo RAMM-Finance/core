@@ -755,7 +755,7 @@ contract PoolInstrument is ERC4626, Instrument, PoolConstants, ReentrancyGuard, 
     // ERC4626 functions.
 
     function beforeWithdraw(uint256 assets, uint256 shares) internal override virtual {
-        require(msg.sender == address(vault), "Not Vault"); // only the vault can withdraw
+        // require(msg.sender == address(vault) || msg.sender == controller, "!Vault/Controller"); // only the vault can withdraw
         // check if there is enough asset to cover the withdraw.
         uint256 totalAvailableAsset = _totalAssetAvailable(totalAsset, totalBorrow);
         require(totalAvailableAsset >= assets, "not enough asset");
@@ -770,7 +770,7 @@ contract PoolInstrument is ERC4626, Instrument, PoolConstants, ReentrancyGuard, 
     }
 
     function afterDeposit(uint256 assets, uint256 shares) internal override virtual {
-        require(msg.sender == address(vault), "Not Vault"); // only the vault can deposit
+        // require(msg.sender == address(vault) || msg.sender == controller, "!Vault/Controller"); // only the vault can deposit
         VaultAccount memory _totalAsset = totalAsset;
 
         _totalAsset.amount += assets.safeCastTo128();
