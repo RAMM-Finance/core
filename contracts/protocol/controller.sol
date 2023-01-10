@@ -183,6 +183,8 @@ contract Controller {
         Vault.InstrumentData memory instrumentData = getVault(marketId).fetchInstrumentData(marketId);
         managerStake = approvalData.managers_stake;
         exposurePercentage = (approvalData.approved_principal- approvalData.managers_stake).divWadDown(getVault(marketId).totalAssets()+1);
+        seniorAPR = instrumentData.poolData.promisedReturn; 
+        approvalPrice = instrumentData.poolData.inceptionPrice; 
 
         if(!instrumentData.isPool){
             uint256 amountDelta;
@@ -205,10 +207,6 @@ contract Controller {
                 ? seniorYield.divWadDown(1+instrumentData.principal - approvalData.managers_stake)
                 : 0; 
             approvalPrice = resultPrice; 
-        }
-        else{
-            seniorAPR = instrumentData.poolData.promisedReturn; 
-            approvalPrice = instrumentData.poolData.inceptionPrice; 
         }
     }
 
