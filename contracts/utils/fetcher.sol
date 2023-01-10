@@ -102,7 +102,6 @@ contract Fetcher {
         uint256 managementFee; // sum of discounts for high reputation managers/validators
         uint256 pju;
         uint256 psu;
-
         // lending pool data
         uint128 totalBorrowedAssets;
         uint128 totalSuppliedAssets;
@@ -269,7 +268,7 @@ contract Fetcher {
         
         
         (,,uint64 ratePerSec) = PoolInstrument(instrument).currentRateInfo();
-        bundle.APR = ratePerSec * 365.24 days;
+        bundle.APR = ratePerSec;
         (uint128 borrowAmount,) = PoolInstrument(instrument).totalBorrow();
         (uint128 assetAmount,) = PoolInstrument(instrument).totalAsset();
         bundle.totalBorrowedAssets = borrowAmount;
