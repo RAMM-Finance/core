@@ -375,7 +375,7 @@ contract CreditLine is Instrument {
 
     /// @param quoted_yield is in notional amount denominated in underlying, which is the area between curve and 1 at the x-axis point 
     /// where area under curve is max_principal 
-    function onMarketApproval(uint256 max_principal, uint256 quoted_yield)  external override onlyVault {
+    function onMarketApproval(uint256 max_principal, uint256 quoted_yield) external override onlyVault {
         principal = max_principal; 
         notionalInterest = quoted_yield; //this accounts for duration as well
         interestAPR = quoted_yield.divWadDown(duration.mulWadDown(principal)); 

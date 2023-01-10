@@ -126,15 +126,16 @@ contract PoolInstrument is ERC4626, Instrument, PoolConstants, ReentrancyGuard, 
 
     // should be gated function
     /// tokenId 0 for ERC20.
-    function initialize(
-    ) external {
+    // function initialize(
+    // ) external {
 
-    }
+    // }
 
     function getAcceptedCollaterals() view public returns (CollateralLabel[] memory) {
         return collaterals;
     }
 
+    event NewCollateralAdded(address collateral, uint256 tokenId, uint256 maxAmount, uint256 maxBorrowAmount, bool isERC20);
     // legacy for tests, remove later.
     function addAcceptedCollateral(
         address _collateral,
@@ -143,12 +144,13 @@ contract PoolInstrument is ERC4626, Instrument, PoolConstants, ReentrancyGuard, 
         uint256 _maxBorrowAmount,
         bool _isERC20
     ) external  {
-        require(msg.sender == controller, "only controller");
+        require(msg.sender == controller || msg.sender == address(vault), "!authorized");
         if (approvedCollateral[_collateral][_tokenId]) return; 
         require(_maxAmount > _maxBorrowAmount, "maxAmount must be greater than maxBorrowAmount");
         approvedCollateral[_collateral][_tokenId] = true;
         collaterals.push(CollateralLabel(_collateral, _tokenId));
         collateralData[_collateral][_tokenId] = Collateral(0,_maxAmount, _maxBorrowAmount, _isERC20);
+        emit NewCollateralAdded(_collateral, _tokenId, _maxAmount, _maxBorrowAmount, _isERC20);
     }
 
     // INTERNAL HELPERS
