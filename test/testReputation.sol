@@ -55,7 +55,8 @@ contract ReputationSystemTests is CustomTestBase {
             0,
             type(uint256).max,
             type(uint256).max,
-            MarketManager.MarketParameters(N, sigma, alpha, omega, delta, r, s, steak)
+            MarketManager.MarketParameters(N, sigma, alpha, omega, delta, r, s, steak),
+            "description"
         ); //vaultId = 1; 
         vault_ad = controller.getVaultfromId(1); 
 

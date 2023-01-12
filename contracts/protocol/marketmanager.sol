@@ -234,7 +234,7 @@ event MarketPhaseSet(uint256 indexed marketId, MarketPhaseData data);
     emit MarketPhaseSet(marketId, restriction_data[marketId]);
   }
 
-  event MarketReputationSet(uint256 indexed marketId, bool onlyReputable);
+  // event MarketReputationSet(uint256 indexed marketId, bool onlyReputable);
 
   /// @notice used to transition from reputationphases 
   // function setReputationPhase(
@@ -805,6 +805,7 @@ event MarketDenied(uint256 indexed marketId);
     //TODO need to check if last redeemer, so can kill market.
   }
 
+
   /// @notice trader will redeem entire balance of ZCB
   /// Needs to be called at maturity, market needs to be resolved first(from controller)
   function redeem(
@@ -833,9 +834,7 @@ event MarketDenied(uint256 indexed marketId);
    }
 
     bondPool.trustedBurn(msg.sender, zcb_redeem_amount, true); 
-    controller.redeem_transfer(collateral_redeem_amount, msg.sender, marketId); 
-
-
+    controller.redeem_transfer(collateral_redeem_amount, msg.sender, marketId);
   }
 
   /// @notice called by short buyers when market is resolved  
@@ -921,6 +920,7 @@ event MarketDenied(uint256 indexed marketId);
             .principal)
       ) {
         restriction_data[_marketId].onlyReputable = false;
+        emit MarketPhaseSet(_marketId, restriction_data[_marketId]);
       }
     }
     // create note to trader 
@@ -957,7 +957,7 @@ event MarketDenied(uint256 indexed marketId);
 
     leveragePosition[marketId][msg.sender].amount = 0; 
     markets[marketId].bondPool.trustedBurn(address(this), position.amount, true); 
-    controller.redeem_transfer(collateral_redeem_amount, msg.sender, marketId); 
+    controller.redeem_transfer(collateral_redeem_amount, msg.sender, marketId);
   }
 
   function redeemDeniedLeveredBond(uint256 marketId) public returns(uint collateral_amount){

@@ -44,29 +44,22 @@ contract VaultFactory{
    @notice creates vault
    @param underlying: underlying asset for vault
    @param _controller: protocol controller
-   @param _onlyVerified: only verified users can mint shares
-   @param _r: minimum reputation score to mint shares
-   @param _asset_limit: max number of shares for a single address
-   @param _total_asset_limit: max number of shares for entire vault
    @param default_params: default params for markets created by vault
    */
   function newVault(
-    address underlying, 
+    address underlying,
     address _controller,
-    bool _onlyVerified, 
-    uint256 _r, 
-    uint256 _asset_limit,
-    uint256 _total_asset_limit,
+    bytes memory _configData,
     MarketManager.MarketParameters memory default_params
   ) external onlyController returns(Vault, uint256) {
     require(default_params.alpha >= 1e16, "Alpha too small"); 
     
     Vault vault = new Vault(
       underlying,
-       _controller, 
+       _controller,
        owner, 
        //Params 
-       _onlyVerified,  _r, _asset_limit, _total_asset_limit,
+       _configData,
        default_params
        ); 
     _isVault[address(vault)] = true; 

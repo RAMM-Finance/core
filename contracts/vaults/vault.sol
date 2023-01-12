@@ -27,10 +27,11 @@ contract Vault is ERC4626{
     //////////////////////////////////////////////////////////////*/
 
     uint256 internal BASE_UNIT;
-    uint256 totalInstrumentHoldings; //total holdings deposited into all Instruments collateral
+    uint256 public totalInstrumentHoldings; //total holdings deposited into all Instruments collateral
     ERC20 public immutable UNDERLYING;
     Controller private controller;
     MarketManager.MarketParameters default_params; 
+    string public description;
 
     ///// For Factory
     bool public onlyVerified; 
@@ -93,16 +94,17 @@ contract Vault is ERC4626{
         bool isPrepared; 
     }
     address public owner; 
+
+    // bool _onlyVerified, //
+    //     uint256 _r, //reputation ranking
+    //     uint256 _asset_limit, 
+    //     uint256 _total_asset_limit,
+    //     string memory _description,
     constructor(
         address _UNDERLYING,
         address _controller, 
-        address _owner, 
-
-        bool _onlyVerified, //
-        uint256 _r, //reputation ranking
-        uint256 _asset_limit, 
-        uint256 _total_asset_limit,
-
+        address _owner,
+        bytes memory _configData,
         MarketManager.MarketParameters memory _default_params
     )
         ERC4626(
@@ -111,7 +113,16 @@ contract Vault is ERC4626{
             string(abi.encodePacked("RAMM", ERC20(_UNDERLYING).symbol()))
         )  
 
-    {   
+    {
+          
+        (
+            bool _onlyVerified, 
+            uint256 _r, 
+            uint256 _asset_limit, 
+            uint256 _total_asset_limit,
+            string memory _description
+        ) = abi.decode(_configData, (bool, uint256, uint256, uint256, string));
+        description = _description;
         owner = _owner; 
         UNDERLYING = ERC20(_UNDERLYING);
         require(UNDERLYING.decimals() == 18, "decimals"); 

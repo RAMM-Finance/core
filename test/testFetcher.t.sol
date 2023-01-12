@@ -2,7 +2,7 @@ pragma solidity ^0.8.4;
 
 import "forge-std/Test.sol";
 import "forge-std/console.sol";
-import  "../contracts/protocol/controller.sol";
+import "contracts/protocol/controller.sol";
 import {MarketManager} from "contracts/protocol/marketmanager.sol";
 import {ReputationNFT} from "contracts/protocol/reputationtoken.sol";
 import {Cash} from "contracts/utils/Cash.sol";
@@ -19,7 +19,6 @@ import {VariableInterestRate} from "contracts/instruments/VariableInterestRate.s
 import {TestNFT} from "contracts/utils/TestNFT.sol";
 import {VariableInterestRate} from "../contracts/instruments/VariableInterestRate.sol";
 import {LinearInterestRate} from "../contracts/instruments/LinearInterestRate.sol";
-// import{ValidatorManager} from "../contracts/protocol/validatorManager.sol"; 
 
 contract FetcherTest is Test {
     using FixedPointMath for uint256; 
@@ -36,7 +35,6 @@ contract FetcherTest is Test {
     CoveredCallOTC otc;
     VariableInterestRate rateCalculator;
     LinearInterestRate linearRateCalculator; 
-    ValidatorManager validatorManager; 
     address deployer = 0xb4c79daB8f259C7Aee6E5b2Aa729821864227e84;
     uint256 unit = 10**18; 
     uint256 constant precision = 1e18;
@@ -178,15 +176,14 @@ contract FetcherTest is Test {
         reputationManager = new ReputationManager(address(controller), address(marketmanager));
         
         ZCBFactory zcbfactory = new ZCBFactory(); 
-        poolFactory = new SyntheticZCBPoolFactory(address(controller), address(zcbfactory)); 
+        poolFactory = new SyntheticZCBPoolFactory(address(controller), address(zcbfactory));    
 
         vm.startPrank(deployer); 
         controller.setMarketManager(address(marketmanager));
         controller.setVaultFactory(address(vaultFactory));
         controller.setPoolFactory(address(poolFactory)); 
         controller.setReputationManager(address(reputationManager));
-        validatorManager = new ValidatorManager(address(controller), address(marketmanager),address(reputationManager) );      
-        controller.setValidatorManager(address(validatorManager)); 
+        // controller.setValidatorManager(address(validatorManager));
         vm.stopPrank();
 
         controller.createVault(
@@ -195,7 +192,8 @@ contract FetcherTest is Test {
             0,
             type(uint256).max,
             type(uint256).max,
-            MarketManager.MarketParameters(N, sigma, alpha, omega, delta, r, s, steak)
+            MarketManager.MarketParameters(N, sigma, alpha, omega, delta, r, s, steak),
+            "description"
         ); //vaultId = 1; 
         vault_ad = controller.getVaultfromId(1); 
 
@@ -298,6 +296,7 @@ contract FetcherTest is Test {
     function testInitiatePool() public {
         initiateLendingPool();
     }
+
     function initiateLendingPool() public {
 
         // rateCalculator = new VariableInterestRate();
@@ -372,7 +371,8 @@ contract FetcherTest is Test {
             0,
             type(uint256).max,
             type(uint256).max,
-            MarketManager.MarketParameters(N, sigma, alpha, omega, delta, r, s, steak)
+            MarketManager.MarketParameters(N, sigma, alpha, omega, delta, r, s, steak),
+            "description"
         ); //vaultId = 2;
         controller.createVault(
             address(collateral),
@@ -380,7 +380,8 @@ contract FetcherTest is Test {
             0,
             type(uint256).max,
             type(uint256).max,
-            MarketManager.MarketParameters(N, sigma, alpha, omega, delta, r, s, steak)
+            MarketManager.MarketParameters(N, sigma, alpha, omega, delta, r, s, steak),
+            "description"
         ); //vaultId = 3;
         uint256 numVaults = vaultFactory.numVaults();
         Fetcher fetcher = new Fetcher();

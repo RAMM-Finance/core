@@ -126,7 +126,7 @@ contract SyntheticZCBPool is BoundedDerivativesPool{
         require(msg.sender == entry, "entryERR"); 
 
         TradeToken.mint(receiver, amount);
-        discountedReserves += amount;  
+        discountedReserves += amount;
     }
 
 
