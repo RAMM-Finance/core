@@ -54,8 +54,10 @@ contract FixedTest is CustomTestBase {
             0,
             type(uint256).max,
             type(uint256).max,
-            MarketManager.MarketParameters(N, sigma, alpha, omega, delta, r, s, steak)
+            MarketManager.MarketParameters(N, sigma, alpha, omega, delta, r, s, steak),
+            "description"
         ); //vaultId = 1; 
+        console.log("vault created", controller.vaults(1).description());
         vault_ad = controller.getVaultfromId(1); 
         setUsers();
 

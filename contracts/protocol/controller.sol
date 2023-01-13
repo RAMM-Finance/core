@@ -143,6 +143,7 @@ contract Controller {
         reputationManager.setTraderScore(msg.sender, 1e18); 
     }
 
+    event RedeemTransfer(uint256 indexed marketId, uint256 amount, address to);
     /// @notice called only when redeeming, transfer funds from vault
     function redeem_transfer(
         uint256 amount,
@@ -150,6 +151,8 @@ contract Controller {
         uint256 marketId
     ) external onlyManager {
         vaults[id_parent[marketId]].trusted_transfer(amount, to);
+
+        emit RedeemTransfer(marketId, amount, to);
     }
 
     event VaultCreated(address indexed vault, uint256 vaultId, address underlying, bool onlyVerified, uint256 r, uint256 assetLimit, uint256 totalAssetLimit, MarketManager.MarketParameters defaultParams);
@@ -166,16 +169,14 @@ contract Controller {
         uint256 _r,
         uint256 _asset_limit,
         uint256 _total_asset_limit,
-        MarketManager.MarketParameters memory default_params
+        MarketManager.MarketParameters memory default_params,
+        string calldata _description
     ) public {
         (Vault newVault, uint256 vaultId) = vaultFactory.newVault(
             underlying,
             address(this),
-            _onlyVerified,
-            _r,
-            _asset_limit,
-            _total_asset_limit,
-            default_params
+            abi.encode(_onlyVerified, _r, _asset_limit, _total_asset_limit,_description),
+            default_params  
         );
 
         vaults[vaultId] = newVault;
@@ -183,7 +184,7 @@ contract Controller {
         emit VaultCreated(address(newVault), vaultId, underlying, _onlyVerified, _r, _asset_limit, _total_asset_limit, default_params);
     }
 
-    function getInstrumentSnapShot(uint256 marketId) external returns (uint256 managerStake, uint256 exposurePercentage, uint256 seniorAPR, uint256 approvalPrice) {
+    function getInstrumentSnapShot(uint256 marketId) view public returns (uint256 managerStake, uint256 exposurePercentage, uint256 seniorAPR, uint256 approvalPrice) {
         MarketManager.CoreMarketData memory data = marketManager.getMarket(marketId); 
         Controller.ApprovalData memory approvalData = getApprovalData(marketId); 
         Vault.InstrumentData memory instrumentData = getVault(marketId).fetchInstrumentData(marketId);
@@ -214,6 +215,24 @@ contract Controller {
                 : 0; 
             approvalPrice = resultPrice; 
         }
+    }
+
+    function getVaultSnapShot(uint256 vaultId) view external returns (uint256 totalProtection, uint256 totalEstimatedAPR, uint256 goalAPR, uint256 exchangeRate) {
+        uint256[] memory marketIds = vault_to_marketIds[vaultId];
+        for (uint256 i = 0; i < marketIds.length; i++) {
+            (,uint256 exposurePercentage, uint256 seniorAPR,) = getInstrumentSnapShot(marketIds[i]);
+            totalEstimatedAPR += exposurePercentage.mulWadDown(seniorAPR);
+            totalProtection += marketManager.loggedCollaterals(marketIds[i]);
+        }
+
+        Vault vault = vaults[vaultId];
+
+        uint256 goalUtilizationRate = 9e17; //90% utilization goal? 
+        if(vault.utilizationRate() <= goalUtilizationRate)
+         goalAPR = (goalUtilizationRate.divWadDown(1+vault.utilizationRate())).mulWadDown(totalEstimatedAPR); 
+        else goalAPR = totalEstimatedAPR;
+
+        exchangeRate = vault.previewDeposit(1e18);
     }
 
     event MarketInitiated(uint256 indexed marketId, address indexed vault, address indexed recipient, address pool, address longZCB, address shortZCB, Vault.InstrumentData instrumentData);
