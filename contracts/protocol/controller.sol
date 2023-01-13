@@ -131,8 +131,14 @@ contract Controller {
     //     interep.verifyProof(TWITTER_UNRATED_GROUP_ID, signal, nullifier_hash, external_nullifier, proof);
     //     verified[msg.sender] = true;
     // }
+    bool public selfVerify = true; 
+    function canSelfVerify() external {
+        require(msg.sender == creator_address, "!auth"); 
+        selfVerify = !selfVerify; 
+    }
 
     function testVerifyAddress() external {
+        require(selfVerify, "!selfVerify"); 
         verified[msg.sender] = true;
         reputationManager.setTraderScore(msg.sender, 1e18); 
     }

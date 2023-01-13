@@ -91,6 +91,9 @@ contract BoundedDerivativesPool is GranularBondingCurve{
                 priceLimit, 
                 data
             ); 
+            uint b = baseBal(); 
+            console.log('basebal',b , poolamountOut); 
+            require(poolamountOut <= baseBal(), "!ammLiq"); 
             uint256 cached_poolamountOut = poolamountOut; 
             // poolamountIn is the number of short tokens minted, poolamountIn * maxprice - poolamountOut is the collateral escrowed
             poolamountOut = poolamountIn.mulWadDown(maxPrice) - poolamountOut;

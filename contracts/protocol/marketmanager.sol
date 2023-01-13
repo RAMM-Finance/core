@@ -402,7 +402,6 @@ event MarketDenied(uint256 indexed marketId);
     uint256 marketId
   ) internal view returns(bool) {
     require(restriction_data[marketId].alive, "!Active");
-
     //TODO: check if this is correct
     // require(controller.getVault(marketId).fetchInstrumentData(marketId).maturityDate > block.timestamp, "market maturity reached");
 
@@ -468,8 +467,8 @@ event MarketDenied(uint256 indexed marketId);
       } else {
       if (isBuy) {
         // shortCollateral is amount trader pays to buy shortZCB
-        shortTrades[marketId][trader] += shortCollateral;
 
+        shortTrades[marketId][trader] += shortCollateral;
         // collateral is the area under the curve that is subtracted due to the (short)selling
         loggedCollaterals[marketId] -= collateral; 
         } else {
@@ -658,9 +657,11 @@ event MarketDenied(uint256 indexed marketId);
       uint256 _priceLimit, 
       bytes calldata _tradeRequestData 
     ) external _lock_ returns (uint256 amountIn, uint256 amountOut){
+    require(!restriction_data[_marketId].duringAssessment, "not during assessment"); 
+
     // if (duringMarketAssessment(_marketId)) revert("can't close during assessment"); 
     require(!restriction_data[_marketId].resolved, "!resolved");
-    require(_canSell(msg.sender, _amountIn, _marketId),"Restricted");
+    // require(_canSell(msg.sender, _amountIn, _marketId),"Restricted");
     SyntheticZCBPool bondPool = markets[_marketId].bondPool; 
 
     if (restriction_data[_marketId].duringAssessment){
@@ -695,14 +696,13 @@ event MarketDenied(uint256 indexed marketId);
     uint256 _priceLimit,
     bytes calldata _tradeRequestData 
     ) external _lock_ returns (uint256 amountIn, uint256 amountOut){
-    require(_canSell(msg.sender, _amountIn, _marketId),"Restricted");
+    // require(_canSell(msg.sender, _amountIn, _marketId),"Restricted");
     SyntheticZCBPool bondPool = markets[_marketId].bondPool; 
 
     if (restriction_data[_marketId].duringAssessment){
 
       // amountOut is base collateral down the curve, amountIn is collateral used to buy shortZCB 
       (amountOut, amountIn) = bondPool.takerOpen(false, int256(_amountIn), _priceLimit, abi.encode(msg.sender));
-
       _logTrades(_marketId, msg.sender, amountOut, amountIn, true, false);
 
     }
@@ -726,6 +726,8 @@ event MarketDenied(uint256 indexed marketId);
     uint256 _priceLimit,
     bytes calldata _tradeRequestData 
     ) external _lock_ returns (uint256 amountIn, uint256 amountOut){
+    require(!restriction_data[_marketId].duringAssessment, "not during assessment"); 
+
     SyntheticZCBPool bondPool = markets[_marketId].bondPool; 
 
     if (restriction_data[_marketId].duringAssessment){

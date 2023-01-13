@@ -154,112 +154,112 @@ contract FixedTest is CustomTestBase {
 
     }
 
-    // struct testVars2{
-    //     address utilizer; 
+    struct testVars2{
+        address utilizer; 
 
-    //     uint256 marketId;
-    //     address vault_ad; 
-    //     uint curPrice; 
-    //     uint principal; 
-    //     uint amount1; 
-    //     uint amount2; 
-    //     uint amount3; 
-    //     uint amount4; 
+        uint256 marketId;
+        address vault_ad; 
+        uint curPrice; 
+        uint principal; 
+        uint amount1; 
+        uint amount2; 
+        uint amount3; 
+        uint amount4; 
 
-    //     uint amountIn;
-    //     uint amountOut; 
-    //     uint s_amountIn; 
-    //     uint s_amountOut; 
+        uint amountIn;
+        uint amountOut; 
+        uint s_amountIn; 
+        uint s_amountOut; 
 
-    //     uint vaultBal; 
-    //     uint cbalbefore; 
-    //     uint vaultBalBeforeRedeem; 
-    //     uint sumofcollateral; 
+        uint vaultBal; 
+        uint cbalbefore; 
+        uint vaultBalBeforeRedeem; 
+        uint sumofcollateral; 
 
-    //     uint maxSupply; 
-    //     bool dontAssert; 
+        uint maxSupply; 
+        bool dontAssert; 
 
-    // }
+    }
 
-    // function somelongsomeshort(testVars2 memory vars, bool finish) public {
+    function somelongsomeshort(testVars2 memory vars, bool finish) public {
 
-    //     address proxy =  instrument.getProxy(); 
-    //     borrowerContract.changeOwner(proxy); 
-    //     borrowerContract.autoDelegate(proxy);
-    //     assertEq(borrowerContract.owner(), proxy); 
+        address proxy =  instrument.getProxy(); 
+        borrowerContract.changeOwner(proxy); 
+        borrowerContract.autoDelegate(proxy);
+        assertEq(borrowerContract.owner(), proxy); 
 
-    //     if(vars.utilizer==address(0)) vars.utilizer = jott;  
-    //     vars.marketId = controller.getMarketId(vars.utilizer); 
+        if(vars.utilizer==address(0)) vars.utilizer = jott;  
+        vars.marketId = controller.getMarketId(vars.utilizer); 
 
-    //     vars.maxSupply = (precision - marketmanager.getPool(vars.marketId).b_initial()).divWadDown( marketmanager.getPool(vars.marketId).a_initial() ) ; 
+        vars.maxSupply = (precision - marketmanager.getPool(vars.marketId).b_initial()).divWadDown( marketmanager.getPool(vars.marketId).a_initial() ) ; 
 
-    //     vars.vault_ad = controller.getVaultfromId(1); //
-    //     vars.curPrice = marketmanager.getPool(vars.marketId).getCurPrice(); 
-    //     if(!vars.dontAssert)assertEq(vars.curPrice, marketmanager.getPool(vars.marketId).b()); 
-    //     vars.principal = Vault(vars.vault_ad).fetchInstrumentData(vars.marketId).principal; 
+        vars.vault_ad = controller.getVaultfromId(1); //
+        vars.curPrice = marketmanager.getPool(vars.marketId).getCurPrice(); 
+        if(!vars.dontAssert)assertEq(vars.curPrice, marketmanager.getPool(vars.marketId).b()); 
+        vars.principal = Vault(vars.vault_ad).fetchInstrumentData(vars.marketId).principal; 
 
-    //     // try a bunch of numbers 
-    //     vars.amount1 = vars.principal*11/100; 
-    //     vars.amount2 = vars.principal*7/100; 
-    //     vars.amount3 = vars.principal*11/100; //shorting 
-    //     vars.amount4 = vars.principal*12/100; 
-    //     bytes memory data; 
+        // try a bunch of numbers 
+        vars.amount1 = vars.principal*11/100; 
+        vars.amount2 = vars.principal*7/100; 
+        vars.amount3 = vars.principal*11/100; //shorting 
+        vars.amount4 = vars.principal*12/100; 
+        bytes memory data; 
 
-    //     doApproveCol(address(marketmanager), jonna); 
-    //     vm.prank(jonna); 
-    //     (vars.amountIn, vars.amountOut) =
-    //         marketmanager.buyBond(vars.marketId, -int256(vars.amount1), vars.curPrice + precision/10 , data); 
+        doApproveCol(address(marketmanager), jonna); 
+        vm.prank(jonna); 
+        (vars.amountIn, vars.amountOut) =
+            marketmanager.buyBond(vars.marketId, -int256(vars.amount1), vars.curPrice + precision/10 , data); 
 
-    //     doApproveCol(address(marketmanager), sybal); 
-    //     vm.prank(sybal); 
-    //     (vars.amountIn, vars.amountOut) =
-    //         marketmanager.buyBond(vars.marketId, -int256(vars.amount2), vars.curPrice + precision/10 , data); 
+        doApproveCol(address(marketmanager), sybal); 
+        vm.prank(sybal); 
+        (vars.amountIn, vars.amountOut) =
+            marketmanager.buyBond(vars.marketId, -int256(vars.amount2), vars.curPrice + precision/10 , data); 
 
-    //     doApproveCol(address(marketmanager), chris); 
-    //     vm.prank(chris); 
-    //     (vars.s_amountIn, vars.s_amountOut) =
-    //         marketmanager.shortBond(vars.marketId, vars.amount3, vars.curPrice + precision/10 , data); 
+        doApproveCol(address(marketmanager), chris); 
+        vm.prank(chris); 
+        (vars.s_amountIn, vars.s_amountOut) =
+            marketmanager.shortBond(vars.marketId, vars.amount3, 0, data); 
 
-    //     doApproveCol(address(marketmanager), miku); 
-    //     vm.prank(miku); 
-    //     (vars.amountIn, vars.amountOut) =
-    //         marketmanager.buyBond(vars.marketId, -int256(vars.amount4), vars.curPrice + precision/10 , data); 
-    //     if(!vars.dontAssert){
-    //     // bought amount1+amount2 - amount3+amount4 
-    //     assertApproxEqAbs(marketmanager.getZCB(vars.marketId).totalSupply(), 
-    //         vars.amount1 + vars.amount2 + vars.amount4, 10); 
-    //     assertApproxEqAbs(marketmanager.getShortZCB(vars.marketId).totalSupply(), vars.amount3, 10); 
+        doApproveCol(address(marketmanager), miku); 
+        vm.prank(miku); 
+        (vars.amountIn, vars.amountOut) =
+            marketmanager.buyBond(vars.marketId, -int256(vars.amount4), vars.curPrice + precision/10 , data); 
+        if(!vars.dontAssert){
+        // bought amount1+amount2 - amount3+amount4 
+        assertApproxEqAbs(marketmanager.getZCB(vars.marketId).totalSupply(), 
+            vars.amount1 + vars.amount2 + vars.amount4, 10); 
+        assertApproxEqAbs(marketmanager.getShortZCB(vars.marketId).totalSupply(), vars.amount3, 10); 
 
-    //     // logged collateral is at area under the curve of amount1+amount2 - amount3+amount4 
-    //     assertApproxEqAbs(LinearCurve.areaUnderCurve(vars.amount1 + vars.amount2 + vars.amount4 - vars.amount3, 
-    //         0, marketmanager.getPool(vars.marketId).a_initial(), marketmanager.getPool(vars.marketId).b()),
-    //         marketmanager.loggedCollaterals(vars.marketId) , 100000); 
+        // logged collateral is at area under the curve of amount1+amount2 - amount3+amount4 
+        assertApproxEqAbs(LinearCurve.areaUnderCurve(vars.amount1 + vars.amount2 + vars.amount4 - vars.amount3, 
+            0, marketmanager.getPool(vars.marketId).a_initial(), marketmanager.getPool(vars.marketId).b()),
+            marketmanager.loggedCollaterals(vars.marketId) , 100000); 
 
-    //     // price is ax+b for x = amount1+amount2 - amount3+amount4 
-    //     assertApproxEqAbs( marketmanager.getPool(vars.marketId).a_initial()
-    //         .mulWadDown(vars.amount1 + vars.amount2 + vars.amount4 - vars.amount3) 
-    //         + marketmanager.getPool(vars.marketId).b() , marketmanager.getPool(vars.marketId).getCurPrice(), 100000); 
-    //     // assert(!marketmanager.marketCondition(vars.marketId)); 
-    //     }
-    //     // now buy 
-    //     if (finish){
-    //         doApproveCol(address(marketmanager), jonna); 
-    //         vm.prank(jonna); 
-    //         (vars.amountIn, vars.amountOut) =
-    //             marketmanager.buyBond(vars.marketId, -int256(vars.amount3), vars.curPrice + precision/10 , data); 
+        // price is ax+b for x = amount1+amount2 - amount3+amount4 
+        assertApproxEqAbs( marketmanager.getPool(vars.marketId).a_initial()
+            .mulWadDown(vars.amount1 + vars.amount2 + vars.amount4 - vars.amount3) 
+            + marketmanager.getPool(vars.marketId).b() , marketmanager.getPool(vars.marketId).getCurPrice(), 100000); 
+        // assert(!marketmanager.marketCondition(vars.marketId)); 
+        }
+        // now buy 
+        if (finish){
+            doApproveCol(address(marketmanager), jonna); 
+            vm.prank(jonna); 
+            (vars.amountIn, vars.amountOut) =
+                marketmanager.buyBond(vars.marketId, -int256(vars.amount3), vars.curPrice + precision/10 , data); 
 
-    //         doApproveCol(address(marketmanager), sybal); 
-    //         vm.prank(sybal); 
-    //         (vars.amountIn, vars.amountOut) =
-    //             marketmanager.buyBond(vars.marketId, -int256(vars.amount4), vars.curPrice + precision/10 , data); 
-    //         vm.prank(sybal); 
-    //         (vars.amountIn, vars.amountOut) =
-    //             marketmanager.buyBond(vars.marketId, -int256(vars.amount4), vars.curPrice + precision/10 , data); 
+            doApproveCol(address(marketmanager), sybal); 
+            vm.prank(sybal); 
+            (vars.amountIn, vars.amountOut) =
+                marketmanager.buyBond(vars.marketId, -int256(vars.amount4), vars.curPrice + precision/10 , data); 
+            vm.prank(sybal); 
+            (vars.amountIn, vars.amountOut) =
+                marketmanager.buyBond(vars.marketId, -int256(vars.amount4), vars.curPrice + precision/10 , data); 
 
-    //     }
+        }
 
-    //     console.log('collat', marketmanager.loggedCollaterals(vars.marketId), controller.marketCondition(vars.marketId));
-    // }
+        console.log('collat', marketmanager.loggedCollaterals(vars.marketId), controller.marketCondition(vars.marketId));
+    }
 
     // function doApprove(uint256 marketId, address vault) public{ //TODO: update
     //     // validators invest and approve 
@@ -336,22 +336,22 @@ contract FixedTest is CustomTestBase {
 
     // }
 
-    // function testSomeLongSomeShortApprove() public{
-    //     testVars2 memory vars; 
+    function testSomeLongSomeShortApprove() public{
+        testVars2 memory vars; 
 
-    //     somelongsomeshort(vars, true);
+        somelongsomeshort(vars, true);
 
-    //     // validators invest and approve  
-    //     doApprove(vars.marketId, vars.vault_ad); 
+        // validators invest and approve  
+        doApprove(vars.marketId, vars.vault_ad); 
         
-    //     // did correct amount go to vault? the short collateral should stay in pool 
-    //     assertApproxEqAbs(vars.s_amountIn, marketmanager.shortTrades(vars.marketId, chris), 10); 
-    //     assertApproxEqAbs(marketmanager.getShortZCB(vars.marketId).balanceOf(chris), 
-    //         marketmanager.getPool(vars.marketId).cBal(), 10); 
+        // did correct amount go to vault? the short collateral should stay in pool 
+        assertApproxEqAbs(vars.s_amountIn, marketmanager.shortTrades(vars.marketId, chris), 10); 
+        // assertApproxEqAbs(marketmanager.getShortZCB(vars.marketId).balanceOf(chris), 
+        //     marketmanager.getPool(vars.marketId).cBal(), 10); 
 
-    //     // how does liquidity change after approval, can people trade in zero liq 
-    //     assertEq(uint256(marketmanager.getPool(vars.marketId).liquidity()), 0); 
-    // }
+        // how does liquidity change after approval, can people trade in zero liq 
+        assertEq(uint256(marketmanager.getPool(vars.marketId).liquidity()), 0); 
+    }
 
 
     // function testSomeLongSomeShortDeny() public{

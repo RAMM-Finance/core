@@ -230,9 +230,9 @@ contract GranularBondingCurve{
 
         while (state.amountSpecifiedRemaining !=0 && state.curPrice != priceLimit){
             StepComputations memory step; 
-
             step.priceStart = state.curPrice; 
             step.priceNextLimit = getNextPriceLimit(state.point, pDelta, moveUp); 
+
             step.pointNext = moveUp? state.point + 1 : state.point-1; 
 
             // Need liquidity for both move up and move down for path independence within a 
@@ -243,7 +243,7 @@ contract GranularBondingCurve{
                 : invRoundUp(state.liquidity + step.liqDir); 
             vars.b = yInt(state.curPrice, moveUp); 
             vars.s = xMax(state.curPrice, vars.b, vars.a); 
-
+ 
             //If moveup, amountIn is in cash, amountOut is token and vice versa 
             (state.curPrice, step.amountIn, step.amountOut, step.feeAmount) = LinearCurve.swapStep(
                 state.curPrice, 
@@ -294,7 +294,6 @@ contract GranularBondingCurve{
 
 
                 state.liquidity = addDelta(state.liquidity,liquidityNet);
-
                 state.point = step.pointNext;  
             }
         }
@@ -315,6 +314,8 @@ contract GranularBondingCurve{
                                 ? moveUp ? (uint256(amountSpecified-state.amountSpecifiedRemaining ) , state.amountCalculated)//TODO roundfixes
                                          : (uint256(amountSpecified-state.amountSpecifiedRemaining ), state.amountCalculated)
                                 : (state.amountCalculated + ROUNDLIMIT, uint256(-amountSpecified+state.amountSpecifiedRemaining )); 
+                    console.log('???', uint256(state.amountSpecifiedRemaining) , uint256(amountSpecified)); 
+
     }
 
     function placeLimitOrder(
@@ -783,7 +784,7 @@ library LinearCurve{
                 // If amount is greater than s, then need to cap it 
                 (amountOut, nextPrice) = amountOutGivenIn(min(uint256(amountRemaining),vars.s), vars.s,vars.a,vars.b,false); 
                 // If undershoot go to previous point 
-                if(nextPrice <= targetPrice){
+                if(nextPrice <= targetPrice && vars.a > 0){//TODO might introduce bugs 
                     nextPrice = targetPrice; 
 
                     // max amount out is area under curve 
@@ -852,9 +853,7 @@ library LinearCurve{
                 uint256 z = (a.mulWadDown(s) + b); 
                 amountDelta = (x_y_sqrt-z).divWadDown(a);
                 resultPrice = a.mulWadDown(amountDelta + s) + b; 
-            }
-
-            else{
+            } else{
                 uint256 z = b + a.mulWadDown(s) - a.mulWadDown(amount)/2;  
                 amountDelta = amount.mulWadDown(z); 
                 resultPrice = a.mulWadDown(s-amount) + b; 
@@ -862,11 +861,14 @@ library LinearCurve{
         }
 
         // When a = 0, infinite liquidity and constant price
-        else{
-            amountDelta = amount.divWadDown(b); 
-            resultPrice = b; 
+        else{     
+            if(up){
+                amountDelta = amount.divWadDown(b); 
+            } else{
+                amountDelta = amount.mulWadDown(b); 
+            }
+            resultPrice = b;             
         }
-
     }
 
     /// @notice calculates area under the curve from s to s+amount

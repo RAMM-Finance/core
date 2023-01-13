@@ -110,6 +110,13 @@ contract LeverageModule is ERC721Enumerable{
 
 	}
 
+	function mintLev() public {
+		//1. borrow from child pool, 
+		//2. if child pool has not enough liq, go to parent pool 
+		//3. debt: 10 to child pool, 5 to parent pool or 15 to child pool
+		// or 15 to parent pool. First pay off parent pool, 
+		// 
+	}
 	/// @notice Implements a leverage loop 
 	// TODO implement with flash minting, maybe more gas efficient 
 	function mintWithLeverage(
