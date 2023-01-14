@@ -79,7 +79,9 @@ contract FixedTest is CustomTestBase {
             longCollateral, 
             address(collateral), 
             address(0), 
-            10); 
+            10, 
+            block.timestamp
+            ); 
         otc.setUtilizer(toku); 
 
         initiateCreditMarket(); 

@@ -167,7 +167,8 @@ contract CustomTestBase is Test {
             longCollateral, 
             address(collateral), 
             address(0), 
-            10); 
+            10,
+            block.timestamp); 
         otc.setUtilizer(toku); 
         Vault.InstrumentData memory data;
         data.trusted = false; 

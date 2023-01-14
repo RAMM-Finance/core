@@ -22,6 +22,7 @@ contract CoveredCallOTC is Instrument{
     uint256 public immutable longCollateral;
     address public immutable cash; 
     uint256 public immutable maturityTime; 
+    uint256 public immutable tradeTime; 
 
     address public oracle ;
     uint256 public profit; 
@@ -40,8 +41,10 @@ contract CoveredCallOTC is Instrument{
         uint256 _longCollateral, // collateral amount in underlying for long to pay. (price*quantity)
         address _cash,  
         address _oracle,  // oracle for price of collateral 
-        uint256 duration
+        uint256 duration, 
+        uint256 _tradeTime// when the trade will occur 
         ) Instrument(_vault, _utilizer){
+        // TODO shortcollateral must equal principal 
         require(_longCollateral == _shortCollateral.mulWadDown(_pricePerContract), "incorrect setting"); 
         utilizer = _utilizer; 
         underlyingAsset = address(underlying); // already specified 
@@ -51,6 +54,7 @@ contract CoveredCallOTC is Instrument{
         longCollateral = _longCollateral; 
         cash = _cash;
         oracle = _oracle; 
+        tradeTime = _tradeTime; 
         maturityTime = block.timestamp + duration;
     }
 
