@@ -49,7 +49,7 @@ contract Vault is ERC4626{
         CreditLine,
         CoveredCallShort,
         LendingPool, 
-        StraddleBuy, 
+        StraddleBuy,
         LiquidityProvision, 
         Other
     }
@@ -85,7 +85,7 @@ contract Vault is ERC4626{
       uint256 promisedReturn; //per unit time 
       uint256 inceptionTime;
       uint256 inceptionPrice; // init price of longZCB after assessment 
-      uint256 leverageFactor; //leverageFactor * manager collateral = capital from vault to instrument
+      uint256 leverageFactor; // leverageFactor * manager collateral = capital from vault to instrument
       uint256 managementFee; // sum of discounts for high reputation managers/validators
     }
 
@@ -95,11 +95,6 @@ contract Vault is ERC4626{
     }
     address public owner; 
 
-    // bool _onlyVerified, //
-    //     uint256 _r, //reputation ranking
-    //     uint256 _asset_limit, 
-    //     uint256 _total_asset_limit,
-    //     string memory _description,
     constructor(
         address _UNDERLYING,
         address _controller, 
