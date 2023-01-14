@@ -239,7 +239,8 @@ contract FetcherTest is Test {
             longCollateral, 
             address(collateral), 
             address(0), 
-            10); 
+            10, 
+            block.timestamp); 
         otc.setUtilizer(toku); 
         
 
