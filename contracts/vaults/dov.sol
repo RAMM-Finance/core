@@ -6,6 +6,7 @@ import "openzeppelin-contracts/utils/math/Math.sol";
 import {FixedPointMathLib} from "./utils/FixedPointMathLib.sol";
 import "forge-std/console.sol";
 import {Instrument} from "./instrument.sol";
+import {Vault} from "./vault.sol"; 
 
 /// @notice This contract acts as an OTC option platform
 /// Utilizer will "propose" a strike price to buy
@@ -54,11 +55,20 @@ contract CoveredCallOTC is Instrument{
         longCollateral = _longCollateral; 
         cash = _cash;
         oracle = _oracle; 
-        tradeTime = _tradeTime; 
+        tradeTime = block.timestamp+ _tradeTime; 
         maturityTime = block.timestamp + duration;
     }
 
-    function setOracle() public {}
+    function setOracle(address _oracle) public {
+        require(msg.sender ==Vault(vault).owner(), "not owner"); 
+        oracle = _oracle; 
+    }
+
+    function returnCollateral() public onlyUtilizer{
+        // can't return when approved, only can return when denied.  
+        require(block.timestamp<= tradeTime, "redeem window passed"); 
+        underlying.transfer(msg.sender, longCollateral); 
+    }
 
     /// @notice returns true if the instrument can be approved
     /// and funds can be directed from vault. Utilizer must have escrowed
