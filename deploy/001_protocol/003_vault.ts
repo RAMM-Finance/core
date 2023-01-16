@@ -42,12 +42,13 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   const _shortCollateral = pp.mul(10); 
   const _longCollateral = _shortCollateral.mul(_pricePerContract).div(pp); 
   const duration = 10000; 
+  const tradeTime = 1800
 
       await deployments.deploy("CoveredCallOTC", {
     from: deployer,
     args:[ vault_address, deployer, weth_address, 
-    _strikePrice, _pricePerContract, _shortCollateral, _longCollateral,_cash, _oracle, duration],
-    log: true,
+    _strikePrice, _pricePerContract, _shortCollateral, _longCollateral,_cash, _oracle, duration, tradeTime],
+    log: true
   });
 };
         
