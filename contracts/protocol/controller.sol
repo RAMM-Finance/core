@@ -47,9 +47,9 @@ contract Controller {
     function getApprovalData(uint256 marketId)
         public
         view
-        returns (ApprovalData memory)
+        returns (ApprovalData memory data)
     {
-        approvalDatas[marketId];
+        data = approvalDatas[marketId];
     }
 
     mapping(address => bool) public verified;
@@ -63,11 +63,11 @@ contract Controller {
 
     // IInterep interep;
     // TrustedMarketFactoryV3 marketFactory;
-    MarketManager marketManager;
+    MarketManager public marketManager;
     // ReputationNFT repNFT;
-    VaultFactory vaultFactory;
-    SyntheticZCBPoolFactory poolFactory;
-    ReputationManager reputationManager;
+    VaultFactory public vaultFactory;
+    SyntheticZCBPoolFactory public poolFactory;
+    ReputationManager public reputationManager;
 
 
     /* ========== MODIFIERS ========== */
@@ -589,6 +589,8 @@ contract Controller {
         (, , , , , , bool isPool) = marketManager.markets(marketId);
         uint256 managerCollateral = marketManager.loggedCollaterals(marketId);
 
+        // console.log("managerCollateral: ", managerCollateral);
+
 
         pool.flush(address(this), managerCollateral); 
         address instrument = address(vault.fetchInstrument(marketId)); 
@@ -618,6 +620,10 @@ contract Controller {
 
         // Since funds are transfered from pool to vault, set default liquidity in pool to 0
         pool.resetLiq();
+
+        // console.log("approval 1: ", approvalDatas[marketId].approved_principal);
+        // console.log("approval 2: ", approvalDatas[marketId].approved_yield);
+        // console.log("approval 3: ", approvalDatas[marketId].managers_stake);
         
         emit MarketApproved(marketId, approvalDatas[marketId]);
     }

@@ -160,13 +160,12 @@ contract CustomTestBase is Test {
     function initiateOptionsOTCMarket() public{
         if(address(otc) == address(0))
         otc = new CoveredCallOTC(
-            vault_ad, toku, address(collateral2), 
+            vault_ad, toku, 
             strikeprice, //strikeprice 
             pricePerContract, //price per contract
             shortCollateral, 
             longCollateral, 
-            address(collateral), 
-            address(0), 
+            address(collateral),
             10,
             block.timestamp); 
         otc.setUtilizer(toku); 

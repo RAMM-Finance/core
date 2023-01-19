@@ -23,18 +23,18 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   //       args: ["WETH", "WETH", 18],
   //       log: true,
   //     });
-      const linear_library = await deployments.deploy("LinearCurve", {
-        from: deployer,
-        log: true
-      })
-      const{address:linearcurve_addr} = await deployments.get("LinearCurve"); 
-    await deployments.deploy("Controller", {
-      contract: "Controller",
-      from: deployer,
-      args,
-      log: true,
-      libraries: {LinearCurve: linearcurve_addr}
-    });
+    //   const linear_library = await deployments.deploy("LinearCurve", {
+    //     from: deployer,
+    //     log: true
+    //   })
+    //   const{address:linearcurve_addr} = await deployments.get("LinearCurve"); 
+    // await deployments.deploy("Controller", {
+    //   contract: "Controller",
+    //   from: deployer,
+    //   args,
+    //   log: true,
+    //   libraries: {LinearCurve: linearcurve_addr}
+    // });
   };
   
   func.tags = ["Controller"];

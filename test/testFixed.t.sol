@@ -72,13 +72,12 @@ contract FixedTest is CustomTestBase {
         instrument.setUtilizer(jott); 
 
         otc = new CoveredCallOTC(
-            vault_ad, toku, address(collateral2), 
+            vault_ad, toku, 
             strikeprice, //strikeprice 
             pricePerContract, //price per contract
             shortCollateral, 
             longCollateral, 
-            address(collateral), 
-            address(0), 
+            address(collateral),
             10, 
             block.timestamp
             ); 
@@ -347,7 +346,11 @@ contract FixedTest is CustomTestBase {
 
         // validators invest and approve  
         doApprove(vars.marketId, vars.vault_ad); 
-        
+
+        Controller.ApprovalData memory test = controller.getApprovalData(vars.marketId);
+        console.log("APPROVAL DATA: ", test.approved_principal);
+        console.log("APPROVAL DATA: ", test.approved_yield);
+        console.log("APPROVAL DATA: ", test.managers_stake);
         // did correct amount go to vault? the short collateral should stay in pool 
         assertApproxEqAbs(vars.s_amountIn, marketmanager.shortTrades(vars.marketId, chris), 10); 
         // assertApproxEqAbs(marketmanager.getShortZCB(vars.marketId).balanceOf(chris), 

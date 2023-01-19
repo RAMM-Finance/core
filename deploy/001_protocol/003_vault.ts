@@ -6,11 +6,11 @@ import { BigNumber } from "ethers";
 const pp = BigNumber.from(10).pow(18);
 
 const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
-  const { deployments, getNamedAccounts } = hre;
-  const { deployer } = await getNamedAccounts();
+  // const { deployments, getNamedAccounts } = hre;
+  // const { deployer } = await getNamedAccounts();
   // const cash_addr = (await deployments.get("Collateral")).address;
-  const controller_addr = (await deployments.get("Controller")).address;
-  const args = [controller_addr];
+  // const controller_addr = (await deployments.get("Controller")).address;
+  // const args = [controller_addr];
   // await deployments.deploy("Vault", {
   //   from: deployer,
   //   args,
@@ -32,24 +32,10 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   // });
 
 
-  const vault_address = "0xdFbE3F77C65f298e93B0286F05446Da1a7DB3415"; 
+  const vault_address = "0xed001bc8974987701f5be2f6c012468a91e8cb11"; 
   const weth_address = "0x6219CC8a3E880053ea0A1398f86E226C37603239"; 
   const _cash = "0xd6A5640De726a89A54ca724ac12BCc5E89600720"; 
   const _oracle = "0xd6A5640De726a89A54ca724ac12BCc5E89600720"; 
-
-  const _strikePrice = pp; 
-  const _pricePerContract = pp.div(10);
-  const _shortCollateral = pp.mul(10); 
-  const _longCollateral = _shortCollateral.mul(_pricePerContract).div(pp); 
-  const duration = 10000; 
-  const tradeTime = 1800
-
-      await deployments.deploy("CoveredCallOTC", {
-    from: deployer,
-    args:[ vault_address, deployer, weth_address, 
-    _strikePrice, _pricePerContract, _shortCollateral, _longCollateral,_cash, _oracle, duration, tradeTime],
-    log: true
-  });
 };
         
 func.tags = ["Vault"];

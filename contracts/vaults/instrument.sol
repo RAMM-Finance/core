@@ -145,17 +145,17 @@ abstract contract Instrument {
         return locked; 
     }
 
-    event LiquidityTransfer(address indexed to, uint256 amount);
+    event LiquidityTransfer(address indexed from ,address indexed to, uint256 amount);
     function transfer_liq(address to, uint256 amount) internal notLocked {
         if (vault.decimal_mismatch()) amount = vault.decSharesToAssets(amount); 
         underlying.transfer(to, amount);
-        emit LiquidityTransfer(to, amount);
+        emit LiquidityTransfer(address(this), to, amount);
     }
 
-    event LiquidityTransferFrom(address indexed to, uint256 amount);
     function transfer_liq_from(address from, address to, uint256 amount) internal notLocked {
         if (vault.decimal_mismatch()) amount = vault.decSharesToAssets(amount); 
         underlying.transferFrom(from, to, amount);
+        emit LiquidityTransfer(from, to, amount);
     }
 
     /// @notice called before resolve, to avoid calculating redemption price based on manipulations 
