@@ -595,7 +595,7 @@ event MarketDenied(uint256 indexed marketId);
       (amountIn, amountOut) = bondPool.takerOpen(true, _amountIn, _priceLimit, abi.encode(msg.sender)); 
 
       // uint256 upperBound = bondPool.upperBound(); 
-      if( bondPool.upperBound() !=0 &&  bondPool.upperBound() < bondPool.getCurPrice()) revert("bound"); 
+      if( bondPool.upperBound() !=0 &&  bondPool.upperBound() < bondPool.getCurPrice()) revert("exceed bound"); 
 
       //Need to log assessment trades for updating reputation scores or returning collateral when market denied 
       _logTrades(_marketId, msg.sender, amountIn, 0, true, true);
