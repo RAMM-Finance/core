@@ -55,6 +55,7 @@ contract Fetcher {
     // change types
     struct VaultBundle {
         string name;
+        string symbol;
         uint256 vaultId;
         uint256[] marketIds;
         MarketManager.MarketParameters default_params;
@@ -64,9 +65,9 @@ contract Fetcher {
         uint256 total_asset_limit;
         AssetBundle want;
         uint256 totalShares;
+        uint256 totalAssets;
         address vault_address;
         uint256 exchangeRate;
-        uint256 totalAssets;
         uint256 utilizationRate;
         uint256 totalEstimatedAPR; 
         uint256 goalAPR; 
@@ -191,6 +192,7 @@ contract Fetcher {
         }
 
         vaultBundle.name = vault.name();
+        vaultBundle.symbol = vault.symbol();
         vaultBundle.vaultId = vaultId;
         vaultBundle.marketIds = _controller.getMarketIds(vaultId);
         vaultBundle.default_params = vault.get_vault_params();
@@ -418,6 +420,7 @@ contract Fetcher {
     function makeEmptyVaultBundle() pure internal returns (VaultBundle memory) {
         return VaultBundle(
             "",
+            "",
             0,
             new uint256[](0),
             MarketManager.MarketParameters(0,0,0,0,0,0,0,0),
@@ -427,11 +430,12 @@ contract Fetcher {
             0,
             AssetBundle(address(0), "", 0, ""),
             0,
+            0,
             address(0),
             0,
             0,
             0, 
-            0,0,0
+            0,0
         );
     }
 }
