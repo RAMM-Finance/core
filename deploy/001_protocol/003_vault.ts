@@ -6,8 +6,8 @@ import { BigNumber } from "ethers";
 const pp = BigNumber.from(10).pow(18);
 
 const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
-  const { deployments, getNamedAccounts } = hre;
-  const { deployer } = await getNamedAccounts();
+  // const { deployments, getNamedAccounts } = hre;
+  // const { deployer } = await getNamedAccounts();
   // const cash_addr = (await deployments.get("Collateral")).address;
   // const controller_addr = (await deployments.get("Controller")).address;
   // const args = [controller_addr];

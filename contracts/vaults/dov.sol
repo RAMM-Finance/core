@@ -15,8 +15,7 @@ import {Vault} from "./vault.sol";
 contract CoveredCallOTC is Instrument{
     using FixedPointMathLib for uint256; 
 
-    address public immutable utilizer; 
-    address public immutable underlyingAsset; 
+    address public immutable utilizer;
     uint256 public immutable strikePrice;
     uint256 public immutable pricePerContract; 
     uint256 public immutable shortCollateral; 
@@ -34,27 +33,23 @@ contract CoveredCallOTC is Instrument{
     /// @param _pricePerContract is the price that the utilizer is willing to buy 
     /// the call option. Usually implied vol here is lower than external implied vol values 
     constructor(address _vault,
-        address _utilizer, 
-        address _underlyingAsset, 
+        address _utilizer,
         uint256 _strikePrice, 
         uint256 _pricePerContract, // depends on IV, price per contract denominated in underlying  
         uint256 _shortCollateral, // collateral for the sold options-> this is in underlyingAsset i.e weth 
         uint256 _longCollateral, // collateral amount in underlying for long to pay. (price*quantity)
-        address _cash,  
-        address _oracle,  // oracle for price of collateral 
-        uint256 duration, 
+        address _cash,
+        uint256 duration,
         uint256 _tradeTime// when the trade will occur 
         ) Instrument(_vault, _utilizer){
         // TODO shortcollateral must equal principal 
         require(_longCollateral == _shortCollateral.mulWadDown(_pricePerContract), "incorrect setting"); 
-        utilizer = _utilizer; 
-        underlyingAsset = address(underlying); // already specified 
+        utilizer = _utilizer;
         strikePrice = _strikePrice; 
         pricePerContract = _pricePerContract; 
         shortCollateral = _shortCollateral; 
         longCollateral = _longCollateral; 
         cash = _cash;
-        oracle = _oracle; 
         tradeTime = block.timestamp+ _tradeTime; 
         maturityTime = block.timestamp + duration;
     }
@@ -127,8 +122,14 @@ contract CoveredCallOTC is Instrument{
                 || utilizerClaimed); 
     }
 
- 
+    /**
+    deposit for the utilizer
+     */
+    function deposit() public onlyUtilizer {
+        transfer_liq_from(msg.sender, address(this), longCollateral);
+    }
 
-
-
+    function instrumentStaticSnapshot() public view returns (uint256 _strikePrice, uint256 _pricePerContract, uint256 _shortCollateral, uint256 _longCollateral, uint256 _maturityTime, uint256 _tradeTime, address _oracle){
+        return (strikePrice, pricePerContract, shortCollateral, longCollateral, maturityTime, tradeTime, oracle);
+    }
 }

@@ -11,6 +11,7 @@ import {FixedPointMathLib} from "solmate/utils/FixedPointMathLib.sol";
 import {LinearCurve} from "../bonds/GBC.sol"; 
 import {PoolInstrument} from "../instruments/poolInstrument.sol";
 import "forge-std/console.sol";
+import {CoveredCallOTC} from "../vaults/dov.sol";
 
 contract Fetcher {
     using FixedPointMathLib for uint256;
@@ -76,24 +77,35 @@ contract Fetcher {
         uint256 marketId;
         uint256 vaultId;
         uint256 creationTimestamp;
-        address longZCB;
-        address shortZCB;
-        uint256 approved_principal;
-        uint256 approved_yield;
-        uint256 totalCollateral; // loggedCollateral
-        uint256 longZCBprice;
-        uint256 longZCBsupply;
-        uint256 redemptionPrice;
-        uint256 initialLongZCBPrice;
+        uint256 resolutionTimestamp;
+
         bool marketConditionMet;
-        SyntheticZCBPool bondPool;
+        uint256 approvedPrincipal;
+        uint256 approvedYield;
+        uint256 managerStake;
+        uint256 totalCollateral; // loggedCollateral
+        uint256 redemptionPrice;
+
+        // bond pool data
+        address bondPool;
+        address longZCB;
+        uint256 longZCBSupply;
+        address shortZCB;
+        uint256 shortZCBSupply;
+        uint256 longZCBPrice;
+        uint256 a_initial;
+        uint256 b_initial;
+        uint256 b;
+        uint256 discountCap;
+        uint256 discountedReserves;
+
         MarketManager.MarketParameters parameters;
         MarketManager.MarketPhaseData phase;
         ValidatorBundle validatorData;
     }
 
     struct PoolBundle {
-        uint256 saleAmount; 
+        uint256 saleAmount;
         uint256 initPrice; // init price of longZCB in the amm 
         uint256 promisedReturn; //per unit time 
         uint256 inceptionTime;
@@ -108,7 +120,17 @@ contract Fetcher {
         uint256 totalAvailableAssets;
         uint64 APR;
         CollateralBundle[] collaterals;
-        uint256 availablePoolLiquidity; // amount of borrowable in lendingpool
+    }
+
+    struct OptionsBundle {
+        uint256 strikePrice;
+        uint256 pricePerContract;
+        uint256 shortCollateral;
+        uint256 longCollateral;
+        uint256 maturityDate;
+        uint256 tradeTime;
+        address oracle;
+        bool approvalStatus;
     }
 
     struct InstrumentBundle {
@@ -132,6 +154,7 @@ contract Fetcher {
         uint256 managers_stake; 
         uint256 approvalPrice;
         PoolBundle poolData;
+        OptionsBundle optionsData;
     }
 
     function buildAssetBundle(ERC20 _asset) internal view returns (AssetBundle memory _bundle) {
@@ -163,11 +186,11 @@ contract Fetcher {
         // vault bundle
         Vault vault = _controller.vaults(vaultId);
 
-        uint256 one_asset = 10**vault.asset().decimals();
-
         if (address(vault) == address(0)) {
             return (makeEmptyVaultBundle(), new MarketBundle[](0), new InstrumentBundle[](0), timestamp);
         }
+
+        vaultBundle.name = vault.name();
         vaultBundle.vaultId = vaultId;
         vaultBundle.marketIds = _controller.getMarketIds(vaultId);
         vaultBundle.default_params = vault.get_vault_params();
@@ -177,11 +200,14 @@ contract Fetcher {
         vaultBundle.asset_limit = vault.asset_limit();
         vaultBundle.total_asset_limit = vault.total_asset_limit();
         vaultBundle.totalShares = vault.totalSupply();
-        vaultBundle.vault_address = address(vault);
-        vaultBundle.name = vault.name();
-        vaultBundle.exchangeRate = vault.previewDeposit(one_asset);
-        vaultBundle.utilizationRate = vault.utilizationRate();
         vaultBundle.totalAssets = vault.totalAssets(); 
+        vaultBundle.vault_address = address(vault);
+     
+        (uint256 totalProtection, uint256 totalEstimatedAPR, uint256 goalAPR, uint256 exchangeRate) = _controller.getVaultSnapShot(vaultId);
+        vaultBundle.totalProtection = totalProtection;
+        vaultBundle.totalEstimatedAPR = totalEstimatedAPR;
+        vaultBundle.goalAPR = goalAPR;
+        vaultBundle.exchangeRate = exchangeRate;
 
         if (vaultBundle.marketIds.length == 0) {
             return (vaultBundle, new MarketBundle[](0), new InstrumentBundle[](0), timestamp);
@@ -194,21 +220,9 @@ contract Fetcher {
 
         for (uint256 i; i < vaultBundle.marketIds.length; i++) {
             marketBundle[i] = buildMarketBundle(vaultBundle.marketIds[i], vaultId, _controller, _marketManager);
-            
-
             // (uint256 managers_stake, uint256 exposurePercentage, uint256 seniorAPR, uint256 approvalPrice) = 
             instrumentBundle[i] = buildInstrumentBundle(vaultBundle.marketIds[i], vaultId, _controller, _marketManager);
-            computeInstrumentProfile(vaultBundle.marketIds[i], instrumentBundle[i], _controller, _marketManager);
-            
-            console.log("instrumentBundle: ", instrumentBundle[i].managers_stake);
-            console.log("poolBundle: ", instrumentBundle[i].poolData.saleAmount);
-            vaultBundle.totalEstimatedAPR += instrumentBundle[i].seniorAPR.mulWadDown(instrumentBundle[i].exposurePercentage);
-            vaultBundle.totalProtection += marketBundle[i].totalCollateral; 
         }
-        uint256 goalUtilizationRate = 9e17; //90% utilization goal? 
-        if(vaultBundle.utilizationRate <= goalUtilizationRate )
-        vaultBundle.goalAPR = (goalUtilizationRate.divWadDown(1+vaultBundle.utilizationRate)).mulWadDown(vaultBundle.totalEstimatedAPR); 
-        else vaultBundle.goalAPR = vaultBundle.totalEstimatedAPR ; 
     }
 
     function buildInstrumentBundle(uint256 mid, uint256 vid, Controller controller, MarketManager marketManager) internal view returns (InstrumentBundle memory bundle) {
@@ -216,25 +230,45 @@ contract Fetcher {
         (,address utilizer) = controller.market_data(mid);
         Vault.InstrumentData memory data = vault.fetchInstrumentData(mid);
 
+
+        (uint256 managerStake, uint256 exposurePercentage, uint256 seniorAPR, uint256 approvalPrice) = controller.getInstrumentSnapShot(mid);
+        bundle.managers_stake = managerStake;
+        bundle.exposurePercentage = exposurePercentage;
+        bundle.seniorAPR = seniorAPR;
+        bundle.approvalPrice = approvalPrice;
+
         bundle.marketId = mid;
         bundle.vaultId = vid;
         bundle.isPool = data.isPool;
         bundle.trusted = data.trusted;
-        bundle.balance = data.balance;
-        bundle.faceValue = data.faceValue;
+        bundle.balance = vault.asset().balanceOf(address(data.instrument_address));
         bundle.principal = data.principal;
         bundle.expectedYield = data.expectedYield;
         bundle.duration = data.duration;
         bundle.description = data.description;
         bundle.instrument_type = data.instrument_type;
         bundle.maturityDate = data.maturityDate;
-        // bundle.poolData = data.poolData;
         bundle.instrument_address = address(data.instrument_address);
         bundle.utilizer = utilizer;
         bundle.name = data.name;
-        if (data.isPool) {
+        if (data.instrument_type == Vault.InstrumentType.LendingPool) {
             bundle.poolData = buildPoolBundle(mid, vid, controller, marketManager);
+        } else if (data.instrument_type == Vault.InstrumentType.CoveredCallShort) {
+            bundle.optionsData = buildCoveredCallBundle(bundle.instrument_address);
         }
+    }
+
+    function buildCoveredCallBundle(address instrument) internal view returns (OptionsBundle memory bundle) {
+        CoveredCallOTC instrumentContract = CoveredCallOTC(instrument);
+        (uint256 _strikePrice, uint256 _pricePerContract, uint256 _shortCollateral, uint256 _longCollateral, uint256 _maturityDate, uint256 _tradeTime, address _oracle) = instrumentContract.instrumentStaticSnapshot();
+        bundle.strikePrice = _strikePrice;
+        bundle.pricePerContract = _pricePerContract;
+        bundle.shortCollateral = _shortCollateral;
+        bundle.longCollateral = _longCollateral;
+        bundle.maturityDate = _maturityDate;
+        bundle.tradeTime = _tradeTime;
+        bundle.oracle = _oracle;
+        bundle.approvalStatus = instrumentContract.instrumentApprovalCondition();
     }
 
     function buildPoolBundle(uint256 mid, uint256 vid, Controller controller, MarketManager marketManager) internal view returns (PoolBundle memory bundle) {
@@ -249,12 +283,11 @@ contract Fetcher {
         bundle.inceptionPrice = instrumentData.poolData.inceptionPrice;
         bundle.leverageFactor = instrumentData.poolData.leverageFactor;
         bundle.managementFee = instrumentData.poolData.managementFee;
-        // (uint256 psu, uint256 pju, ) = vault.poolZCBValue(mid);
-        // bundle.psu = psu;
-        // bundle.pju = pju;
+        (uint256 psu, uint256 pju, ) = vault.poolZCBValue(mid);
+        bundle.psu = psu;
+        bundle.pju = pju;
 
         PoolInstrument.CollateralLabel[] memory labels = PoolInstrument(instrument).getAcceptedCollaterals();
-        bundle.availablePoolLiquidity = PoolInstrument(instrument).totalAssetAvailable(); 
         uint256 l = labels.length;
         bundle.collaterals = new CollateralBundle[](l);
         for (uint256 i; i < l; i++) {
@@ -298,21 +331,34 @@ contract Fetcher {
         bundle.vaultId = vid;
         MarketManager.CoreMarketData memory data = marketManager.getMarket(mid);
         bundle.creationTimestamp = data.creationTimestamp;
+        bundle.resolutionTimestamp = data.resolutionTimestamp;
+        bundle.marketConditionMet = controller.marketCondition(mid);
+
+        Controller.ApprovalData memory approvalData = controller.getApprovalData(mid);
+        bundle.approvedPrincipal = approvalData.approved_principal;
+        bundle.approvedYield = approvalData.approved_yield;
+        bundle.managerStake = approvalData.managers_stake;
+
+        bundle.totalCollateral = marketManager.loggedCollaterals(mid);
+        bundle.redemptionPrice = marketManager.redemption_prices(mid);
+
+        bundle.phase = marketManager.getPhaseData(mid);
+        bundle.parameters = marketManager.getParameters(mid);
+
+        bundle.bondPool = address(data.bondPool);
         bundle.longZCB = address(data.longZCB);
         bundle.shortZCB = address(data.shortZCB);
-        bundle.bondPool = data.bondPool;
-        Controller.ApprovalData memory approvalData = controller.getApprovalData(mid);
-        bundle.approved_principal = approvalData.approved_principal;
-        bundle.approved_yield = approvalData.approved_yield;
-        bundle.phase = marketManager.getPhaseData(mid);
-        bundle.redemptionPrice = marketManager.redemption_prices(mid);
-        bundle.parameters = marketManager.getParameters(mid);
-        bundle.totalCollateral = marketManager.loggedCollaterals(mid);
-        bundle.longZCBsupply = data.longZCB.totalSupply();
-        bundle.longZCBprice = data.bondPool.getCurPrice();
+        bundle.shortZCBSupply = data.shortZCB.totalSupply();
+        bundle.longZCBSupply = data.longZCB.totalSupply();
+        bundle.longZCBPrice = data.bondPool.getCurPrice();
+        bundle.a_initial = data.bondPool.a_initial();
+        bundle.b_initial = data.bondPool.b_initial();
+        bundle.b = data.bondPool.b();
+        bundle.discountCap = data.bondPool.discount_cap();
+        bundle.discountedReserves = data.bondPool.discountedReserves();
+        
         bundle.validatorData = buildValidatorBundle(mid, controller);
-        bundle.initialLongZCBPrice = data.bondPool.b();
-        bundle.marketConditionMet = controller.marketCondition(mid);
+
     }
 
     function buildValidatorBundle(uint256 mid, Controller controller) view internal returns (ValidatorBundle memory bundle)  {
@@ -328,46 +374,46 @@ contract Fetcher {
     }
 
 // (uint256 managers_stake, uint256 exposurePercentage, uint256 seniorAPR, uint256 approvalPrice)
-    function computeInstrumentProfile(
-        uint256 mid, 
-        InstrumentBundle memory bundle, 
-        Controller controller, 
-        MarketManager marketmanager
-        ) internal view {
-        // get senior instrument apr, approval price, manager's stake, 
-        MarketManager.CoreMarketData memory data = marketmanager.getMarket(mid); 
-        Controller.ApprovalData memory approvalData = controller.getApprovalData(mid); 
-        bundle.managers_stake = approvalData.managers_stake;
+    // function computeInstrumentProfile(
+    //     uint256 mid, 
+    //     InstrumentBundle memory bundle, 
+    //     Controller controller, 
+    //     MarketManager marketmanager
+    //     ) internal view {
+    //     // get senior instrument apr, approval price, manager's stake, 
+    //     MarketManager.CoreMarketData memory data = marketmanager.getMarket(mid); 
+    //     Controller.ApprovalData memory approvalData = controller.getApprovalData(mid); 
+    //     bundle.managers_stake = approvalData.managers_stake;
 
-        bundle.exposurePercentage = (bundle.balance).divWadDown(
-            controller.getVault(mid).totalAssets()+1);
-        bundle.seniorAPR = bundle.poolData.promisedReturn; 
-        bundle.approvalPrice = bundle.poolData.inceptionPrice; 
+    //     bundle.exposurePercentage = (bundle.balance).divWadDown(
+    //         controller.getVault(mid).totalAssets()+1);
+    //     bundle.seniorAPR = bundle.poolData.promisedReturn; 
+    //     bundle.approvalPrice = bundle.poolData.inceptionPrice; 
 
-        if(!bundle.isPool){
-            uint256 amountDelta;
-            uint256 resultPrice;
+    //     if(!bundle.isPool){
+    //         uint256 amountDelta;
+    //         uint256 resultPrice;
 
-            if(approvalData.managers_stake>0){
-                ( amountDelta,  resultPrice) = LinearCurve.amountOutGivenIn(
-                approvalData.managers_stake,
-                0, 
-                data.bondPool.a_initial(), 
-                data.bondPool.b(), 
-                true 
-                );
-            }
+    //         if(approvalData.managers_stake>0){
+    //             ( amountDelta,  resultPrice) = LinearCurve.amountOutGivenIn(
+    //             approvalData.managers_stake,
+    //             0, 
+    //             data.bondPool.a_initial(), 
+    //             data.bondPool.b(), 
+    //             true 
+    //             );
+    //         }
             
-            uint256 seniorYield = bundle.faceValue -amountDelta
-                - (bundle.principal - approvalData.managers_stake); 
+    //         uint256 seniorYield = bundle.faceValue -amountDelta
+    //             - (bundle.principal - approvalData.managers_stake); 
 
-            bundle.seniorAPR = approvalData.approved_principal>0
-                ? seniorYield.divWadDown(1+bundle.principal - approvalData.managers_stake)
-                : 0; 
-            bundle.approvalPrice = resultPrice; 
-        }
+    //         bundle.seniorAPR = approvalData.approved_principal>0
+    //             ? seniorYield.divWadDown(1+bundle.principal - approvalData.managers_stake)
+    //             : 0; 
+    //         bundle.approvalPrice = resultPrice; 
+    //     }
 
-    }
+    // }
 
     function makeEmptyVaultBundle() pure internal returns (VaultBundle memory) {
         return VaultBundle(

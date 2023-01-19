@@ -72,13 +72,12 @@ contract FixedTest is CustomTestBase {
         instrument.setUtilizer(jott); 
 
         otc = new CoveredCallOTC(
-            vault_ad, toku, address(collateral2), 
+            vault_ad, toku, 
             strikeprice, //strikeprice 
             pricePerContract, //price per contract
             shortCollateral, 
             longCollateral, 
-            address(collateral), 
-            address(0), 
+            address(collateral),
             10, 
             block.timestamp
             ); 
