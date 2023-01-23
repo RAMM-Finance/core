@@ -133,3 +133,91 @@ contract CoveredCallOTC is Instrument{
         return (strikePrice, pricePerContract, shortCollateral, longCollateral, maturityTime, tradeTime, oracle);
     }
 }
+
+// TODO extra gains redemption price effects 
+
+// Vault supplies to this instrument, validators can manually do twaps. If price deviates too much 
+// between assessment period start to end, validators can pull out, and create new proposals. 
+
+// everytime a manager buys, the same amount needs to be deposited into lyra. lyra wil
+// 0.97 buy-> 
+// issue poollongzcb-> supply to instrument from vault-> triggers and open position  to lyra
+// redeem poollongzcb-> withdraw from instrument to vault -> triggers and close position -> realize profit back to vault 
+// pool zcb value is derived from options price using it as an exchange rate. 
+// contract CoveredCallLyra is Instrument{
+//     using FixedPointMathLib for uint256; 
+
+//     address public immutable utilizer;
+//     uint256 public immutable strikePrice;
+//     uint256 public immutable pricePerContract; 
+//     uint256 public immutable shortCollateral; 
+//     uint256 public immutable longCollateral;
+//     address public immutable cash; 
+//     uint256 public immutable maturityTime; 
+//     uint256 public immutable tradeTime; 
+
+//     address public oracle ;
+//     uint256 public profit; 
+//     uint256 public constant timeThreshold = 10; 
+//     bool utilizerClaimed; 
+
+//     /// @param _shortCollateral depends on how much underlyingAsset is in the vault. 
+//     /// @param _pricePerContract is the price that the utilizer is willing to buy 
+//     /// the call option. Usually implied vol here is lower than external implied vol values 
+//     constructor(address _vault,
+//         address _utilizer,
+//         uint256 _strikePrice, 
+//         uint256 _pricePerContract, // depends on IV, price per contract denominated in underlying  
+//         uint256 _shortCollateral, // collateral for the sold options-> this is in underlyingAsset i.e weth 
+//         uint256 _longCollateral, // collateral amount in underlying for long to pay. (price*quantity)
+//         address _cash,
+//         uint256 duration,
+//         uint256 _tradeTime// when the trade will occur 
+//         ) Instrument(_vault, _utilizer){
+//         // TODO shortcollateral must equal principal 
+//         require(_longCollateral == _shortCollateral.mulWadDown(_pricePerContract), "incorrect setting"); 
+//         utilizer = _utilizer;
+//         strikePrice = _strikePrice; 
+//         pricePerContract = _pricePerContract; 
+//         shortCollateral = _shortCollateral; 
+//         longCollateral = _longCollateral; 
+//         cash = _cash;
+//         tradeTime = block.timestamp+ _tradeTime; 
+//         maturityTime = block.timestamp + duration;
+//     }
+
+//     // @notice when buyer buys longZCB, funds are directed to here  triggers the contract to supply to lyra 
+//     function deposit() public onlyVault{
+
+//     }
+
+//     /// @notice returns true if the instrument can be approved
+//     /// and funds can be directed from vault. Utilizer must have escrowed
+//     /// to this contract before  
+//     function instrumentApprovalCondition() public override view returns(bool){
+//         return underlying.balanceOf(address(this)) >= longCollateral;
+//     }
+
+//     /// @notice short sell a single batch of call options in lyra 
+//     function performsSingleTrade() public 
+//    // onlyValidator 
+//     {
+//         lyraOp.openPosition(TradeInputParameters memory params)
+//     }
+
+
+//     /// @notice pull out funds back to vault when price deviation exceeds threshold 
+//     function invalidateInstrument() public 
+//     //onlyValidator
+//     {
+
+//     }
+
+
+
+
+
+
+
+// }
+//If you are indeed a scammer, not difficult to make bots that terrorize your account. I really don't deal well with liars and those who rip people off. 

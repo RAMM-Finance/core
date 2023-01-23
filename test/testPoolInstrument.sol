@@ -383,7 +383,7 @@ contract PoolInstrumentTest is CustomTestBase {
         // console.log('amountIn, amountout', vars.amountIn, vars.amountOut); 
 
     }
-    function testShortZCBPool() public{ 
+    function testShortZCBPool() public returns(testVars1 memory){ 
         testVars1 memory vars; 
 
         vars.marketId = controller.getMarketId(toku); 
@@ -403,6 +403,27 @@ contract PoolInstrumentTest is CustomTestBase {
         vm.prank(jonna); 
         (vars.amountIn, vars.amountOut) =
             marketmanager.shortBond(vars.marketId, vars.amountToBuy*11/10, 0 , data); 
+
+        // redeem shortzcb
+        return vars; 
+
+    }
+
+    // function testShortZCBPoolSellProfit() public{
+    //     testVars1 memory vars = testShortZCBPool(); 
+
+    //     // profit made when instrument balance goes down 
+    //     // instrument balance goes down when pool zcb value pju goes down
+    //     // pju goes down when time passes and no senior returns, or time
+    //     // passes and instrument realizes a loss 
+
+        
+
+
+    // }
+
+    function testShortZCBPoolSellNoProfit() public{
+        
 
     }
 
