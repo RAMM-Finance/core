@@ -532,6 +532,10 @@ event MarketDenied(uint256 indexed marketId);
     vault.depositIntoInstrument(_marketId, issueQTY.mulWadDown(config.WAD + levFactor).mulWadDown(psu), true); 
     //TODO Need totalAssets and exchange rate to remain same assertion 
     //TODO vault always has to have more shares, all shares minted goes to vault 
+
+    /** 
+    total apr from deposit = (totalAssets of the pool - psu * senior supply)/junior supply
+    */
     reputationManager.recordPull(msg.sender, _marketId, issueQTY,
        _amountIn, getTraderBudget( _marketId, msg.sender), true); 
       

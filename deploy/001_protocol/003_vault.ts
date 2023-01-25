@@ -8,7 +8,6 @@ const pp = BigNumber.from(10).pow(18);
 const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   // const { deployments, getNamedAccounts } = hre;
   // const { deployer } = await getNamedAccounts();
-  // const cash_addr = (await deployments.get("Collateral")).address;
   // const controller_addr = (await deployments.get("Controller")).address;
   // const args = [controller_addr];
   // await deployments.deploy("Vault", {
@@ -32,10 +31,10 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   // });
 
 
-  const vault_address = "0xed001bc8974987701f5be2f6c012468a91e8cb11"; 
-  const weth_address = "0x6219CC8a3E880053ea0A1398f86E226C37603239"; 
-  const _cash = "0xd6A5640De726a89A54ca724ac12BCc5E89600720"; 
-  const _oracle = "0xd6A5640De726a89A54ca724ac12BCc5E89600720"; 
+  // const vault_address = "0xed001bc8974987701f5be2f6c012468a91e8cb11"; 
+  // const weth_address = "0x6219CC8a3E880053ea0A1398f86E226C37603239"; 
+  // const _cash = "0xd6A5640De726a89A54ca724ac12BCc5E89600720"; 
+  // const _oracle = "0xd6A5640De726a89A54ca724ac12BCc5E89600720"; 
 };
         
 func.tags = ["Vault"];
