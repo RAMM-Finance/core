@@ -16,7 +16,7 @@ import {SimpleNFTPool} from "../contracts/vaults/nftLending.sol";
 import {ReputationManager} from "../contracts/protocol/reputationmanager.sol";
 
 import {CustomTestBase} from "./testbase.sol";
-import {LeverageModule} from "../contracts/protocol/LeverageModule.sol"; 
+import {LeverageManager} from "../contracts/protocol/leveragemanager.sol"; 
 
 contract ReputationSystemTests is CustomTestBase {
 
@@ -68,7 +68,9 @@ contract ReputationSystemTests is CustomTestBase {
         initiateSimpleNFTLendingPool(); 
         doInvest(vault_ad,  toku, 1e18*10000); 
 
-        leverageModule = new LeverageModule(address(controller)); 
+        
+        leverageManager = new LeverageManager(address(controller), 
+            address(marketmanager),address(reputationManager) );
         zeke = address(0xbabe9);
         vm.label(zeke, "zeke");
         jeong = address(0xbabe10);

@@ -189,6 +189,7 @@ contract Vault is ERC4626{
   /// @notice get programmatic pricing of a pool based longZCB 
   /// returns psu: price of senior(VT's share of investment) vs underlying 
   /// returns pju: price of junior(longZCB) vs underlying
+  // TODO inception price needs to be modifyable for changing senior returns 
   function poolZCBValue(uint256 marketId) 
     public 
     view
@@ -600,6 +601,7 @@ contract Vault is ERC4626{
         else {
             atLoss = instrument_balance < instrument_data[_instrument].principal; 
             total_loss = atLoss? instrument_data[_instrument].principal - instrument_balance :0; 
+            extra_gain = !atLoss? instrument_balance - instrument_data[_instrument].principal: 0; 
         }
 
         withdrawFromInstrument(_instrument, instrument_balance, true);

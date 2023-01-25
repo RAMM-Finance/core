@@ -13,7 +13,7 @@ import {CoveredCallOTC} from "../contracts/vaults/dov.sol";
 import {ERC20} from "solmate/tokens/ERC20.sol";
 import {SimpleNFTPool} from "../contracts/vaults/nftLending.sol"; 
 import {ReputationManager} from "../contracts/protocol/reputationmanager.sol";
-import {LeverageModule} from "../contracts/protocol/LeverageModule.sol"; 
+import {LeverageManager} from "../contracts/protocol/leveragemanager.sol"; 
 import {Instrument} from "../contracts/vaults/instrument.sol"; 
 
 contract CustomTestBase is Test {
@@ -30,7 +30,7 @@ contract CustomTestBase is Test {
     MockBorrowerContract borrowerContract = new MockBorrowerContract();
     CreditLine instrument;
     SimpleNFTPool nftPool; 
-    LeverageModule leverageModule; 
+    LeverageManager leverageManager; 
     ValidatorManager validatorManager; 
     address deployer = 0xb4c79daB8f259C7Aee6E5b2Aa729821864227e84;
     uint256 unit = 10**18; 
@@ -231,9 +231,9 @@ contract CustomTestBase is Test {
 
     }
 
-    function initiateLeverageModule() public {
-        leverageModule = new LeverageModule(address(controller)); 
-    }
+    // function initiateLeverageModule() public {
+    //     leverageModule = new LeverageModule(address(controller)); 
+    // }
 
     function donateToInstrument(address vaultad, address instrument, uint256 amount) public {
         vm.startPrank(jonna); 

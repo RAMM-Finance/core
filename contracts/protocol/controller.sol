@@ -137,6 +137,13 @@ contract Controller {
         selfVerify = !selfVerify; 
     }
 
+    function verifyAddress(address who) external{
+        require(msg.sender == creator_address, "!auth"); 
+        verified[who] = true;
+        reputationManager.setTraderScore(who, 1e18); 
+    }
+
+
     function testVerifyAddress() external {
         require(selfVerify, "!selfVerify"); 
         verified[msg.sender] = true;
@@ -430,6 +437,7 @@ contract Controller {
         uint256 loss,
         bool premature
     ) internal {
+  
         if (atLoss) assert(extra_gain == 0);
 
         uint256 total_supply = marketManager.getZCB(marketId).totalSupply();
@@ -437,15 +445,19 @@ contract Controller {
             ? marketManager.getShortZCB(marketId).totalSupply()
             : 0;
         uint256 redemption_price;
-        if (!atLoss)
-            redemption_price =
-                config.WAD +
-                extra_gain.divWadDown(total_supply + total_shorts);
-        else {
-            if (config.WAD <= loss.divWadDown(total_supply)) {
-                redemption_price = 0;
-            } else {
-                redemption_price = config.WAD - loss.divWadDown(total_supply);
+        if(premature && extra_gain>0){
+            redemption_price = calcIncompleteReturns(marketId, extra_gain); 
+        } else{
+            if (!atLoss)
+                redemption_price =
+                    config.WAD +
+                    extra_gain.divWadDown(total_supply + total_shorts);
+            else {
+                if (config.WAD <= loss.divWadDown(total_supply)) {
+                    redemption_price = 0;
+                } else {
+                    redemption_price = config.WAD - loss.divWadDown(total_supply);
+                }
             }
         }
 
@@ -455,10 +467,21 @@ contract Controller {
             !premature,
             redemption_price
         );
-
         // TODO edgecase redemption price calculations
     }
 
+    uint256 constant leverageFactor = 3e18; 
+    /// @notice redeeming function for fixed instruements that did not pay off at maturity
+    function calcIncompleteReturns(
+        uint256 marketId, 
+        uint256 incompleteReturns
+        ) public view returns(uint256 seniorReturn){
+        uint256 totalJuniorCollateral = marketManager.loggedCollaterals(marketId); 
+        uint256 principal = getVault(marketId).fetchInstrumentData(marketId).principal; 
+
+        seniorReturn = principal.mulWadDown(incompleteReturns).divWadDown(
+          leverageFactor.mulWadDown(totalJuniorCollateral) + principal - totalJuniorCollateral); 
+    }
     // uint256 public constant riskTransferPenalty = 1e17;
 
     // /// @notice deduce fees for non vault stakers, should go down as maturity time approach 0

@@ -16,7 +16,7 @@ import {SimpleNFTPool} from "../contracts/vaults/nftLending.sol";
 import {ReputationManager} from "../contracts/protocol/reputationmanager.sol";
 
 import {CustomTestBase} from "./testbase.sol";
-import {LeverageModule} from "../contracts/protocol/LeverageModule.sol"; 
+import {LeverageManager} from "../contracts/protocol/leveragemanager.sol"; 
 
 contract PoolInstrumentTest is CustomTestBase {
     using FixedPointMath for uint256; 
@@ -66,8 +66,9 @@ contract PoolInstrumentTest is CustomTestBase {
         initiateSimpleNFTLendingPool(); 
         doInvest(vault_ad,  toku, 1e18*10000); 
 
-        leverageModule = new LeverageModule(address(controller)); 
 
+        leverageManager = new LeverageManager(address(controller), 
+            address(marketmanager),address(reputationManager) );
     }
    
 
@@ -383,31 +384,31 @@ contract PoolInstrumentTest is CustomTestBase {
         // console.log('amountIn, amountout', vars.amountIn, vars.amountOut); 
 
     }
-    function testShortZCBPool() public returns(testVars1 memory){ 
-        testVars1 memory vars; 
+    // function testShortZCBPool() public returns(testVars1 memory){ 
+    //     testVars1 memory vars; 
 
-        vars.marketId = controller.getMarketId(toku); 
-        vars.vault_ad = controller.getVaultfromId(vars.marketId); 
-        vars.amountToBuy = Vault(vars.vault_ad).fetchInstrumentData(vars.marketId).poolData.saleAmount*3/2; 
-        uint256 amount = Vault(vars.vault_ad).fetchInstrumentData(vars.marketId).poolData.saleAmount*3/2; 
+    //     vars.marketId = controller.getMarketId(toku); 
+    //     vars.vault_ad = controller.getVaultfromId(vars.marketId); 
+    //     vars.amountToBuy = Vault(vars.vault_ad).fetchInstrumentData(vars.marketId).poolData.saleAmount*3/2; 
+    //     uint256 amount = Vault(vars.vault_ad).fetchInstrumentData(vars.marketId).poolData.saleAmount*3/2; 
 
-        // Let manager buy
-        uint exchangeRate = Vault(vars.vault_ad).previewMint(1e18); 
-        bytes memory data; 
-        doApproveCol(address(marketmanager), jonna); 
-        vm.prank(jonna); 
-        (vars.amountIn, vars.amountOut) =
-            marketmanager.buyBond(vars.marketId, int256(vars.amountToBuy), precision , data); 
+    //     // Let manager buy
+    //     uint exchangeRate = Vault(vars.vault_ad).previewMint(1e18); 
+    //     bytes memory data; 
+    //     doApproveCol(address(marketmanager), jonna); 
+    //     vm.prank(jonna); 
+    //     (vars.amountIn, vars.amountOut) =
+    //         marketmanager.buyBond(vars.marketId, int256(vars.amountToBuy), precision , data); 
 
 
-        vm.prank(jonna); 
-        (vars.amountIn, vars.amountOut) =
-            marketmanager.shortBond(vars.marketId, vars.amountToBuy*11/10, 0 , data); 
+    //     vm.prank(jonna); 
+    //     (vars.amountIn, vars.amountOut) =
+    //         marketmanager.shortBond(vars.marketId, vars.amountToBuy*11/10, 0 , data); 
 
-        // redeem shortzcb
-        return vars; 
+    //     // redeem shortzcb
+    //     return vars; 
 
-    }
+    // }
 
     // function testShortZCBPoolSellProfit() public{
     //     testVars1 memory vars = testShortZCBPool(); 

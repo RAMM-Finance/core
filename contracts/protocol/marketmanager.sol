@@ -350,7 +350,7 @@ event MarketDenied(uint256 indexed marketId);
     address trader,
     int256 amount,
     uint256 marketId
-    ) internal view {
+    ) public view {
     //TODO per market queue 
     //if(queuedRepUpdates[trader] > queuedRepThreshold)
     //  revert("rep queue"); 
@@ -371,7 +371,7 @@ event MarketDenied(uint256 indexed marketId);
     address trader,
     int256 amount,
     uint256 marketId
-  ) internal view {
+  ) public view {
     //If after assessment there is a set buy threshold, people can't buy above this threshold
     require(restriction_data[marketId].alive, "!Active");
     // TODO: upper bound 
@@ -400,7 +400,7 @@ event MarketDenied(uint256 indexed marketId);
     address trader,
     uint256 amount, 
     uint256 marketId
-  ) internal view returns(bool) {
+  ) public view returns(bool) {
     require(restriction_data[marketId].alive, "!Active");
     //TODO: check if this is correct
     // require(controller.getVault(marketId).fetchInstrumentData(marketId).maturityDate > block.timestamp, "market maturity reached");
@@ -510,7 +510,7 @@ event MarketDenied(uint256 indexed marketId);
   function issuePoolBond(
     uint256 _marketId, 
     uint256 _amountIn
-    ) external _lock_ returns(uint256 issueQTY){
+    ) external  returns(uint256 issueQTY){
     require(!restriction_data[_marketId].duringAssessment, "Pre Approval"); 
     // TODO doesn't work for first approved, and 1 
     _canIssue(msg.sender, int256(_amountIn), _marketId);  
@@ -518,7 +518,7 @@ event MarketDenied(uint256 indexed marketId);
     ERC20 underlying = ERC20(address(markets[_marketId].bondPool.BaseToken())); 
     address instrument = address(vault.Instruments(_marketId)); 
 
-    // Get price and sell longZCB with this price
+    // Get price a_lock_nd sell longZCB with this price
     (uint256 psu, uint256 pju, uint256 levFactor ) = vault.poolZCBValue(_marketId);
 
     underlying.transferFrom(msg.sender, address(this), _amountIn);
@@ -658,6 +658,7 @@ event MarketDenied(uint256 indexed marketId);
       bytes calldata _tradeRequestData 
     ) external _lock_ returns (uint256 amountIn, uint256 amountOut){
     require(!restriction_data[_marketId].duringAssessment, "not during assessment"); 
+    require(!markets[_marketId].isPool, "ispool"); 
 
     // if (duringMarketAssessment(_marketId)) revert("can't close during assessment"); 
     require(!restriction_data[_marketId].resolved, "!resolved");
@@ -696,6 +697,8 @@ event MarketDenied(uint256 indexed marketId);
     uint256 _priceLimit,
     bytes calldata _tradeRequestData 
     ) external _lock_ returns (uint256 amountIn, uint256 amountOut){
+    require(!markets[_marketId].isPool, "ispool"); 
+
     // require(_canSell(msg.sender, _amountIn, _marketId),"Restricted");
     SyntheticZCBPool bondPool = markets[_marketId].bondPool; 
 
@@ -839,27 +842,7 @@ event MarketDenied(uint256 indexed marketId);
     controller.redeem_transfer(collateral_redeem_amount, msg.sender, marketId);
   }
 
-  /// @notice called by short buyers when market is resolved  
-  function redeemShortZCB(
-    uint256 marketId 
-    ) external _lock_ returns(uint256 collateral_redeem_amount){
-    require(!restriction_data[marketId].alive, "Active"); 
-    require(restriction_data[marketId].resolved, "!resolved"); 
-    require(!redeemed[marketId][msg.sender], "Redeemed");
-    redeemed[marketId][msg.sender] = true; 
-
-    SyntheticZCBPool bondPool = markets[marketId].bondPool; 
-
-    uint256 shortZCB_redeem_amount = markets[marketId].shortZCB.balanceOf(msg.sender); 
-    uint256 long_redemption_price = redemption_prices[marketId];
-    uint256 redemption_price = long_redemption_price >= config.WAD 
-                               ? 0 
-                               : config.WAD - long_redemption_price; 
-    collateral_redeem_amount = redemption_price.mulWadDown(shortZCB_redeem_amount);
-
-    bondPool.trustedBurn(msg.sender, shortZCB_redeem_amount, false); 
-    controller.redeem_transfer(collateral_redeem_amount, msg.sender, marketId); 
-  }
+ 
 
   /// @notice returns the manager's maximum leverage 
   function getMaxLeverage(address manager) public view returns(uint256){
@@ -903,13 +886,6 @@ event MarketDenied(uint256 indexed marketId);
 
     //Need to log assessment trades for updating reputation scores or returning collateral when market denied 
     _logTrades(_marketId, msg.sender, _amountIn, 0, true, true);
-
-    // Get implied probability estimates by summing up all this managers bought for this market 
-    // assessment_probs[_marketId][msg.sender] = controller.calcImpliedProbability(
-    //     amountOut, 
-    //     amountIn, 
-    //     getTraderBudget(_marketId, msg.sender) 
-    // ); 
 
     // Phase Transitions when conditions met
     if(restriction_data[_marketId].onlyReputable){
