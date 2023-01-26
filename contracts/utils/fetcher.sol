@@ -72,6 +72,7 @@ contract Fetcher {
         uint256 totalEstimatedAPR; 
         uint256 goalAPR; 
         uint256 totalProtection;
+        uint256 totalInstrumentHoldings;
     }
 
     struct MarketBundle {
@@ -119,7 +120,14 @@ contract Fetcher {
         uint128 totalBorrowedAssets;
         uint128 totalSuppliedAssets;
         uint256 totalAvailableAssets;
-        uint64 APR;
+        
+        // rates
+        uint256 ratePerSec;
+        uint256 lastUpdate;
+        uint256 utilizationRate;
+        address rateContract;
+        string rateName;
+        // constants
         CollateralBundle[] collaterals;
     }
 
@@ -204,6 +212,8 @@ contract Fetcher {
         vaultBundle.totalShares = vault.totalSupply();
         vaultBundle.totalAssets = vault.totalAssets(); 
         vaultBundle.vault_address = address(vault);
+        vaultBundle.utilizationRate = vault.utilizationRate();
+        vaultBundle.totalInstrumentHoldings = vault.totalInstrumentHoldings();
      
         (uint256 totalProtection, uint256 totalEstimatedAPR, uint256 goalAPR, uint256 exchangeRate) = _controller.getVaultSnapShot(vaultId);
         vaultBundle.totalProtection = totalProtection;
@@ -262,7 +272,15 @@ contract Fetcher {
 
     function buildCoveredCallBundle(address instrument) internal view returns (OptionsBundle memory bundle) {
         CoveredCallOTC instrumentContract = CoveredCallOTC(instrument);
-        (uint256 _strikePrice, uint256 _pricePerContract, uint256 _shortCollateral, uint256 _longCollateral, uint256 _maturityDate, uint256 _tradeTime, address _oracle) = instrumentContract.instrumentStaticSnapshot();
+        // (uint256 _strikePrice, uint256 _pricePerContract, uint256 _shortCollateral, uint256 _longCollateral, uint256 _maturityDate, uint256 _tradeTime, address _oracle) = instrumentContract.instrumentStaticSnapshot();
+        uint256 _strikePrice = instrumentContract.strikePrice();
+        uint256 _pricePerContract = instrumentContract.pricePerContract();
+        uint256 _shortCollateral = instrumentContract.shortCollateral();
+        uint256 _longCollateral = instrumentContract.longCollateral();
+        uint256 _maturityDate = instrumentContract.maturityTime();
+        uint256 _tradeTime = instrumentContract.tradeTime();
+        address _oracle = instrumentContract.oracle();
+
         bundle.strikePrice = _strikePrice;
         bundle.pricePerContract = _pricePerContract;
         bundle.shortCollateral = _shortCollateral;
@@ -302,10 +320,17 @@ contract Fetcher {
         }
         
         
-        (,,uint64 ratePerSec) = PoolInstrument(instrument).currentRateInfo();
-        bundle.APR = ratePerSec;
+        (,uint64 lastTimestamp,uint64 ratePerSec) = PoolInstrument(instrument).currentRateInfo();
+        bundle.ratePerSec = ratePerSec;
+        bundle.lastUpdate = lastTimestamp;
+
         (uint128 borrowAmount,) = PoolInstrument(instrument).totalBorrow();
         (uint128 assetAmount,) = PoolInstrument(instrument).totalAsset();
+
+        bundle.utilizationRate = assetAmount == 0 ? 0 : borrowAmount * 1e18 / assetAmount;
+        bundle.rateContract = address(PoolInstrument(instrument).rateContract());
+        bundle.rateName = PoolInstrument(instrument).rateContract().name();
+
         bundle.totalBorrowedAssets = borrowAmount;
         bundle.totalSuppliedAssets = assetAmount;
         bundle.totalAvailableAssets = PoolInstrument(instrument).totalAssetAvailable();
@@ -435,7 +460,8 @@ contract Fetcher {
             0,
             0,
             0, 
-            0,0
+            0,0,
+            0
         );
     }
 }
