@@ -205,6 +205,10 @@ contract MarketManager
   function setReputationManager(address _reputationManager) external onlyController{
       reputationManager = ReputationManager(_reputationManager);
   }
+  address leverageManager_ad; 
+  function setLeverageManager(address _leverageManager) external onlyController{
+    leverageManager_ad = _leverageManager; 
+  }
 
   /**
    @dev in the event that the number of traders in X percentile is less than the specified number of validators
@@ -214,7 +218,7 @@ contract MarketManager
   //   parameters[marketId].N = _N;
   // }
 
-event MarketPhaseSet(uint256 indexed marketId, MarketPhaseData data);
+  event MarketPhaseSet(uint256 indexed marketId, MarketPhaseData data);
 
   /// @notice sets market phase data
   /// @dev called on market initialization by controller
@@ -504,17 +508,13 @@ event MarketDenied(uint256 indexed marketId);
     SyntheticZCBPool(msg.sender).BaseToken().transferFrom(abi.decode(data, (address)), msg.sender, amount); 
   }
 
-
-
-  /// @notice after assessment, let managers buy newly issued longZCB if the instrument is pool based 
-  /// funds + funds * levFactor will be directed to the instrument 
-  function issuePoolBond(
+  function issueBond(
     uint256 _marketId, 
-    uint256 _amountIn
-    ) external  returns(uint256 issueQTY){
-    require(!restriction_data[_marketId].duringAssessment, "Pre Approval"); 
-    // TODO doesn't work for first approved, and 1 
-    _canIssue(msg.sender, int256(_amountIn), _marketId);  
+    uint256 _amountIn, 
+    address trader
+    ) external returns(uint256 issueQTY){
+    require(msg.sender == address(this) || msg.sender == leverageManager_ad, "invalid entry"); 
+
     Vault vault = controller.getVault(_marketId); 
     ERC20 underlying = ERC20(address(markets[_marketId].bondPool.BaseToken())); 
     address instrument = address(vault.Instruments(_marketId)); 
@@ -522,23 +522,34 @@ event MarketDenied(uint256 indexed marketId);
     // Get price a_lock_nd sell longZCB with this price
     (uint256 psu, uint256 pju, uint256 levFactor ) = vault.poolZCBValue(_marketId);
 
-    underlying.transferFrom(msg.sender, address(this), _amountIn);
+    underlying.transferFrom(trader, address(this), _amountIn);
     underlying.approve(instrument, _amountIn); 
     ERC4626(instrument).deposit(_amountIn, address(vault)); 
 
     issueQTY = _amountIn.divWadUp(pju); //TODO rounding errs
-    markets[_marketId].bondPool.trustedDiscountedMint(msg.sender, issueQTY); 
+    markets[_marketId].bondPool.trustedDiscountedMint(trader, issueQTY); 
 
     // Need to transfer funds automatically to the instrument, seniorAmount is longZCB * levFactor * psu  
     vault.depositIntoInstrument(_marketId, issueQTY.mulWadDown(config.WAD + levFactor).mulWadDown(psu), true); 
+  }
+  
+  /// @notice after assessment, let managers buy newly issued longZCB if the instrument is pool based 
+  /// funds + funds * levFactor will be directed to the instrument 
+  function issuePoolBond(
+    uint256 _marketId, 
+    uint256 _amountIn
+    ) external _lock_ returns(uint256 issueQTY){
+    require(!restriction_data[_marketId].duringAssessment, "Pre Approval"); 
+
+    _canIssue(msg.sender, int256(_amountIn), _marketId);  
+
+    issueQTY = this.issueBond(_marketId, _amountIn, msg.sender); 
     //TODO Need totalAssets and exchange rate to remain same assertion 
     //TODO vault always has to have more shares, all shares minted goes to vault 
-
     /** 
     total apr from deposit = (totalAssets of the pool - psu * senior supply)/junior supply
     */
-    reputationManager.recordPull(msg.sender, _marketId, issueQTY,
-       _amountIn, getTraderBudget( _marketId, msg.sender), true); 
+    reputationManager.recordPull(msg.sender, _marketId, issueQTY, _amountIn, getTraderBudget( _marketId, msg.sender), true); 
       
   }
 

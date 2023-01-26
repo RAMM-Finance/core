@@ -281,5 +281,22 @@ contract CustomTestBase is Test {
         vm.prank(deployer); 
         controller.testApproveMarket(marketId);
     }
+
+    function doApproveFromStart(uint256 marketId, uint256 amountToBuy) public{
+
+        address vault_ad = controller.getVaultfromId(marketId); 
+        // vars.amountToBuy = Vault(vars.vault_ad).fetchInstrumentData(vars.marketId).poolData.saleAmount*3/2; 
+        bytes memory data; 
+        doApproveCol(address(marketmanager), jonna); 
+
+        doInvest(vault_ad, gatdang, precision * 100000);
+        vm.prank(jonna); 
+        
+        marketmanager.buyBond(marketId, int256(amountToBuy), precision , data); 
+        // let validator invest to vault and approve 
+        doApprove(marketId, vault_ad);
+    }
+
+
    
 }

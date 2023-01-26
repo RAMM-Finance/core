@@ -60,6 +60,8 @@ clabels.push(
         ZCBFactory zcbfactory = new ZCBFactory(); 
         poolFactory = new SyntheticZCBPoolFactory(address(controller), address(zcbfactory)); 
         reputationManager = new ReputationManager(address(controller), address(marketmanager));
+        leverageManager = new LeverageManager(address(controller), 
+            address(marketmanager),address(reputationManager) );
 
         vm.startPrank(deployer); 
         controller.setMarketManager(address(marketmanager));
@@ -68,6 +70,7 @@ clabels.push(
         controller.setReputationManager(address(reputationManager));
         validatorManager = new ValidatorManager(address(controller), address(marketmanager),address(reputationManager) );        
         controller.setValidatorManager(address(validatorManager)); 
+        controller.setLeverageManager(address(leverageManager)); 
         vm.stopPrank(); 
 
         controller.createVault(
@@ -89,8 +92,7 @@ clabels.push(
         initiateSimpleNFTLendingPool(); 
         doInvest(vault_ad,  toku, 1e18*10000); 
 
-        leverageManager = new LeverageManager(address(controller), 
-            address(marketmanager),address(reputationManager) );
+
 
         VariableInterestRate rateCalculator = new VariableInterestRate();
 
@@ -135,6 +137,57 @@ clabels.push(
         uint cbalnow; 
         uint cbalnow2; 
     }
+
+    function testPoolLev() public{
+        testVars1 memory vars; 
+
+        vars.marketId = controller.getMarketId(toku); 
+        vars.vault_ad = controller.getVaultfromId(vars.marketId); 
+
+        uint issueAmount = 100*precision; 
+        uint leverageFactor = 3*precision; 
+        uint amountToBuy = Vault(vars.vault_ad).fetchInstrumentData(vars.marketId).poolData.saleAmount*3/2; 
+
+        doApproveFromStart(vars.marketId,  amountToBuy); 
+
+        doApproveCol(address(leverageManager), jonna); 
+        doApproveCol(vars.vault_ad, jonna); 
+
+        vm.prank(jonna); 
+        Vault(vars.vault_ad).deposit(amountToBuy*10, jonna); 
+        vm.prank(jonna); 
+
+        // uint start = 
+        leverageManager.issuePoolBondLevered(
+            vars.marketId, 
+            issueAmount, 
+            leverageFactor
+        ); 
+
+        LeverageManager.LeveredBond memory bond = leverageManager.getPosition( vars.marketId,  jonna);
+
+        // leveragemanager balance increases by issueAmount * pju; 
+        // trader note increase 
+        // trader balance decrease by amount/leverage 
+        // trader balance 
+        assertApproxEqAbs(bond.debt, (issueAmount.divWadDown(leverageFactor)).mulWadDown(leverageFactor-precision),10 ); 
+        assertApproxEqAbs(bond.amount, issueAmount.divWadDown(leverageFactor), 10); 
+
+        // try again 
+        // and assert same 
+        vm.prank(jonna); 
+        leverageManager.issuePoolBondLevered(
+            vars.marketId, 
+            issueAmount, 
+            leverageFactor
+        ); 
+        assertApproxEqAbs(bond.debt, 2*(issueAmount.divWadDown(leverageFactor)).mulWadDown(leverageFactor-precision),10 ); 
+        assertApproxEqAbs(bond.amount, 2* issueAmount.divWadDown(leverageFactor), 10); 
+
+        // leveragemanager balance increases by y 
+        // 
+
+}
 
 
 //     function testMintWithLeverage() public{

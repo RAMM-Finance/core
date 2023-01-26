@@ -19,7 +19,7 @@ import {SafeTransferLib} from "solmate/utils/SafeTransferLib.sol";
 import {ReputationManager} from "./reputationmanager.sol";
 import {PoolInstrument} from "../instruments/poolInstrument.sol";
 import {LinearCurve} from "../bonds/GBC.sol"; 
-
+import {LeverageManager} from "./leveragemanager.sol"; 
 import {ValidatorManager} from "./validatorManager.sol";
 
 contract Controller {
@@ -68,7 +68,7 @@ contract Controller {
     VaultFactory public vaultFactory;
     SyntheticZCBPoolFactory public poolFactory;
     ReputationManager public reputationManager;
-
+    LeverageManager public leverageManager; 
 
     /* ========== MODIFIERS ========== */
     modifier onlyValidator(uint256 marketId) {
@@ -81,7 +81,7 @@ contract Controller {
 
     modifier onlyManager() {
         require(
-            msg.sender == address(marketManager) ||
+            msg.sender == address(marketManager) || msg.sender == address(leverageManager)|| 
                 msg.sender == creator_address,
             "!manager"
         );
@@ -110,6 +110,15 @@ contract Controller {
         marketManager.setReputationManager(_reputationManager); 
     }
 
+    function setValidatorManager(address _validatorManager) public onlyManager {
+        validatorManager = ValidatorManager(_validatorManager);
+    }
+
+    function setLeverageManager(address _leverageManager) public onlyManager{
+        leverageManager = LeverageManager(_leverageManager); 
+        marketManager.setLeverageManager(_leverageManager); 
+    }
+
     function setVaultFactory(address _vaultFactory) public onlyManager {
         vaultFactory = VaultFactory(_vaultFactory);
     }
@@ -118,9 +127,6 @@ contract Controller {
         poolFactory = SyntheticZCBPoolFactory(_poolFactory);
     }
 
-    function setValidatorManager(address _validatorManager) public onlyManager {
-        validatorManager = ValidatorManager(_validatorManager);
-    }
 
     // function verifyAddress(
     //     uint256 nullifier_hash,
