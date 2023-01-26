@@ -402,6 +402,7 @@ event MarketDenied(uint256 indexed marketId);
     uint256 marketId
   ) public view returns(bool) {
     require(restriction_data[marketId].alive, "!Active");
+    // TODO need to check amount is capped, and trader has enough vault locked 
     //TODO: check if this is correct
     // require(controller.getVault(marketId).fetchInstrumentData(marketId).maturityDate > block.timestamp, "market maturity reached");
 
@@ -441,6 +442,7 @@ event MarketDenied(uint256 indexed marketId);
 
   event MarketCollateralUpdate(uint256 marketId, uint256 totalCollateral);
   event TraderCollateralUpdate(uint256 marketId, address manager, uint256 totalCollateral, bool isLong);
+
   /// @notice log how much collateral trader has at stake, 
   /// to be used for redeeming, restricting trades
   function _logTrades(
@@ -463,11 +465,9 @@ event MarketDenied(uint256 indexed marketId);
         longTrades[marketId][trader] -= collateral;
         loggedCollaterals[marketId] -= collateral; 
         }
-        emit TraderCollateralUpdate(marketId, trader, longTrades[marketId][trader], true);
       } else {
       if (isBuy) {
         // shortCollateral is amount trader pays to buy shortZCB
-
         shortTrades[marketId][trader] += shortCollateral;
         // collateral is the area under the curve that is subtracted due to the (short)selling
         loggedCollaterals[marketId] -= collateral; 
@@ -476,8 +476,9 @@ event MarketDenied(uint256 indexed marketId);
         shortTrades[marketId][trader] -= shortCollateral; 
         loggedCollaterals[marketId] += collateral;
       } 
-      emit TraderCollateralUpdate(marketId, trader, shortTrades[marketId][trader], false);
     }
+
+    emit TraderCollateralUpdate(marketId, trader, shortTrades[marketId][trader], isLong);
     emit MarketCollateralUpdate(marketId, loggedCollaterals[marketId]);
   }
 
@@ -573,7 +574,13 @@ event MarketDenied(uint256 indexed marketId);
   uint8 public constant queuedRepThreshold = 3; // at most 3 simultaneous assessment per manager
 
   event BondBuy(uint256 indexed marketId, address indexed trader, uint256 amountIn, uint256 amountOut);
-  /// @notice main entry point for longZCB buys 
+
+  struct LocarVars{
+    uint256 upperBound; 
+    uint256 budget; 
+    uint256 repThreshold; 
+  }
+  /// @notice main entry point for longZCB buys (during assessment for now)
   /// @param _amountIn is negative if specified in zcb quantity
   function buyBond(
     uint256 _marketId, 
@@ -581,113 +588,45 @@ event MarketDenied(uint256 indexed marketId);
     uint256 _priceLimit, 
     bytes calldata _tradeRequestData 
     ) external _lock_ returns(uint256 amountIn, uint256 amountOut){
-    require(!restriction_data[_marketId].resolved, "!resolved");
+    LocarVars memory vars; 
+    MarketPhaseData memory phaseData = restriction_data[_marketId]; 
+
+    require(!phaseData.resolved, "not resolved");
+    require(phaseData.duringAssessment, "only assessment"); 
+
     _canBuy(msg.sender, _amountIn, _marketId);
+
     //TODO return readable error on why it reverts
     CoreMarketData memory marketData = markets[_marketId]; 
     SyntheticZCBPool bondPool = marketData.bondPool; 
     
+    // TODO fix pricelimit  
+    (amountIn, amountOut) = bondPool.takerOpen(true, _amountIn, _priceLimit, abi.encode(msg.sender)); 
 
-    // During assessment, real bonds are issued from utilizer, they are the sole LP 
-    if (restriction_data[_marketId].duringAssessment){
-      // TODO fix pricelimit  
+    // Revert if cross bound
+    vars.upperBound =  bondPool.upperBound(); 
+    if(vars.upperBound !=0 &&  vars.upperBound < bondPool.getCurPrice()) revert("exceed bound"); 
 
-      (amountIn, amountOut) = bondPool.takerOpen(true, _amountIn, _priceLimit, abi.encode(msg.sender)); 
+    //Need to log assessment trades for updating reputation scores or returning collateral when market denied 
+    _logTrades(_marketId, msg.sender, amountIn, 0, true, true);
 
-      // uint256 upperBound = bondPool.upperBound(); 
-      if( bondPool.upperBound() !=0 &&  bondPool.upperBound() < bondPool.getCurPrice()) revert("exceed bound"); 
+    // Get implied probability estimates by summing up all this manager bought for this market 
+    vars.budget = getTraderBudget(_marketId, msg.sender); 
+    reputationManager.recordPull(msg.sender, _marketId, amountOut, amountIn, vars.budget, marketData.isPool); 
 
-      //Need to log assessment trades for updating reputation scores or returning collateral when market denied 
-      _logTrades(_marketId, msg.sender, amountIn, 0, true, true);
+    // Phase Transitions when conditions met
+    if(phaseData.onlyReputable){
+      vars.repThreshold = parameters[_marketId].omega.mulWadDown(
+          controller.getVault(_marketId).fetchInstrumentData(_marketId).principal); 
 
-      // Get implied probability estimates by summing up all this manager bought for this market 
-      reputationManager.recordPull(msg.sender, _marketId, amountOut,
-        amountIn, getTraderBudget(_marketId, msg.sender), marketData.isPool); 
-
-      // assessment_probs[_marketId][msg.sender] = controller.calcImpliedProbability(
-      //     getZCB(_marketId).balanceOf(msg.sender) + leveragePosition[_marketId][msg.sender].amount, 
-      //     longTrades[_marketId][msg.sender], 
-      //     getTraderBudget(_marketId, msg.sender) 
-      // ); 
-
-      // Phase Transitions when conditions met
-      if(restriction_data[_marketId].onlyReputable){
-        uint256 total_bought = loggedCollaterals[_marketId];
-
-        if (total_bought >= parameters[_marketId].omega.mulWadDown(
-              controller
-              .getVault(_marketId)
-              .fetchInstrumentData(_marketId)
-              .principal)
-        ) {
-          restriction_data[_marketId].onlyReputable = false;
-          emit MarketPhaseSet(_marketId, restriction_data[_marketId]);
-        }
+      if (loggedCollaterals[_marketId] >= vars.repThreshold) {
+        restriction_data[_marketId].onlyReputable = false;
+        emit MarketPhaseSet(_marketId, restriction_data[_marketId]);
       }
     }
 
-    // Synthetic bonds are issued (liquidity provision are amortized as counterparties)
-    else{
-      (amountIn, amountOut) = bondPool.takerOpen(true, _amountIn, _priceLimit, abi.encode(msg.sender));
-
-      // TODO check if valid slippage 
-      // TODO check liquidity, revert if not
-      // TODO reputation while trading post assessment? 
-      // (uint16 point, bool isTaker) = abi.decode(_tradeRequestData, (uint16,bool ));
-      // if(isTaker)
-
-      //   (amountIn, amountOut) = bondPool.takerOpen(true, _amountIn, _priceLimit, abi.encode(msg.sender));
-      // else{
-      //   (uint256 escrowAmount, uint128 crossId) = bondPool.makerOpen(point, uint256(_amountIn), true, msg.sender); 
-      // }
-    }
-
-    if(_amountIn> 0)require(uint256(_amountIn) == amountIn, " !liq") ; 
-    else require(uint256(-_amountIn)==amountOut, "!liq"); 
-
     emit BondBuy(_marketId, msg.sender, amountIn, amountOut); // get current price as well.
   }
-
-  
-  /// @notice longZCB sells  
-  /// @param _amountIn quantity in longZCB 
-  function sellBond(
-      uint256 _marketId,
-      uint256 _amountIn, 
-      uint256 _priceLimit, 
-      bytes calldata _tradeRequestData 
-    ) external _lock_ returns (uint256 amountIn, uint256 amountOut){
-    require(!restriction_data[_marketId].duringAssessment, "not during assessment"); 
-    require(!markets[_marketId].isPool, "ispool"); 
-
-    // if (duringMarketAssessment(_marketId)) revert("can't close during assessment"); 
-    require(!restriction_data[_marketId].resolved, "!resolved");
-    // require(_canSell(msg.sender, _amountIn, _marketId),"Restricted");
-    SyntheticZCBPool bondPool = markets[_marketId].bondPool; 
-
-    if (restriction_data[_marketId].duringAssessment){
-
-      (amountIn, amountOut) = bondPool.takerClose(
-                                    true, int256(_amountIn), _priceLimit, abi.encode(msg.sender));
-
-      _logTrades(_marketId, msg.sender, amountIn, 0, false, true );                                          
-
-    }
-    else{
-      // controller.deduct_selling_fee( _marketId ); //TODO, if validator or manager, deduct reputation 
-
-      // (uint16 point, bool isTaker) = abi.decode(_tradeRequestData, (uint16,bool ));
-      // if(isTaker) 
-      (amountIn, amountOut) = bondPool.takerClose(
-              true, int256(_amountIn), _priceLimit, abi.encode(msg.sender));
-      // else {
-      //   (uint256 escrowAmount, uint128 crossId) = bondPool.makerClose(point, uint256(_amountIn), true, msg.sender);        
-      // }
-    }
-
-    reputationManager.recordPush(msg.sender, _marketId, bondPool.getCurPrice(), true, amountIn); 
-
-  } 
 
   /// @param _amountIn: amount of short trader is willing to buy
   /// @param _priceLimit: slippage tolerance on trade
@@ -697,60 +636,16 @@ event MarketDenied(uint256 indexed marketId);
     uint256 _priceLimit,
     bytes calldata _tradeRequestData 
     ) external _lock_ returns (uint256 amountIn, uint256 amountOut){
-    require(!markets[_marketId].isPool, "ispool"); 
-
+    require(!markets[_marketId].isPool, "only fixed instrument"); 
+    require(restriction_data[_marketId].duringAssessment, "only assessment"); 
     // require(_canSell(msg.sender, _amountIn, _marketId),"Restricted");
-    SyntheticZCBPool bondPool = markets[_marketId].bondPool; 
-
-    if (restriction_data[_marketId].duringAssessment){
 
       // amountOut is base collateral down the curve, amountIn is collateral used to buy shortZCB 
-      (amountOut, amountIn) = bondPool.takerOpen(false, int256(_amountIn), _priceLimit, abi.encode(msg.sender));
-      _logTrades(_marketId, msg.sender, amountOut, amountIn, true, false);
-
-    }
-    else{
-      //deduct_selling_fee(); //if naked CDS( staked vault)
-
-      // (uint16 point, bool isTaker) = abi.decode(_tradeRequestData, (uint16,bool ));
-      // if (isTaker)
-        (amountOut, amountIn) = bondPool.takerOpen(false, int256(_amountIn), _priceLimit, abi.encode(msg.sender));
-      
-      // else{
-      //   (uint256 escrowAmount, uint128 crossId) = bondPool.makerOpen(point, uint256(_amountIn), false, msg.sender);
-      // }
-    }
+    (amountOut, amountIn) = markets[_marketId].bondPool.takerOpen(false, int256(_amountIn),
+       _priceLimit, abi.encode(msg.sender));
+    _logTrades(_marketId, msg.sender, amountOut, amountIn, true, false);
   }
 
-  /// @param _amountIn is amount of short trader is willing to cover 
-  function coverBondShort(
-    uint256 _marketId, 
-    uint256 _amountIn, 
-    uint256 _priceLimit,
-    bytes calldata _tradeRequestData 
-    ) external _lock_ returns (uint256 amountIn, uint256 amountOut){
-    require(!restriction_data[_marketId].duringAssessment, "not during assessment"); 
-
-    SyntheticZCBPool bondPool = markets[_marketId].bondPool; 
-
-    if (restriction_data[_marketId].duringAssessment){
-
-      // amountOut is collateral up the curve, amountIn is collateral returned from closing  
-      (amountOut, amountIn) = bondPool.takerClose(false, -int256(_amountIn), _priceLimit, abi.encode(msg.sender));
-
-      _logTrades(_marketId, msg.sender, amountOut, amountIn, true, false); 
-     // deduct_selling_fee(); 
-    }
-    else{
-      // (uint16 point, bool isTaker) = abi.decode(_tradeRequestData, (uint16,bool ));
-      // if (isTaker)
-        (amountOut, amountIn) = bondPool.takerClose(false, -int256(_amountIn), _priceLimit, abi.encode(msg.sender));
-      
-      // else{
-      //   (uint256 escrowAmount, uint128 crossId) = bondPool.makerClose(point, _amountIn, false, msg.sender);
-      // }
-    }
-  }
 
   event RedeemDenied(uint256 marketId, address trader, bool isLong);
 
@@ -842,7 +737,28 @@ event MarketDenied(uint256 indexed marketId);
     controller.redeem_transfer(collateral_redeem_amount, msg.sender, marketId);
   }
 
- 
+  /// @notice called by short buyers when market is resolved for fixed term instruments 
+  function redeemShortZCB(
+    uint256 marketId 
+    ) external _lock_ returns(uint256 collateral_redeem_amount){
+    require(!restriction_data[marketId].alive, "Active"); 
+    require(restriction_data[marketId].resolved, "!resolved"); 
+    require(!redeemed[marketId][msg.sender], "Redeemed");
+    require(!markets[marketId].isPool, "pool");
+
+    redeemed[marketId][msg.sender] = true; 
+    SyntheticZCBPool bondPool = markets[marketId].bondPool; 
+
+    uint256 shortZCB_redeem_amount = markets[marketId].shortZCB.balanceOf(msg.sender); 
+    uint256 long_redemption_price = redemption_prices[marketId];
+    uint256 redemption_price = long_redemption_price >= config.WAD 
+                               ? 0 
+                               : config.WAD - long_redemption_price; 
+    collateral_redeem_amount = redemption_price.mulWadDown(shortZCB_redeem_amount);
+
+    bondPool.trustedBurn(msg.sender, shortZCB_redeem_amount, false); 
+    controller.redeem_transfer(collateral_redeem_amount, msg.sender, marketId); 
+  }
 
   /// @notice returns the manager's maximum leverage 
   function getMaxLeverage(address manager) public view returns(uint256){
@@ -969,3 +885,73 @@ event MarketDenied(uint256 indexed marketId);
     }
 }
 
+
+
+ //  /// @notice longZCB sells  
+ //  /// @param _amountIn quantity in longZCB 
+ //  function sellBond(
+ //      uint256 _marketId,
+ //      uint256 _amountIn, 
+ //      uint256 _priceLimit, 
+ //      bytes calldata _tradeRequestData 
+ //    ) external _lock_ returns (uint256 amountIn, uint256 amountOut){
+ //    require(!restriction_data[_marketId].duringAssessment, "not during assessment"); 
+ //    require(!markets[_marketId].isPool, "ispool"); 
+
+ //    // if (duringMarketAssessment(_marketId)) revert("can't close during assessment"); 
+ //    require(!restriction_data[_marketId].resolved, "!resolved");
+ //    // require(_canSell(msg.sender, _amountIn, _marketId),"Restricted");
+ //    SyntheticZCBPool bondPool = markets[_marketId].bondPool; 
+
+ //    if (restriction_data[_marketId].duringAssessment){
+
+ //      (amountIn, amountOut) = bondPool.takerClose(
+ //                                    true, int256(_amountIn), _priceLimit, abi.encode(msg.sender));
+
+ //      _logTrades(_marketId, msg.sender, amountIn, 0, false, true );                                          
+
+ //    }
+ //    else{
+ //      // controller.deduct_selling_fee( _marketId ); //TODO, if validator or manager, deduct reputation 
+
+ //      // (uint16 point, bool isTaker) = abi.decode(_tradeRequestData, (uint16,bool ));
+ //      // if(isTaker) 
+ //      (amountIn, amountOut) = bondPool.takerClose(
+ //              true, int256(_amountIn), _priceLimit, abi.encode(msg.sender));
+ //      // else {
+ //      //   (uint256 escrowAmount, uint128 crossId) = bondPool.makerClose(point, uint256(_amountIn), true, msg.sender);        
+ //      // }
+ //    }
+
+ //    reputationManager.recordPush(msg.sender, _marketId, bondPool.getCurPrice(), true, amountIn); 
+
+ //  } 
+ // /// @param _amountIn is amount of short trader is willing to cover 
+ //  function coverBondShort(
+ //    uint256 _marketId, 
+ //    uint256 _amountIn, 
+ //    uint256 _priceLimit,
+ //    bytes calldata _tradeRequestData 
+ //    ) external _lock_ returns (uint256 amountIn, uint256 amountOut){
+ //    require(!restriction_data[_marketId].duringAssessment, "not during assessment"); 
+
+ //    SyntheticZCBPool bondPool = markets[_marketId].bondPool; 
+
+ //    if (restriction_data[_marketId].duringAssessment){
+
+ //      // amountOut is collateral up the curve, amountIn is collateral returned from closing  
+ //      (amountOut, amountIn) = bondPool.takerClose(false, -int256(_amountIn), _priceLimit, abi.encode(msg.sender));
+
+ //      _logTrades(_marketId, msg.sender, amountOut, amountIn, true, false); 
+ //     // deduct_selling_fee(); 
+ //    }
+ //    else{
+ //      // (uint16 point, bool isTaker) = abi.decode(_tradeRequestData, (uint16,bool ));
+ //      // if (isTaker)
+ //        (amountOut, amountIn) = bondPool.takerClose(false, -int256(_amountIn), _priceLimit, abi.encode(msg.sender));
+      
+ //      // else{
+ //      //   (uint256 escrowAmount, uint128 crossId) = bondPool.makerClose(point, _amountIn, false, msg.sender);
+ //      // }
+ //    }
+ //  }

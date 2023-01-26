@@ -1,5 +1,9 @@
-// pragma solidity ^0.8.4;
+pragma solidity ^0.8.4;
 
+    struct ResolveVar{
+        uint256 endBlock; 
+        bool isPrepared; 
+    }
 // import {Auth} from "./auth/Auth.sol";
 // import {ERC4626} from "./mixins/ERC4626.sol";
 
