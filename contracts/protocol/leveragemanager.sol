@@ -44,6 +44,8 @@ contract LeverageManager is ERC721Enumerable{
         uint256 levFactor; 
         uint256 seniorAmount; 
         uint256 budget; 
+
+        Vault vault; 
     }
 
     function getPosition(uint256 marketId, address trader) public view returns(LeveredBond memory){
@@ -65,18 +67,15 @@ contract LeverageManager is ERC721Enumerable{
         controller.pullLeverage(_marketId, _amountIn - amountPulled); 
 
         underlying.approve(address(marketManager), _amountIn); 
-        issueQTY = marketManager.issueBond(_marketId, _amountIn, address(this)); 
-
-        uint256 budget = marketManager.getTraderBudget( _marketId, msg.sender); 
-        reputationManager.recordPull(msg.sender, _marketId, issueQTY, _amountIn, budget, true); 
+        issueQTY = marketManager.issueBond(_marketId, _amountIn, address(this), msg.sender); 
 
         leveragePosition[_marketId][msg.sender].debt += (_amountIn - amountPulled); 
         leveragePosition[_marketId][msg.sender].amount += (issueQTY); 
     }
 
-
-     // TODO conditions/restrictions-> need some time to pass to call this + need some liquidity in pool 
-
+    /// @notice redeem longzcb in this contract, send redeemed amount to vault
+    /// and if debt fully repaid, send remaining to trader 
+    /// param redeemAmount is in longZCB 
     function redeemLeveredPoolLongZCB(
         uint256 marketId, 
         uint256 redeemAmount
@@ -85,41 +84,37 @@ contract LeverageManager is ERC721Enumerable{
             uint256 postRepayLeftOver, 
             uint256 paidDebt){
         LocalVars memory vars; 
+        vars.vault = controller.getVault(marketId); 
         LeveredBond memory position = leveragePosition[marketId][msg.sender]; 
-        require(position.amount>redeemAmount, "Amount ERR"); 
+        require(position.amount>=redeemAmount, "Amount ERR"); 
 
-        Vault vault = controller.getVault(marketId); 
-        MarketManager.CoreMarketData memory market = marketManager.getMarket(marketId); 
-        require(market.isPool, "!pool"); 
-
-        (vars.psu, vars.pju, vars.levFactor) = vault.poolZCBValue(marketId);
-        collateral_redeem_amount = vars.pju.mulWadDown(redeemAmount); 
-        vars.seniorAmount= redeemAmount.mulWadDown(vars.levFactor).mulWadDown(vars.psu); 
-
-        // Need to check if redeemAmount*levFactor can be withdrawn from the pool. If so, do so. 
-        vault.withdrawFromPoolInstrument(marketId, collateral_redeem_amount, address(this), vars.seniorAmount); 
+        // Redeem longZCB in this address and get back collateral_redeem_amount to this address
+        /// Get back collateral, need to send repaid capital back to the vault 
+        (collateral_redeem_amount, ) = 
+            marketManager.redeemPerpLongZCB(marketId, redeemAmount, address(this), msg.sender); 
+        vars.vault.UNDERLYING().transfer(address(vars.vault), collateral_redeem_amount); 
 
         // Need to first pay all of debt 
         if(position.debt > collateral_redeem_amount){
-            paidDebt = position.debt - collateral_redeem_amount; 
+            paidDebt = collateral_redeem_amount; 
             position.debt -= collateral_redeem_amount; 
         } else{
             paidDebt = position.debt; 
             position.debt = 0 ; 
         }
 
-        position.amount -= redeemAmount; 
-        market.bondPool.trustedBurn(address(this), redeemAmount, true); 
+        unchecked{position.amount -= redeemAmount;}
 
-        if (position.debt==0) {
+        // If debt is fully paid, can send unlocked funds 
+        if (position.debt==0) {//100-70 = 30 send me back 30!!
             postRepayLeftOver = collateral_redeem_amount - paidDebt; 
             controller.redeem_transfer(postRepayLeftOver, msg.sender, marketId);
         }
-        
-        // Update reputation 
-        reputationManager.recordPush(msg.sender, marketId, vars.pju, false, redeemAmount); 
+
         leveragePosition[marketId][msg.sender] = position; 
     }
+
+    
 
     /// @notice returns the manager's maximum leverage 
     function getMaxLeverage(address manager) public view returns(uint256){
@@ -521,7 +516,49 @@ contract LeverageManager is ERC721Enumerable{
 
 }
 
+// function redeemLeveredPoolLongZCB(
+//         uint256 marketId, 
+//         uint256 redeemAmount
+//         ) external  returns(
+//             uint256 collateral_redeem_amount, 
+//             uint256 postRepayLeftOver, 
+//             uint256 paidDebt){
+//         LocalVars memory vars; 
+//         LeveredBond memory position = leveragePosition[marketId][msg.sender]; 
+//         require(position.amount>redeemAmount, "Amount ERR"); 
 
+//         Vault vault = controller.getVault(marketId); 
+//         MarketManager.CoreMarketData memory market = marketManager.getMarket(marketId); 
+//         require(market.isPool, "!pool"); 
+
+//         (vars.psu, vars.pju, vars.levFactor) = vault.poolZCBValue(marketId);
+//         collateral_redeem_amount = vars.pju.mulWadDown(redeemAmount); 
+//         vars.seniorAmount= redeemAmount.mulWadDown(vars.levFactor).mulWadDown(vars.psu); 
+
+//         // Need to check if redeemAmount*levFactor can be withdrawn from the pool. If so, do so. 
+//         vault.withdrawFromPoolInstrument(marketId, collateral_redeem_amount, address(this), vars.seniorAmount); 
+
+//         // Need to first pay all of debt 
+//         if(position.debt > collateral_redeem_amount){
+//             paidDebt = position.debt - collateral_redeem_amount; 
+//             position.debt -= collateral_redeem_amount; 
+//         } else{
+//             paidDebt = position.debt; 
+//             position.debt = 0 ; 
+//         }
+
+//         position.amount -= redeemAmount; 
+//         market.bondPool.trustedBurn(address(this), redeemAmount, true); 
+
+//         if (position.debt==0) {
+//             postRepayLeftOver = collateral_redeem_amount - paidDebt; 
+//             controller.redeem_transfer(postRepayLeftOver, msg.sender, marketId);
+//         }
+        
+//         // Update reputation 
+//         reputationManager.recordPush(msg.sender, marketId, vars.pju, false, redeemAmount); 
+//         leveragePosition[marketId][msg.sender] = position; 
+//     }
 
     // /// @notice issue bond to this address, and give trader note
     // function issuePoolBondLevered(

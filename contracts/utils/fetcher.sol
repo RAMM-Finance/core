@@ -13,6 +13,8 @@ import {PoolInstrument} from "../instruments/poolInstrument.sol";
 import "forge-std/console.sol";
 import {CoveredCallOTC} from "../vaults/dov.sol";
 
+import "../global/types.sol"; 
+
 contract Fetcher {
     using FixedPointMathLib for uint256;
 
@@ -361,7 +363,7 @@ contract Fetcher {
         bundle.resolutionTimestamp = data.resolutionTimestamp;
         bundle.marketConditionMet = controller.marketCondition(mid);
 
-        Controller.ApprovalData memory approvalData = controller.getApprovalData(mid);
+        ApprovalData memory approvalData = controller.getApprovalData(mid);
         bundle.approvedPrincipal = approvalData.approved_principal;
         bundle.approvedYield = approvalData.approved_yield;
         bundle.managerStake = approvalData.managers_stake;

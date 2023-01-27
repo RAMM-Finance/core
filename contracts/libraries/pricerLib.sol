@@ -2,27 +2,17 @@ pragma solidity ^0.8.16;
 import {FixedPointMathLib} from "solmate/utils/FixedPointMathLib.sol";
 import {Controller} from "../protocol/controller.sol"; 
 import {Vault} from "../vaults/vault.sol"; 
+import {PricingInfo} from "../global/types.sol"; 
 
 library PerpTranchePricer{
     using FixedPointMathLib for uint256;
-    using PerpTranchePricer for PerpTranchePricer.PricingInfo; 
+    using PerpTranchePricer for PricingInfo; 
     uint256 constant BASE_UNIT = 1e18; 
 
-	struct PricingInfo{
-		uint256 psu; 
-
-		uint256 prevAccrueTime; 
-		uint256 prevIntervalRp; //per second compounding promised return, function of urate 
-
-		// Constants for a given market 
-		uint256 URATE_MULTIPLIER; 
-		uint256 ID; 
-	}
 
 	function setNewPrices(
-		PerpTranchePricer.PricingInfo storage _self, 
+		PricingInfo storage _self, 
 		uint256 psu,
-		uint256 pju, 
 		uint256 multiplier, 
 		uint256 id
 		) internal {
@@ -33,7 +23,7 @@ library PerpTranchePricer{
 
 	/// @notice needs to be updated whenver utilization rate is updated 
  	function storeNewPSU(
- 		PerpTranchePricer.PricingInfo storage _self, 
+ 		PricingInfo storage _self, 
  		uint256 uRate
  		) internal {
 	    
@@ -51,7 +41,7 @@ library PerpTranchePricer{
 	}
 
 	function refreshViewCurrentPricing(
-		PerpTranchePricer.PricingInfo storage _self, 
+		PricingInfo storage _self, 
 		uint256 uRate, 
 		address vault_ad, address controller_ad
 		) public returns(uint256 psu, uint256 pju, uint256 levFactor){
@@ -60,7 +50,7 @@ library PerpTranchePricer{
 	}
 
 	function viewCurrentPricing(
-		PerpTranchePricer.PricingInfo storage _self,
+		PricingInfo memory _self,
 		address vault_ad, 
 		address controller_ad
 		) public view returns(uint256 psu, uint256 pju, uint256 levFactor){
@@ -93,6 +83,39 @@ library PerpTranchePricer{
 	    if(!vars.belowThreshold) pju = (vars.totalAssetsHeldScaled 
 	      - psu.mulWadDown(vars.seniorSupply)).divWadDown(vars.juniorSupply); 
 	}
+	
+    // localVars memory vars; 
+
+    // (vars.promised_return, vars.inceptionTime, vars.inceptionPrice, vars.leverageFactor, 
+    //   vars.managementFee) = fetchPoolTrancheData(marketId); 
+    // levFactor = vars.leverageFactor; 
+
+    // require(vars.inceptionPrice > 0, "0"); 
+
+    // // Get senior redemption price that increments per unit time 
+    // vars.srpPlusOne = vars.inceptionPrice.mulWadDown((BASE_UNIT+ vars.promised_return)
+    //   .rpow(block.timestamp - vars.inceptionTime, BASE_UNIT));
+
+    // // Get total assets held by the instrument 
+    // vars.juniorSupply = controller.getTotalSupply(marketId); 
+    // vars.seniorSupply = vars.juniorSupply.mulWadDown(vars.leverageFactor); 
+    // vars.totalAssetsHeldScaled = instrumentAssetOracle(marketId, vars.juniorSupply, vars.seniorSupply)
+    //   .mulWadDown(vars.inceptionPrice); 
+
+    // if (vars.seniorSupply == 0) return(vars.srpPlusOne,vars.srpPlusOne,levFactor); 
+    
+    // // Check if all seniors can redeem
+    // if (vars.totalAssetsHeldScaled >= vars.srpPlusOne.mulWadDown(vars.seniorSupply))
+    //   psu = vars.srpPlusOne; 
+    // else{
+    //   psu = vars.totalAssetsHeldScaled.divWadDown(vars.seniorSupply);
+    //   vars.belowThreshold = true;  
+    // }
+    // // should be 0 otherwise 
+    // if(!vars.belowThreshold) pju = (vars.totalAssetsHeldScaled 
+    //   - vars.srpPlusOne.mulWadDown(vars.seniorSupply)).divWadDown(vars.juniorSupply); 
+    // uint pju_ = (BASE_UNIT+ vars.leverageFactor).mulWadDown(previewMint(BASE_UNIT.mulWadDown(vars.inceptionPrice))) 
+    //   -  vars.srpPlusOne.mulWadDown(vars.leverageFactor);
 
 	struct localVars{
 	    uint256 promised_return; 

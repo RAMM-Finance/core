@@ -22,21 +22,16 @@ import {LinearCurve} from "../bonds/GBC.sol";
 import {LeverageManager} from "./leveragemanager.sol"; 
 import {ValidatorManager} from "./validatorManager.sol";
 
+import "../global/GlobalStorage.sol"; 
+import "../global/types.sol"; 
+import {PerpTranchePricer} from "../libraries/pricerLib.sol"; 
+
 contract Controller {
     using SafeMath for uint256;
     using FixedPointMathLib for uint256;
     using SafeTransferLib for ERC20;
+    using PerpTranchePricer for PricingInfo; 
 
-    struct MarketData {
-        address instrument_address;
-        address utilizer;
-    }
-
-    struct ApprovalData {
-        uint256 managers_stake;
-        uint256 approved_principal;
-        uint256 approved_yield;
-    }
 
     ValidatorManager validatorManager;
 
@@ -69,6 +64,7 @@ contract Controller {
     SyntheticZCBPoolFactory public poolFactory;
     ReputationManager public reputationManager;
     LeverageManager public leverageManager; 
+    StorageHandler public Data; 
 
     /* ========== MODIFIERS ========== */
     modifier onlyValidator(uint256 marketId) {
@@ -125,6 +121,16 @@ contract Controller {
 
     function setPoolFactory(address _poolFactory) public onlyManager {
         poolFactory = SyntheticZCBPoolFactory(_poolFactory);
+    }
+    function setDataStore(address _dataStore) public onlyManager{
+        Data = StorageHandler(_dataStore); 
+    }
+
+    function storeNewPrices(uint256 marketId, uint256 multiplier, uint256 initPrice) public {
+
+        Data.setNewPricingInfo( marketId,  initPrice,  multiplier); 
+
+        // data.PriceInfos(marketId).setNewPrices(initPrice, multiplier, marketId); 
     }
 
 
@@ -199,7 +205,7 @@ contract Controller {
 
     function getInstrumentSnapShot(uint256 marketId) view public returns (uint256 managerStake, uint256 exposurePercentage, uint256 seniorAPR, uint256 approvalPrice) {
         MarketManager.CoreMarketData memory data = marketManager.getMarket(marketId); 
-        Controller.ApprovalData memory approvalData = getApprovalData(marketId); 
+        ApprovalData memory approvalData = getApprovalData(marketId); 
         Vault.InstrumentData memory instrumentData = getVault(marketId).fetchInstrumentData(marketId);
         managerStake = approvalData.managers_stake;
         exposurePercentage = (approvalData.approved_principal- approvalData.managers_stake).divWadDown(getVault(marketId).totalAssets()+1);
@@ -1177,8 +1183,9 @@ contract Controller {
         external
         onlyManager
     {
-        getVault(marketId).trusted_transfer(amount, address(marketManager));
+        getVault(marketId).trusted_transfer(amount, msg.sender);
     }
+
 
     function getTotalSupply(uint256 marketId) external view returns (uint256) {
         return marketManager.getZCB(marketId).totalSupply();

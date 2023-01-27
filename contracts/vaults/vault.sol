@@ -15,6 +15,8 @@ import {MarketManager} from "../protocol/marketmanager.sol";
 import "openzeppelin-contracts/utils/math/Math.sol";
 import "forge-std/console.sol";
 
+import "../global/types.sol"; 
+
 
 contract Vault is ERC4626{
     using SafeCastLib for uint256; 
@@ -355,7 +357,7 @@ contract Vault is ERC4626{
     /// @notice Stores a Instrument as trusted when its approved
     function trustInstrument(
       uint256 marketId,
-      Controller.ApprovalData memory data, 
+      ApprovalData memory data, 
       bool isPool
       ) external virtual onlyController{
       instrument_data[fetchInstrument(marketId)].trusted = true;

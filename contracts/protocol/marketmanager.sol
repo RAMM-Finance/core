@@ -511,28 +511,32 @@ event MarketDenied(uint256 indexed marketId);
   function issueBond(
     uint256 _marketId, 
     uint256 _amountIn, 
+    address _caller,
     address trader
     ) external returns(uint256 issueQTY){
+    LocarVars memory vars; 
     require(msg.sender == address(this) || msg.sender == leverageManager_ad, "invalid entry"); 
 
-    Vault vault = controller.getVault(_marketId); 
-    ERC20 underlying = ERC20(address(markets[_marketId].bondPool.BaseToken())); 
-    address instrument = address(vault.Instruments(_marketId)); 
+    vars.vault = controller.getVault(_marketId); 
+    vars.underlying = ERC20(address(markets[_marketId].bondPool.BaseToken())); 
+    vars.instrument = address(vars.vault.Instruments(_marketId)); 
 
     // Get price a_lock_nd sell longZCB with this price
-    (uint256 psu, uint256 pju, uint256 levFactor ) = vault.poolZCBValue(_marketId);
+    (vars.psu, vars.pju, vars.levFactor ) = vars.vault.poolZCBValue(_marketId);
 
-    underlying.transferFrom(trader, address(this), _amountIn);
-    underlying.approve(instrument, _amountIn); 
-    ERC4626(instrument).deposit(_amountIn, address(vault)); 
+    vars.underlying.transferFrom(_caller, address(this), _amountIn);
+    vars.underlying.approve(vars.instrument, _amountIn); 
+    ERC4626(vars.instrument).deposit(_amountIn, address(vars.vault)); 
 
-    issueQTY = _amountIn.divWadUp(pju); //TODO rounding errs
-    markets[_marketId].bondPool.trustedDiscountedMint(trader, issueQTY); 
+    issueQTY = _amountIn.divWadUp(vars.pju); //TODO rounding errs
+    markets[_marketId].bondPool.trustedDiscountedMint(_caller, issueQTY); 
 
     // Need to transfer funds automatically to the instrument, seniorAmount is longZCB * levFactor * psu  
-    vault.depositIntoInstrument(_marketId, issueQTY.mulWadDown(config.WAD + levFactor).mulWadDown(psu), true); 
+    vars.vault.depositIntoInstrument(_marketId, issueQTY.mulWadDown(config.WAD + vars.levFactor).mulWadDown(vars.psu), true); 
+
+    reputationManager.recordPull(trader, _marketId, issueQTY, _amountIn, getTraderBudget( _marketId, trader), true); 
   }
-  
+
   /// @notice after assessment, let managers buy newly issued longZCB if the instrument is pool based 
   /// funds + funds * levFactor will be directed to the instrument 
   function issuePoolBond(
@@ -543,23 +547,22 @@ event MarketDenied(uint256 indexed marketId);
 
     _canIssue(msg.sender, int256(_amountIn), _marketId);  
 
-    issueQTY = this.issueBond(_marketId, _amountIn, msg.sender); 
+    issueQTY = this.issueBond(_marketId, _amountIn, msg.sender, msg.sender); 
     //TODO Need totalAssets and exchange rate to remain same assertion 
     //TODO vault always has to have more shares, all shares minted goes to vault 
     /** 
     total apr from deposit = (totalAssets of the pool - psu * senior supply)/junior supply
     */
-    reputationManager.recordPull(msg.sender, _marketId, issueQTY, _amountIn, getTraderBudget( _marketId, msg.sender), true); 
-      
+    // reputationManager.recordPull(msg.sender, _marketId, issueQTY, _amountIn, getTraderBudget( _marketId, msg.sender), true); 
   }
 
-  /// @notice when a manager redeems a poollongzcb, redeemAmount*levFactor are automatically 
-  /// withdrawn from the instrument
-  function redeemPoolLongZCB(
-    uint256 marketId, 
-    uint256 redeemAmount
-    ) external _lock_ returns(uint256 collateral_redeem_amount, uint256 seniorAmount){
-    // TODO conditions/restrictions-> need some time to pass to call this + need some liquidity in pool 
+  function redeemPerpLongZCB(
+    uint256 marketId,
+    uint256 redeemAmount, 
+    address caller, 
+    address trader 
+    ) external returns(uint256 collateral_redeem_amount, uint256 seniorAmount){
+    require(msg.sender == address(this) || msg.sender == leverageManager_ad, "invalid entry"); 
     Vault vault = controller.getVault(marketId); 
     CoreMarketData memory market = markets[marketId]; 
 
@@ -570,20 +573,29 @@ event MarketDenied(uint256 indexed marketId);
     seniorAmount = redeemAmount.mulWadDown(levFactor).mulWadDown(psu); 
 
     // Need to check if redeemAmount*levFactor can be withdrawn from the pool and do so
-    vault.withdrawFromPoolInstrument(marketId, collateral_redeem_amount, msg.sender, seniorAmount); 
-
-    // Update reputation 
-    reputationManager.recordPush(msg.sender, marketId, pju, false, redeemAmount); 
+    vault.withdrawFromPoolInstrument(marketId, collateral_redeem_amount, caller, seniorAmount); 
 
     // This means that the sender is a manager
-    if (queuedRepUpdates[msg.sender] > 0){
-     unchecked{queuedRepUpdates[msg.sender] -= 1;} 
+    if (queuedRepUpdates[trader] > 0){
+     unchecked{queuedRepUpdates[trader] -= 1;} 
     }
-    market.bondPool.trustedBurn(msg.sender, redeemAmount, true); 
+    market.bondPool.trustedBurn(caller, redeemAmount, true); 
+
+    reputationManager.recordPush(trader, marketId, pju, false, redeemAmount);
 
     // TODO assert pju stays same 
     // TODO assert need totalAssets and exchange rate to remain same 
-  }
+    }
+
+   function redeemPoolLongZCB(
+    uint256 marketId, 
+    uint256 redeemAmount
+    ) external _lock_ returns(uint256 collateral_redeem_amount, uint256 seniorAmount){
+
+    (collateral_redeem_amount, seniorAmount) = 
+      this.redeemPerpLongZCB(marketId, redeemAmount, msg.sender, msg.sender); 
+   }
+ 
 
   mapping(address => uint8) public queuedRepUpdates; 
   uint8 public constant queuedRepThreshold = 3; // at most 3 simultaneous assessment per manager
@@ -594,6 +606,14 @@ event MarketDenied(uint256 indexed marketId);
     uint256 upperBound; 
     uint256 budget; 
     uint256 repThreshold; 
+
+    uint256 pju; 
+    uint256 psu; 
+    uint256 levFactor; 
+    Vault vault; 
+    ERC20 underlying; 
+    address instrument; 
+
   }
   /// @notice main entry point for longZCB buys (during assessment for now)
   /// @param _amountIn is negative if specified in zcb quantity
