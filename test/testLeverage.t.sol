@@ -161,7 +161,7 @@ clabels.push(
         uint start = marketmanager.getMarket(vars.marketId).longZCB.balanceOf(address(leverageManager));
         vm.prank(jonna); 
 
-        leverageManager.issuePoolBondLevered(
+        leverageManager.issuePerpBondLevered(
             vars.marketId, 
             vars.issueAmount, 
             leverageFactor
@@ -180,7 +180,7 @@ clabels.push(
         // try again 
         // and assert same 
         vm.prank(jonna); 
-        leverageManager.issuePoolBondLevered(
+        leverageManager.issuePerpBondLevered(
             vars.marketId, 
             vars.issueAmount, 
             leverageFactor
@@ -205,7 +205,7 @@ clabels.push(
         vm.prank(jonna);
         (uint256 collateral_redeem_amount, 
         uint256 postRepayLeftOver, 
-        uint256 paidDebt) = leverageManager.redeemLeveredPoolLongZCB(vars.marketId, 
+        uint256 paidDebt) = leverageManager.redeemLeveredPerpLongZCB(vars.marketId, 
             vars.issueAmount/2); 
 
         LeverageManager.LeveredBond memory bond2 = leverageManager.getPosition( vars.marketId,  jonna);
@@ -219,7 +219,7 @@ clabels.push(
         vm.prank(jonna);
         (collateral_redeem_amount, 
          postRepayLeftOver, 
-         paidDebt) = leverageManager.redeemLeveredPoolLongZCB(vars.marketId, 
+         paidDebt) = leverageManager.redeemLeveredPerpLongZCB(vars.marketId, 
             bond2.amount); 
         LeverageManager.LeveredBond memory bond3 = leverageManager.getPosition( vars.marketId,  jonna);
 
@@ -230,6 +230,48 @@ clabels.push(
         // assertApproxEqAbs()
 
     }
+
+    function testFixedLevBuy() public {
+
+        testVars1 memory vars; 
+
+        vars.marketId = controller.getMarketId(toku); 
+        vars.vault_ad = controller.getVaultfromId(vars.marketId); 
+
+        vars.issueAmount = 100*precision; 
+        uint leverageFactor = 3*precision; 
+        uint amountToBuy = Vault(vars.vault_ad).fetchInstrumentData(vars.marketId).poolData.saleAmount*3/2; 
+
+        uint start = marketmanager.getMarket(vars.marketId).longZCB.balanceOf(address(leverageManager));
+        doApproveCol(address(leverageManager), jonna); 
+
+        vm.prank(jonna);
+        leverageManager.buyBondLevered(
+            vars.marketId, amountToBuy, 1e18, leverageFactor); 
+        LeverageManager.LeveredBond memory bond = leverageManager.getPosition( vars.marketId,  jonna);
+        uint mid = marketmanager.getMarket(vars.marketId).longZCB.balanceOf(address(leverageManager));
+
+        assertApproxEqAbs(bond.amount, mid-start, 10); 
+        assertApproxEqAbs(bond.debt, (amountToBuy.divWadDown(leverageFactor)).mulWadDown(leverageFactor-precision),10 ); 
+        console.log('position', bond.amount, bond.debt); 
+
+        // DO once more
+        vm.prank(jonna);
+        (vars.amountIn,vars.amountOut) = leverageManager.buyBondLevered(
+            vars.marketId, amountToBuy, 1e18, leverageFactor-precision); 
+        LeverageManager.LeveredBond memory bond2 = leverageManager.getPosition( vars.marketId,  jonna);
+        assertApproxEqAbs(bond2.amount-bond.amount, vars.amountOut,10); 
+        assertApproxEqAbs(bond2.debt - bond.debt, vars.amountIn.divWadDown(leverageFactor-precision), 10); 
+        assertApproxEqAbs(marketmanager.getMarket(vars.marketId).longZCB.balanceOf(address(leverageManager)) - mid, 
+            bond2.amount-bond.amount, 10); 
+        console.log('position2', bond2.amount, bond2.debt); 
+    }
+
+    // function testFixedLevRedeem() public {
+    //     testFixedLevBuy(); 
+    // }
+
+
 
 
 //     function testMintWithLeverage() public{

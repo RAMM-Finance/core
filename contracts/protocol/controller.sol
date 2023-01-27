@@ -124,14 +124,17 @@ contract Controller {
     }
     function setDataStore(address _dataStore) public onlyManager{
         Data = StorageHandler(_dataStore); 
+        marketManager.setDataStore( _dataStore); 
+        reputationManager.setDataStore( _dataStore);
+        leverageManager.setDataStore(_dataStore);
     }
 
-    function storeNewPrices(uint256 marketId, uint256 multiplier, uint256 initPrice) public {
+    // function storeNewPrices(uint256 marketId, uint256 multiplier, uint256 initPrice) public {
 
-        Data.setNewPricingInfo( marketId,  initPrice,  multiplier); 
+    //     Data.setNewPricingInfo( marketId,  initPrice,  multiplier); 
 
-        // data.PriceInfos(marketId).setNewPrices(initPrice, multiplier, marketId); 
-    }
+    //     // data.PriceInfos(marketId).setNewPrices(initPrice, multiplier, marketId); 
+    // }
 
 
     // function verifyAddress(

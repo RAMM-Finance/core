@@ -98,18 +98,18 @@ contract PricerTest is CustomTestBase {
 
     }
 
-    function testStoreNewPrices() public {
-        testVars1 memory vars; 
-        vars.marketId = controller.getMarketId(toku); 
-        uint256 multiplier = 1; 
-        uint256 initPrice = 1e18; 
+    // function testStoreNewPrices() public {
+    //     testVars1 memory vars; 
+    //     vars.marketId = controller.getMarketId(toku); 
+    //     uint256 multiplier = 1; 
+    //     uint256 initPrice = 1e18; 
 
-        controller.storeNewPrices( vars.marketId, multiplier, initPrice); 
+    //     controller.storeNewPrices( vars.marketId, multiplier, initPrice); 
 
-        PricingInfo memory info = Data.getPricingInfo( vars.marketId); 
+    //     PricingInfo memory info = Data.getPricingInfo( vars.marketId); 
 
-        console.log('psu', info.psu); 
-    }
+    //     console.log('psu', info.psu); 
+    // }
 
     // function testPricer() public{
     //     testVars1 memory vars; 

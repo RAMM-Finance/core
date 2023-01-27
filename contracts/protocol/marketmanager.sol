@@ -13,6 +13,7 @@ import {SyntheticZCBPool} from "../bonds/synthetic.sol";
 import {ERC4626} from "../vaults/mixins/ERC4626.sol";
 import {Vault} from "../vaults/vault.sol"; 
 import {ReputationManager} from "./reputationmanager.sol"; 
+import {StorageHandler} from "../global/GlobalStorage.sol"; 
 
 contract MarketManager 
  // VRFConsumerBaseV2 
@@ -124,6 +125,11 @@ contract MarketManager
     );
 
     owner = msg.sender; 
+  }
+
+  StorageHandler public Data; 
+  function setDataStore(address dataStore) public onlyController{
+    Data = StorageHandler(dataStore); 
   }
 //TODO setcontroller
   function makeEmptyMarketData() public pure returns (CoreMarketData memory) {
@@ -294,7 +300,9 @@ event MarketDenied(uint256 indexed marketId);
   }
 
   
-
+  function isMarketResolved(uint256 marketId) public view returns(bool){
+      return( !restriction_data[marketId].alive && restriction_data[marketId].resolved); 
+  }
   function isMarketApproved(uint256 marketId) public view returns(bool){
     return(!restriction_data[marketId].duringAssessment && restriction_data[marketId].alive);  
   }
@@ -613,7 +621,7 @@ event MarketDenied(uint256 indexed marketId);
     Vault vault; 
     ERC20 underlying; 
     address instrument; 
-
+    MarketPhaseData phaseData; 
   }
   /// @notice main entry point for longZCB buys (during assessment for now)
   /// @param _amountIn is negative if specified in zcb quantity
@@ -622,35 +630,51 @@ event MarketDenied(uint256 indexed marketId);
     int256 _amountIn, 
     uint256 _priceLimit, 
     bytes calldata _tradeRequestData 
-    ) external _lock_ returns(uint256 amountIn, uint256 amountOut){
+    ) external  returns(uint256 amountIn, uint256 amountOut){
+
+    (amountIn, amountOut) = this.buylongZCB(_marketId, _amountIn, _priceLimit, _tradeRequestData, msg.sender, msg.sender); 
+
+    emit BondBuy(_marketId, msg.sender, amountIn, amountOut); // get current price as well.
+  }
+
+  function buylongZCB(
+    uint256 _marketId, 
+    int256 _amountIn, 
+    uint256 _priceLimit, 
+    bytes calldata _tradeRequestData, 
+    address caller, 
+    address trader 
+    ) external _lock_  returns(uint256 amountIn, uint256 amountOut){
+    require(msg.sender == address(this) || msg.sender == leverageManager_ad, "invalid entry"); 
+
     LocarVars memory vars; 
-    MarketPhaseData memory phaseData = restriction_data[_marketId]; 
+    vars.phaseData = restriction_data[_marketId]; 
 
-    require(!phaseData.resolved, "not resolved");
-    require(phaseData.duringAssessment, "only assessment"); 
+    require(!vars.phaseData.resolved, "not resolved");
+    require(vars.phaseData.duringAssessment, "only assessment"); 
 
-    _canBuy(msg.sender, _amountIn, _marketId);
+    _canBuy(trader, _amountIn, _marketId);
 
     //TODO return readable error on why it reverts
     CoreMarketData memory marketData = markets[_marketId]; 
     SyntheticZCBPool bondPool = marketData.bondPool; 
     
     // TODO fix pricelimit  
-    (amountIn, amountOut) = bondPool.takerOpen(true, _amountIn, _priceLimit, abi.encode(msg.sender)); 
+    (amountIn, amountOut) = bondPool.takerOpen(true, _amountIn, _priceLimit, abi.encode(caller)); 
 
     // Revert if cross bound
     vars.upperBound =  bondPool.upperBound(); 
     if(vars.upperBound !=0 &&  vars.upperBound < bondPool.getCurPrice()) revert("exceed bound"); 
 
     //Need to log assessment trades for updating reputation scores or returning collateral when market denied 
-    _logTrades(_marketId, msg.sender, amountIn, 0, true, true);
+    _logTrades(_marketId, trader, amountIn, 0, true, true);
 
     // Get implied probability estimates by summing up all this manager bought for this market 
-    vars.budget = getTraderBudget(_marketId, msg.sender); 
-    reputationManager.recordPull(msg.sender, _marketId, amountOut, amountIn, vars.budget, marketData.isPool); 
+    vars.budget = getTraderBudget(_marketId, trader); 
+    reputationManager.recordPull(trader, _marketId, amountOut, amountIn, vars.budget, marketData.isPool); 
 
     // Phase Transitions when conditions met
-    if(phaseData.onlyReputable){
+    if(vars.phaseData.onlyReputable){
       vars.repThreshold = parameters[_marketId].omega.mulWadDown(
           controller.getVault(_marketId).fetchInstrumentData(_marketId).principal); 
 
@@ -659,8 +683,6 @@ event MarketDenied(uint256 indexed marketId);
         emit MarketPhaseSet(_marketId, restriction_data[_marketId]);
       }
     }
-
-    emit BondBuy(_marketId, msg.sender, amountIn, amountOut); // get current price as well.
   }
 
   /// @param _amountIn: amount of short trader is willing to buy
@@ -795,125 +817,19 @@ event MarketDenied(uint256 indexed marketId);
     controller.redeem_transfer(collateral_redeem_amount, msg.sender, marketId); 
   }
 
-  /// @notice returns the manager's maximum leverage 
-  function getMaxLeverage(address manager) public view returns(uint256){
-    //return (repToken.getReputationScore(manager) * config.WAD).sqrt(); //TODO experiment 
-    return (controller.getTraderScore(manager) * config.WAD).sqrt();
+  function burnAndTransfer(
+    uint256 marketId, 
+    address burnWho, 
+    uint256 burnAmount, 
+    address sendWho, 
+    uint256 sendAmount) external{
+    require(msg.sender == leverageManager_ad, "unauthorized");
+
+    markets[marketId].bondPool.trustedBurn(burnWho, burnAmount, true); 
+    controller.redeem_transfer(sendAmount, sendWho, marketId); 
+
   }
 
-  mapping(uint256=>mapping(address=> LeveredBond)) public leveragePosition; 
-  struct LeveredBond{
-    uint128 debt; //how much collateral borrowed from vault 
-    uint128 amount; // how much bonds were bought with the given leverage
-  }
-
-  /// @notice for managers that are a) meet certain reputation threshold and b) choose to be more
-  /// capital efficient with their zcb purchase. 
-  /// @param _amountIn (in collateral) already accounts for the leverage, so the actual amount manager is transferring
-  /// is _amountIn/_leverage 
-  /// @dev the marketmanager should take custody of the quantity bought with leverage
-  /// and instead return notes of the levered position 
-  /// TODO do + instead of creating new positions and implied prob cumulative 
-  function buyBondLevered(
-    uint256 _marketId, 
-    uint256 _amountIn, 
-    uint256 _priceLimit, 
-    uint256 _leverage //in 18 dec 
-    ) external _lock_ returns(uint256 amountIn, uint256 amountOut){
-    require(restriction_data[_marketId].duringAssessment, "PhaseERR"); 
-    require(!restriction_data[_marketId].resolved, "!resolved");
-    require(_leverage <= getMaxLeverage(msg.sender) && _leverage >= config.WAD, "!leverage");
-    _canBuy(msg.sender, int256(_amountIn), _marketId);
-    SyntheticZCBPool bondPool = markets[_marketId].bondPool; 
-
-    // stack collateral from trader and borrowing from vault 
-    uint256 amountPulled = _amountIn.divWadDown(_leverage); 
-    bondPool.BaseToken().transferFrom(msg.sender, address(this), amountPulled); 
-    controller.pullLeverage(_marketId, _amountIn - amountPulled); 
-
-    // Buy with leverage, zcb transferred here
-    bondPool.BaseToken().approve(address(this), _amountIn); 
-    (amountIn, amountOut) = bondPool.takerOpen(true, int256(_amountIn), _priceLimit, abi.encode(address(this))); 
-
-    //Need to log assessment trades for updating reputation scores or returning collateral when market denied 
-    _logTrades(_marketId, msg.sender, _amountIn, 0, true, true);
-
-    // Phase Transitions when conditions met
-    if(restriction_data[_marketId].onlyReputable){
-      uint256 total_bought = loggedCollaterals[_marketId];
-
-      if (total_bought >= parameters[_marketId].omega.mulWadDown(
-            controller
-            .getVault(_marketId)
-            .fetchInstrumentData(_marketId)
-            .principal)
-      ) {
-        restriction_data[_marketId].onlyReputable = false;
-        emit MarketPhaseSet(_marketId, restriction_data[_marketId]);
-      }
-    }
-    // create note to trader 
-    leveragePosition[_marketId][msg.sender] = LeveredBond(uint128(_amountIn - amountPulled ),uint128(amountOut)) ; 
-  }
-
-  function redeemLeveredBond(uint256 marketId) public{
-    require(!restriction_data[marketId].alive, "!Active"); 
-    require(restriction_data[marketId].resolved, "!resolved"); 
-    require(!redeemed[marketId][msg.sender], "Redeemed");
-    redeemed[marketId][msg.sender] = true; 
-
-    if (controller.isValidator(marketId, msg.sender)) controller.redeemValidator(marketId, msg.sender); 
-
-    LeveredBond memory position = leveragePosition[marketId][msg.sender]; 
-    require(position.amount>0, "ERR"); 
-
-    uint256 redemption_price = redemption_prices[marketId]; 
-    uint256 collateral_back = redemption_price.mulWadDown(position.amount) ; 
-    uint256 collateral_redeem_amount = collateral_back >= uint256(position.debt)  
-        ? collateral_back - uint256(position.debt) : 0; 
-
-    if (!controller.isValidator(marketId, msg.sender)) {
-      // bool increment = redemption_price >= config.WAD? true: false;
-      // controller.updateReputation(marketId, msg.sender, increment);
-      // reputationManager.recordPush(msg.sender, marketId, redemption_price, false, zcb_redeem_amount); 
-
-    }
-
-    // This means that the sender is a manager
-    if (queuedRepUpdates[msg.sender] > 0){
-     unchecked{queuedRepUpdates[msg.sender] -= 1;} 
-    }
-
-    leveragePosition[marketId][msg.sender].amount = 0; 
-    markets[marketId].bondPool.trustedBurn(address(this), position.amount, true); 
-    controller.redeem_transfer(collateral_redeem_amount, msg.sender, marketId);
-  }
-
-  function redeemDeniedLeveredBond(uint256 marketId) public returns(uint collateral_amount){
-    LeveredBond memory position = leveragePosition[marketId][msg.sender]; 
-    require(position.amount>0, "ERR"); 
-    leveragePosition[marketId][msg.sender].amount = 0; 
-
-    // TODO this means if trader's loss will be refunded if loss was realized before denied market
-    if (controller.isValidator(marketId, msg.sender)) {
-      collateral_amount = controller.deniedValidator(marketId, msg.sender);
-    }
-    else{
-      collateral_amount = longTrades[marketId][msg.sender]; 
-      delete longTrades[marketId][msg.sender]; 
-    }
-
-    // Burn all their position, 
-    markets[marketId].bondPool.trustedBurn(address(this), position.amount, true); 
-
-    // This means that the sender is a manager
-    if (queuedRepUpdates[msg.sender] > 0){
-      unchecked{queuedRepUpdates[msg.sender] -= 1;} 
-    }    
-
-    // Before redeem_transfer is called all funds for this instrument should be back in the vault
-    controller.redeem_transfer(collateral_amount - uint256(position.debt), msg.sender, marketId);
-  }
 
   function min(uint256 a, uint256 b) internal pure returns (uint256) {
         return a <= b ? a : b;
@@ -922,6 +838,126 @@ event MarketDenied(uint256 indexed marketId);
 
 
 
+
+  // /// @notice returns the manager's maximum leverage 
+  // function getMaxLeverage(address manager) public view returns(uint256){
+  //   //return (repToken.getReputationScore(manager) * config.WAD).sqrt(); //TODO experiment 
+  //   return (controller.getTraderScore(manager) * config.WAD).sqrt();
+  // }
+
+  // mapping(uint256=>mapping(address=> LeveredBond)) public leveragePosition; 
+  // struct LeveredBond{
+  //   uint128 debt; //how much collateral borrowed from vault 
+  //   uint128 amount; // how much bonds were bought with the given leverage
+  // }
+
+  // /// @notice for managers that are a) meet certain reputation threshold and b) choose to be more
+  // /// capital efficient with their zcb purchase. 
+  // /// @param _amountIn (in collateral) already accounts for the leverage, so the actual amount manager is transferring
+  // /// is _amountIn/_leverage 
+  // /// @dev the marketmanager should take custody of the quantity bought with leverage
+  // /// and instead return notes of the levered position 
+  // /// TODO do + instead of creating new positions and implied prob cumulative 
+  // function buyBondLevered(
+  //   uint256 _marketId, 
+  //   uint256 _amountIn, 
+  //   uint256 _priceLimit, 
+  //   uint256 _leverage //in 18 dec 
+  //   ) external _lock_ returns(uint256 amountIn, uint256 amountOut){
+  //   require(restriction_data[_marketId].duringAssessment, "PhaseERR"); 
+  //   require(!restriction_data[_marketId].resolved, "!resolved");
+  //   require(_leverage <= getMaxLeverage(msg.sender) && _leverage >= config.WAD, "!leverage");
+  //   _canBuy(msg.sender, int256(_amountIn), _marketId);
+  //   SyntheticZCBPool bondPool = markets[_marketId].bondPool; 
+
+  //   // stack collateral from trader and borrowing from vault 
+  //   uint256 amountPulled = _amountIn.divWadDown(_leverage); 
+  //   bondPool.BaseToken().transferFrom(msg.sender, address(this), amountPulled); 
+  //   controller.pullLeverage(_marketId, _amountIn - amountPulled); 
+
+  //   // Buy with leverage, zcb transferred here
+  //   bondPool.BaseToken().approve(address(this), _amountIn); 
+  //   (amountIn, amountOut) = bondPool.takerOpen(true, int256(_amountIn), _priceLimit, abi.encode(address(this))); 
+
+  //   //Need to log assessment trades for updating reputation scores or returning collateral when market denied 
+  //   _logTrades(_marketId, msg.sender, _amountIn, 0, true, true);
+
+  //   // Phase Transitions when conditions met
+  //   if(restriction_data[_marketId].onlyReputable){
+  //     uint256 total_bought = loggedCollaterals[_marketId];
+
+  //     if (total_bought >= parameters[_marketId].omega.mulWadDown(
+  //           controller
+  //           .getVault(_marketId)
+  //           .fetchInstrumentData(_marketId)
+  //           .principal)
+  //     ) {
+  //       restriction_data[_marketId].onlyReputable = false;
+  //       emit MarketPhaseSet(_marketId, restriction_data[_marketId]);
+  //     }
+  //   }
+  //   // create note to trader 
+  //   leveragePosition[_marketId][msg.sender] = LeveredBond(uint128(_amountIn - amountPulled ),uint128(amountOut)) ; 
+  // }
+
+  // function redeemLeveredBond(uint256 marketId) public{
+  //   require(!restriction_data[marketId].alive, "!Active"); 
+  //   require(restriction_data[marketId].resolved, "!resolved"); 
+  //   require(!redeemed[marketId][msg.sender], "Redeemed");
+  //   redeemed[marketId][msg.sender] = true; 
+
+  //   if (controller.isValidator(marketId, msg.sender)) controller.redeemValidator(marketId, msg.sender); 
+
+  //   LeveredBond memory position = leveragePosition[marketId][msg.sender]; 
+  //   require(position.amount>0, "ERR"); 
+
+  //   uint256 redemption_price = redemption_prices[marketId]; 
+  //   uint256 collateral_back = redemption_price.mulWadDown(position.amount) ; 
+  //   uint256 collateral_redeem_amount = collateral_back >= uint256(position.debt)  
+  //       ? collateral_back - uint256(position.debt) : 0; 
+
+  //   if (!controller.isValidator(marketId, msg.sender)) {
+  //     // bool increment = redemption_price >= config.WAD? true: false;
+  //     // controller.updateReputation(marketId, msg.sender, increment);
+  //     // reputationManager.recordPush(msg.sender, marketId, redemption_price, false, zcb_redeem_amount); 
+
+  //   }
+
+  //   // This means that the sender is a manager
+  //   if (queuedRepUpdates[msg.sender] > 0){
+  //    unchecked{queuedRepUpdates[msg.sender] -= 1;} 
+  //   }
+
+  //   leveragePosition[marketId][msg.sender].amount = 0; 
+  //   markets[marketId].bondPool.trustedBurn(address(this), position.amount, true); 
+  //   controller.redeem_transfer(collateral_redeem_amount, msg.sender, marketId);
+  // }
+
+  // function redeemDeniedLeveredBond(uint256 marketId) public returns(uint collateral_amount){
+  //   LeveredBond memory position = leveragePosition[marketId][msg.sender]; 
+  //   require(position.amount>0, "ERR"); 
+  //   leveragePosition[marketId][msg.sender].amount = 0; 
+
+  //   // TODO this means if trader's loss will be refunded if loss was realized before denied market
+  //   if (controller.isValidator(marketId, msg.sender)) {
+  //     collateral_amount = controller.deniedValidator(marketId, msg.sender);
+  //   }
+  //   else{
+  //     collateral_amount = longTrades[marketId][msg.sender]; 
+  //     delete longTrades[marketId][msg.sender]; 
+  //   }
+
+  //   // Burn all their position, 
+  //   markets[marketId].bondPool.trustedBurn(address(this), position.amount, true); 
+
+  //   // This means that the sender is a manager
+  //   if (queuedRepUpdates[msg.sender] > 0){
+  //     unchecked{queuedRepUpdates[msg.sender] -= 1;} 
+  //   }    
+
+  //   // Before redeem_transfer is called all funds for this instrument should be back in the vault
+  //   controller.redeem_transfer(collateral_amount - uint256(position.debt), msg.sender, marketId);
+  // }
  //  /// @notice longZCB sells  
  //  /// @param _amountIn quantity in longZCB 
  //  function sellBond(

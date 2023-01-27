@@ -10,7 +10,7 @@ struct PricingInfo{
 	uint256 URATE_MULTIPLIER; 
 	uint256 ID; 
 
-	bool isPool; 
+	bool constantRF; 
 }
 
 

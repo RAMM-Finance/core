@@ -232,10 +232,9 @@ contract CustomTestBase is Test {
         controller.fulfillRandomWords(1, words);
 
     }
-
-    // function initiateLeverageModule() public {
-    //     leverageModule = new LeverageModule(address(controller)); 
-    // }
+    function closeMarket(uint256 marketId) public {
+        controller.testResolveMarket( marketId); 
+    }
 
     function donateToInstrument(address vaultad, address instrument, uint256 amount) public {
         vm.startPrank(jonna); 

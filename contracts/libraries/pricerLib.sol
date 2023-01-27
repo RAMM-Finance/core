@@ -14,11 +14,13 @@ library PerpTranchePricer{
 		PricingInfo storage _self, 
 		uint256 psu,
 		uint256 multiplier, 
-		uint256 id
+		uint256 id, 
+		bool constantRF
 		) internal {
 		_self.psu = psu; 
 		_self.URATE_MULTIPLIER = multiplier;  
 		_self.ID = id; 
+		_self.constantRF = constantRF; 
 	}
 
 	/// @notice needs to be updated whenver utilization rate is updated 
@@ -72,18 +74,24 @@ library PerpTranchePricer{
 
 	    if (vars.seniorSupply == 0) return(psu, psu,levFactor); 
 
+		if(_self.constantRF){
+			psu = vars.inceptionPrice.mulWadDown((BASE_UNIT+ vars.promised_return)
+    		 .rpow(block.timestamp - vars.inceptionTime, BASE_UNIT));
+		} else {
+			psu = _self.psu; 
+		}
+
 		// Check if all seniors can redeem
-		psu = _self.psu; 
 	    if (vars.totalAssetsHeldScaled < psu.mulWadDown(vars.seniorSupply)){
 	    	psu = vars.totalAssetsHeldScaled.divWadDown(vars.seniorSupply); 
 	    	vars.belowThreshold = true; 
 	    }
-
+	    
 	    // should be 0 otherwise 
 	    if(!vars.belowThreshold) pju = (vars.totalAssetsHeldScaled 
 	      - psu.mulWadDown(vars.seniorSupply)).divWadDown(vars.juniorSupply); 
 	}
-	
+
     // localVars memory vars; 
 
     // (vars.promised_return, vars.inceptionTime, vars.inceptionPrice, vars.leverageFactor, 

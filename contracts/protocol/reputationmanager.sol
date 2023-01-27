@@ -4,6 +4,7 @@ import "forge-std/console.sol";
 import {config} from "../utils/helpers.sol"; 
 import {FixedPointMathLib} from "solmate/utils/FixedPointMathLib.sol";
 import {Controller} from "./controller.sol"; 
+import {StorageHandler} from "../global/GlobalStorage.sol"; 
 
 contract ReputationManager {
     using FixedPointMathLib for uint256;
@@ -32,7 +33,10 @@ contract ReputationManager {
        marketManager = _marketManager;
        deployer = msg.sender;
     }
-
+  StorageHandler public Data; 
+  function setDataStore(address dataStore) public onlyProtocol{
+    Data = StorageHandler(dataStore); 
+  }
     struct RepLog{
         uint256 collateralAmount; 
         uint256 bondAmount; 

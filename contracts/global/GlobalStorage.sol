@@ -16,12 +16,20 @@ contract StorageHandler{
 	function getPricingInfo(uint256 marketId) public view returns(PricingInfo memory){
 		return PricingInfos[marketId]; 
 	}
-	function setNewPricingInfo(uint256 marketId, uint256 initialPrice, uint256 multiplier) external onlyProtocol{
-		PricingInfos[marketId].setNewPrices(initialPrice, multiplier, marketId); 
+	function setNewPricingInfo(uint256 marketId, uint256 initialPrice, uint256 multiplier, 
+		bool constantRF) external onlyProtocol{
+		PricingInfos[marketId].setNewPrices(initialPrice, multiplier, marketId, constantRF); 
 	}
 
 	function updatePricingInfo(uint256 marketId, PricingInfo memory newInfo) external onlyProtocol{
 		PricingInfos[marketId] = newInfo; 
+	}
+
+	function refreshPricing(uint256 marketId, uint256 uRate) public onlyProtocol{
+		PricingInfos[marketId].storeNewPSU(
+ 		 uRate
+ 		); 
+
 	}
 
 
