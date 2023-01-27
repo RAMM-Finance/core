@@ -15,6 +15,7 @@ import {SimpleNFTPool} from "../contracts/vaults/nftLending.sol";
 import {ReputationManager} from "../contracts/protocol/reputationmanager.sol";
 import {LeverageManager} from "../contracts/protocol/leveragemanager.sol"; 
 import {Instrument} from "../contracts/vaults/instrument.sol"; 
+import {StorageHandler} from "../contracts/global/GlobalStorage.sol"; 
 
 contract CustomTestBase is Test {
     using FixedPointMath for uint256; 
@@ -32,6 +33,7 @@ contract CustomTestBase is Test {
     SimpleNFTPool nftPool; 
     LeverageManager leverageManager; 
     ValidatorManager validatorManager; 
+    StorageHandler Data; 
     address deployer = 0xb4c79daB8f259C7Aee6E5b2Aa729821864227e84;
     uint256 unit = 10**18; 
     uint256 constant precision = 1e18;
@@ -230,10 +232,9 @@ contract CustomTestBase is Test {
         controller.fulfillRandomWords(1, words);
 
     }
-
-    // function initiateLeverageModule() public {
-    //     leverageModule = new LeverageModule(address(controller)); 
-    // }
+    function closeMarket(uint256 marketId) public {
+        controller.testResolveMarket( marketId); 
+    }
 
     function donateToInstrument(address vaultad, address instrument, uint256 amount) public {
         vm.startPrank(jonna); 

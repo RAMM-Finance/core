@@ -16,6 +16,7 @@ import {ERC20} from "solmate/tokens/ERC20.sol";
 import {SimpleNFTPool} from "../contracts/vaults/nftLending.sol"; 
 import {ReputationManager} from "../contracts/protocol/reputationmanager.sol";
 import {CustomTestBase} from "./testbase.sol"; 
+import "../contracts/global/types.sol"; 
 
 contract FixedTest is CustomTestBase {
     using FixedPointMath for uint256; 
@@ -347,7 +348,7 @@ contract FixedTest is CustomTestBase {
         // validators invest and approve  
         doApprove(vars.marketId, vars.vault_ad); 
 
-        Controller.ApprovalData memory test = controller.getApprovalData(vars.marketId);
+        ApprovalData memory test = controller.getApprovalData(vars.marketId);
         console.log("APPROVAL DATA: ", test.approved_principal);
         console.log("APPROVAL DATA: ", test.approved_yield);
         console.log("APPROVAL DATA: ", test.managers_stake);
