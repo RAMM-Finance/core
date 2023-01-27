@@ -206,21 +206,19 @@ contract CreditLine is Instrument {
     uint256 interestAPR; 
 
     // Modify-able Global Variables during repayments, borrow
-    uint256 totalOwed; 
-    uint256 principalOwed; 
-    uint256 interestOwed;
-    uint256 accumulated_interest; 
-    uint256 principalRepayed;
-    uint256 interestRepayed; 
+    uint256 public totalOwed; 
+    uint256 public principalOwed; 
+    uint256 public interestOwed;
+    uint256 public accumulated_interest; 
+    uint256 public principalRepayed;
+    uint256 public interestRepayed; 
 
     // Collateral Info 
     enum CollateralType{
-        liquidateAble, 
+        liquidatable, 
         nonLiquid, 
-        ownership ,        
+        ownership,        
         none
-
-
     }
     address public collateral; 
     address public oracle; 
@@ -335,7 +333,7 @@ contract CreditLine is Instrument {
         // check if borrower has correct identity 
 
         // check if enough collateral has been added as agreed   
-        if (collateral_type == CollateralType.liquidateAble || collateral_type == CollateralType.nonLiquid){
+        if (collateral_type == CollateralType.liquidatable || collateral_type == CollateralType.nonLiquid){
             require(ERC20(collateral).balanceOf(address(this)) >= collateral_balance, "Insufficient collateral"); 
         }
 
@@ -387,7 +385,7 @@ contract CreditLine is Instrument {
         require(loanStatus == LoanStatus.prepayment_fulfilled || loanStatus == LoanStatus.matured,"Not matured"); 
         require(block.number > resolveBlock, "Block equal"); 
 
-        if (collateral_type == CollateralType.liquidateAble || collateral_type == CollateralType.nonLiquid ){
+        if (collateral_type == CollateralType.liquidatable || collateral_type == CollateralType.nonLiquid ){
             releaseAllCollateral(); 
         }
 
