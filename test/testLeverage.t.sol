@@ -231,7 +231,7 @@ clabels.push(
 
     }
 
-    function testFixedLevBuy() public {
+    function testFixedLevBuy() public returns(testVars1 memory){
 
         testVars1 memory vars; 
 
@@ -265,11 +265,25 @@ clabels.push(
         assertApproxEqAbs(marketmanager.getMarket(vars.marketId).longZCB.balanceOf(address(leverageManager)) - mid, 
             bond2.amount-bond.amount, 10); 
         console.log('position2', bond2.amount, bond2.debt); 
+        return vars; 
     }
 
-    // function testFixedLevRedeem() public {
-    //     testFixedLevBuy(); 
-    // }
+    function testFixedLevRedeem() public {
+        testVars1 memory vars = testFixedLevBuy(); 
+
+        doApprove(vars.marketId, vars.vault_ad);
+        closeMarket(vars.marketId); 
+
+        uint start = marketmanager.getMarket(vars.marketId).longZCB.balanceOf(address(leverageManager));
+        vm.prank(jonna); 
+
+        leverageManager.redeemLeveredBond(vars.marketId);
+
+        LeverageManager.LeveredBond memory bond = leverageManager.getPosition( vars.marketId,  jonna);
+        assertEq(bond.amount,0); 
+        assertEq(bond.debt, 0); 
+        assertEq(marketmanager.getMarket(vars.marketId).longZCB.balanceOf(address(leverageManager)), 0); 
+    }
 
 
 

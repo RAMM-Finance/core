@@ -136,7 +136,6 @@ contract SyntheticZCBPool is BoundedDerivativesPool{
         bool long
         ) external {
         require(msg.sender == entry, "entryERR"); 
-
         if (long) TradeToken.burn(trader, amount); 
         else s_tradeToken.burn(trader, amount);
     }

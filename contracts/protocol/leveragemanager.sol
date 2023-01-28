@@ -176,7 +176,7 @@ contract LeverageManager is ERC721Enumerable{
         if (controller.isValidator(marketId, msg.sender)) controller.redeemValidator(marketId, msg.sender); 
 
         LeveredBond memory position = leveragePosition[marketId][msg.sender]; 
-        require(position.amount>0, "ERR"); 
+        require(position.amount>0, "0 Amount"); 
 
         uint256 redemption_price = marketManager.redemption_prices(marketId); 
         uint256 collateral_back = redemption_price.mulWadDown(position.amount) ; 
@@ -188,12 +188,11 @@ contract LeverageManager is ERC721Enumerable{
           // controller.updateReputation(marketId, msg.sender, increment);
           // reputationManager.recordPush(msg.sender, marketId, redemption_price, false, zcb_redeem_amount); 
         }
+        marketManager.burnAndTransfer(marketId, address(this), position.amount, msg.sender, collateral_redeem_amount); 
 
         position.amount = 0; 
         position.debt = 0; 
         leveragePosition[marketId][msg.sender] = position;  
-
-        marketManager.burnAndTransfer(marketId, address(this), position.amount, msg.sender, collateral_redeem_amount); 
     }
 
 

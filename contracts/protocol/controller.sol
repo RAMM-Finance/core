@@ -421,7 +421,7 @@ contract Controller {
             uint256 principal_loss,
             bool premature
         ) = vaults[id_parent[marketId]].resolveInstrument(marketId);
-
+        // TODO updating if only market is pool. 
         updateRedemptionPrice(
             marketId,
             atLoss,
@@ -463,6 +463,7 @@ contract Controller {
         if(premature && extra_gain>0){
             redemption_price = calcIncompleteReturns(marketId, extra_gain); 
         } else{
+            console.log('updating rp', extra_gain, loss); 
             if (!atLoss)
                 redemption_price =
                     config.WAD +
