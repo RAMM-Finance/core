@@ -12,6 +12,7 @@ import {LinearCurve} from "../bonds/GBC.sol";
 import {PoolInstrument} from "../instruments/poolInstrument.sol";
 import "forge-std/console.sol";
 import {CoveredCallOTC} from "../vaults/dov.sol";
+import { CreditLine } from "../vaults/instrument.sol";
 
 import "../global/types.sol"; 
 
@@ -129,6 +130,7 @@ contract Fetcher {
         uint256 utilizationRate;
         address rateContract;
         string rateName;
+        uint256 exchangeRate;
         // constants
         CollateralBundle[] collaterals;
     }
@@ -144,6 +146,18 @@ contract Fetcher {
         bool approvalStatus;
     }
 
+    struct CreditlineBundle {
+        address collateral;
+        address oracle;
+        // tenor === instrument duration.
+        uint256 collateralBalance;
+        uint256 principalRepayed;
+        uint256 interestRepayed;
+        uint256 totalOwed;
+        CreditLine.CollateralType collateralType;
+        CreditLine.LoanStatus loanStatus;
+    }
+
     struct InstrumentBundle {
         uint256 marketId;
         uint256 vaultId;
@@ -152,8 +166,11 @@ contract Fetcher {
         bool isPool;
         uint256 balance;
         uint256 faceValue;
+
+        // proposed
         uint256 principal;
         uint256 expectedYield;
+
         uint256 duration;
         string description;
         address instrument_address;
@@ -166,6 +183,7 @@ contract Fetcher {
         uint256 approvalPrice;
         PoolBundle poolData;
         OptionsBundle optionsData;
+        CreditlineBundle creditlineData;
     }
 
     function buildAssetBundle(ERC20 _asset) internal view returns (AssetBundle memory _bundle) {
@@ -239,6 +257,7 @@ contract Fetcher {
         }
     }
 
+
     function buildInstrumentBundle(uint256 mid, uint256 vid, Controller controller, MarketManager marketManager) internal view returns (InstrumentBundle memory bundle) {
         Vault vault = controller.vaults(vid);
         (,address utilizer) = controller.market_data(mid);
@@ -269,7 +288,21 @@ contract Fetcher {
             bundle.poolData = buildPoolBundle(mid, vid, controller, marketManager);
         } else if (data.instrument_type == Vault.InstrumentType.CoveredCallShort) {
             bundle.optionsData = buildCoveredCallBundle(bundle.instrument_address);
+        } else if (data.instrument_type == Vault.InstrumentType.CreditLine) {
+            bundle.creditlineData = buildCreditlineBundle(bundle.instrument_address);
         }
+    }
+
+    function buildCreditlineBundle(address instrument) internal view returns (CreditlineBundle memory bundle) {
+        CreditLine creditline = CreditLine(instrument);
+        bundle.collateral = creditline.collateral();
+        bundle.collateralBalance = creditline.collateral_balance();
+        bundle.collateralType = creditline.collateral_type();
+        bundle.oracle = creditline.oracle();
+        bundle.loanStatus = creditline.loanStatus();
+        bundle.principalRepayed = creditline.principalRepayed();
+        bundle.totalOwed = creditline.totalOwed();
+        bundle.interestRepayed = creditline.interestRepayed();
     }
 
     function buildCoveredCallBundle(address instrument) internal view returns (OptionsBundle memory bundle) {
@@ -332,6 +365,7 @@ contract Fetcher {
         bundle.utilizationRate = assetAmount == 0 ? 0 : borrowAmount * 1e18 / assetAmount;
         bundle.rateContract = address(PoolInstrument(instrument).rateContract());
         bundle.rateName = PoolInstrument(instrument).rateContract().name();
+        bundle.exchangeRate = PoolInstrument(instrument).previewMint(1e18);
 
         bundle.totalBorrowedAssets = borrowAmount;
         bundle.totalSuppliedAssets = assetAmount;
