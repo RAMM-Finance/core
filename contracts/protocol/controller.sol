@@ -296,6 +296,7 @@ contract Controller {
                 address(marketManager)
             );
 
+        CoreMarketData memory marketData; 
         if (instrumentData.isPool) {
           require(instrumentData.poolData.initPrice<= 1e18 
             && instrumentData.poolData.initPrice< instrumentData.poolData.inceptionPrice, "PRICE ERR"); 
@@ -310,14 +311,23 @@ contract Controller {
                 marketManager.getParameters(marketId).sigma
             );
 
-          marketManager.newMarket(
+            marketManager.newMarket(
             marketId,
             pool,
             longZCB,
             shortZCB,
             instrumentData.description,
             true
-        );
+            );
+            marketData = CoreMarketData(
+                pool,
+                ERC20(longZCB),
+                ERC20(shortZCB),
+                instrumentData.description,
+                block.timestamp, 
+                0, 
+                true
+            ); 
 
           // set validators
           validatorManager.validatorSetup(
@@ -342,7 +352,16 @@ contract Controller {
                 shortZCB,
                 instrumentData.description,
                 false
-            );          
+            );         
+            marketData = CoreMarketData(
+                pool,
+                ERC20(longZCB),
+                ERC20(shortZCB),
+                instrumentData.description,
+                block.timestamp, 
+                0, 
+                false
+            ); 
 
             // set validators
             validatorManager.validatorSetup(
@@ -357,7 +376,8 @@ contract Controller {
          instrumentData.poolData.inceptionPrice, 
          0, //TODO configurable 
          false, 
-         instrumentData); // TODO more params 
+         instrumentData, 
+         marketData); // TODO more params 
 
         // add vault proposal
         instrumentData.marketId = marketId;

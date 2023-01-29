@@ -45,15 +45,17 @@ library PerpTranchePricer{
 	function refreshViewCurrentPricing(
 		PricingInfo storage _self, 
 		uint256 uRate, 
+		uint256 juniorSupply, 
 		PoolData memory perp
 		) public returns(uint256 psu, uint256 pju, uint256 levFactor){
 		_self.storeNewPSU(uRate); 
-		return viewCurrentPricing(_self, perp ); 
+		return viewCurrentPricing(_self, perp,juniorSupply ); 
 	}
 
 	function viewCurrentPricing(
 		PricingInfo memory _self,
-		PoolData memory perp
+		PoolData memory perp, 
+		uint256 juniorSupply
 		) public view returns(uint256 psu, uint256 pju, uint256 levFactor){
 	    //TODO should not tick during assessment 
 	 //    localVars memory vars; 
@@ -62,7 +64,6 @@ library PerpTranchePricer{
 
 	 //    require(perp.inceptionPrice > 0, "0 price"); 
 
-	 //    vars.juniorSupply = controller.getTotalSupply(marketId); 
 	 //    vars.seniorSupply = vars.juniorSupply.mulWadDown(perp.leverageFactor); 
 	 //    vars.totalAssetsHeldScaled = vault.instrumentAssetOracle(marketId, vars.juniorSupply, vars.seniorSupply)
 	 //      .mulWadDown(perp.inceptionPrice); 
@@ -85,6 +86,7 @@ library PerpTranchePricer{
 	 //    // should be 0 otherwise 
 	 //    if(!vars.belowThreshold) pju = (vars.totalAssetsHeldScaled 
 	 //      - psu.mulWadDown(vars.seniorSupply)).divWadDown(vars.juniorSupply); 
+	 //    console.log('psuhere', psu, pju, levFactor); 
 	}
 
   
