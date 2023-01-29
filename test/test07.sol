@@ -13,6 +13,7 @@ import {FixedPointMath} from "contracts/bonds/libraries.sol";
 import {CoveredCallOTC} from "contracts/vaults/dov.sol";
 import {ERC20} from "solmate/tokens/ERC20.sol";
 import {ReputationManager} from "contracts/protocol/reputationmanager.sol";
+import "contracts/global/types.sol"; 
 
 contract FullCycleTest is Test {
     using FixedPointMath for uint256; 
@@ -96,7 +97,7 @@ contract FullCycleTest is Test {
 
 
     function initiateCreditMarket() public {
-        Vault.InstrumentData memory data;
+        InstrumentData memory data;
 
         data.trusted = false; 
         data.balance = 0;
@@ -107,7 +108,7 @@ contract FullCycleTest is Test {
         data.duration = duration;
         data.description = "test";
         data.instrument_address = address(instrument);
-        data.instrument_type = Vault.InstrumentType.CreditLine;
+        data.instrument_type = InstrumentType.CreditLine;
         data.maturityDate = 0; 
         data.name = "name";
 

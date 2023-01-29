@@ -1,6 +1,5 @@
 pragma solidity ^0.8.4; 
 //https://github.com/poap-xyz/poap-contracts/tree/master/contracts
-import {ERC20} from "solmate/tokens/ERC20.sol";
 import  "openzeppelin-contracts/token/ERC721/extensions/ERC721Enumerable.sol"; 
 import {Controller} from "./controller.sol";
 import "forge-std/console.sol";
@@ -11,8 +10,8 @@ import {SafeCastLib} from "solmate/utils/SafeCastLib.sol";
 import {MarketManager} from "./marketmanager.sol"; 
 import {ReputationManager} from "./reputationmanager.sol"; 
 import {ERC4626} from "../vaults/mixins/ERC4626.sol"; 
-import {SyntheticZCBPool} from "../bonds/synthetic.sol"; 
 import {StorageHandler} from "../global/GlobalStorage.sol"; 
+import "../global/types.sol"; 
 
 /// @notice borrow from leverageVault to leverage mint vaults
 contract LeverageManager is ERC721Enumerable{
@@ -77,7 +76,7 @@ contract LeverageManager is ERC721Enumerable{
         require(_leverage <= getMaxLeverage(msg.sender) && _leverage >= precision, "!leverage");
 
         marketManager._canIssue(msg.sender, int256(_amountIn), _marketId); 
-        MarketManager.CoreMarketData memory market = marketManager.getMarket(_marketId); 
+        CoreMarketData memory market = marketManager.getMarket(_marketId); 
         ERC20 underlying = ERC20(address(market.bondPool.BaseToken())); 
 
         // stack collateral from trader and loan from vault 
@@ -146,7 +145,7 @@ contract LeverageManager is ERC721Enumerable{
         uint256 _leverage //in 18 dec 
         ) external _lock_ returns(uint256 amountIn, uint256 amountOut){
         require(_leverage <= getMaxLeverage(msg.sender) && _leverage >= precision, "!leverage");
-        MarketManager.CoreMarketData memory market = marketManager.getMarket(_marketId); 
+        CoreMarketData memory market = marketManager.getMarket(_marketId); 
         ERC20 underlying = ERC20(address(market.bondPool.BaseToken())); 
 
         // stack collateral from trader and borrowing from vault 

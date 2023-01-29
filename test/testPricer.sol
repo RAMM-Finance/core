@@ -19,6 +19,7 @@ import {CustomTestBase} from "./testbase.sol";
 import {LeverageManager} from "../contracts/protocol/leveragemanager.sol"; 
 import "../contracts/global/GlobalStorage.sol"; 
 import "../contracts/global/types.sol"; 
+import "../contracts/global/types.sol"; 
 
 contract PricerTest is CustomTestBase {
     using FixedPointMath for uint256; 
@@ -44,6 +45,7 @@ contract PricerTest is CustomTestBase {
         
         leverageManager = new LeverageManager(address(controller), address(marketmanager), address(reputationManager));
         Data = new StorageHandler(); 
+        controllerSetup(); 
 
         vm.startPrank(deployer); 
         controller.setMarketManager(address(marketmanager));
@@ -63,7 +65,7 @@ contract PricerTest is CustomTestBase {
             0,
             type(uint256).max,
             type(uint256).max,
-            MarketManager.MarketParameters(N, sigma, alpha, omega, delta, r, s, steak),
+            MarketParameters(N, sigma, alpha, omega, delta, r, s, steak),
             "description"
         ); //vaultId = 1; 
         vault_ad = controller.getVaultfromId(1); 

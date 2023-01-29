@@ -10,11 +10,10 @@ import "forge-std/console.sol";
 // import "@interep/contracts/IInterep.sol";
 import {config} from "../utils/helpers.sol";
 import "openzeppelin-contracts/utils/math/SafeMath.sol";
-import {ERC20} from "solmate/tokens/ERC20.sol";
 import {ERC4626} from "../vaults/mixins/ERC4626.sol";
 import {Vault} from "../vaults/vault.sol";
 // import "@interep/contracts/IInterep.sol";
-import {SyntheticZCBPoolFactory, SyntheticZCBPool} from "../bonds/synthetic.sol";
+import {SyntheticZCBPoolFactory} from "../bonds/synthetic.sol";
 import {SafeTransferLib} from "solmate/utils/SafeTransferLib.sol";
 import {ReputationManager} from "./reputationmanager.sol";
 import {PoolInstrument} from "../instruments/poolInstrument.sol";
@@ -125,8 +124,11 @@ contract Controller {
     function setDataStore(address _dataStore) public onlyManager{
         Data = StorageHandler(_dataStore); 
         marketManager.setDataStore( _dataStore); 
+
         reputationManager.setDataStore( _dataStore);
+
         leverageManager.setDataStore(_dataStore);
+
     }
 
     // function storeNewPrices(uint256 marketId, uint256 multiplier, uint256 initPrice) public {
@@ -177,7 +179,7 @@ contract Controller {
         emit RedeemTransfer(marketId, amount, to);
     }
 
-    event VaultCreated(address indexed vault, uint256 vaultId, address underlying, bool onlyVerified, uint256 r, uint256 assetLimit, uint256 totalAssetLimit, MarketManager.MarketParameters defaultParams);
+    event VaultCreated(address indexed vault, uint256 vaultId, address underlying, bool onlyVerified, uint256 r, uint256 assetLimit, uint256 totalAssetLimit, MarketParameters defaultParams);
     /// @notice creates vault
     /// @param underlying: underlying asset for vault
     /// @param _onlyVerified: only verified users can mint shares
@@ -191,7 +193,7 @@ contract Controller {
         uint256 _r,
         uint256 _asset_limit,
         uint256 _total_asset_limit,
-        MarketManager.MarketParameters memory default_params,
+        MarketParameters memory default_params,
         string calldata _description
     ) public {
         (Vault newVault, uint256 vaultId) = vaultFactory.newVault(
@@ -207,9 +209,9 @@ contract Controller {
     }
 
     function getInstrumentSnapShot(uint256 marketId) view public returns (uint256 managerStake, uint256 exposurePercentage, uint256 seniorAPR, uint256 approvalPrice) {
-        MarketManager.CoreMarketData memory data = marketManager.getMarket(marketId); 
+        CoreMarketData memory data = marketManager.getMarket(marketId); 
         ApprovalData memory approvalData = getApprovalData(marketId); 
-        Vault.InstrumentData memory instrumentData = getVault(marketId).fetchInstrumentData(marketId);
+        InstrumentData memory instrumentData = getVault(marketId).fetchInstrumentData(marketId);
         managerStake = approvalData.managers_stake;
         exposurePercentage = (approvalData.approved_principal- approvalData.managers_stake).divWadDown(getVault(marketId).totalAssets()+1);
         seniorAPR = instrumentData.poolData.promisedReturn; 
@@ -257,7 +259,7 @@ contract Controller {
         exchangeRate = vault.previewDeposit(1e18);
     }
 
-    event MarketInitiated(uint256 indexed marketId, address indexed vault, address indexed recipient, address pool, address longZCB, address shortZCB, Vault.InstrumentData instrumentData);
+    event MarketInitiated(uint256 indexed marketId, address indexed vault, address indexed recipient, address pool, address longZCB, address shortZCB, InstrumentData instrumentData);
 
     /// @notice initiates market, called by frontend loan proposal or instrument form submit button.
     /// @dev Instrument should already be deployed
@@ -266,7 +268,7 @@ contract Controller {
     /// @param vaultId: vault identifier
     function initiateMarket(
         address recipient,
-        Vault.InstrumentData memory instrumentData,
+        InstrumentData memory instrumentData,
         uint256 vaultId
     ) external {
         require(recipient != address(0), "address0R");
@@ -324,7 +326,7 @@ contract Controller {
             instrumentData.isPool
         );
         } else {
-            MarketManager.MarketParameters memory params = marketManager.getParameters(marketId); 
+            MarketParameters memory params = marketManager.getParameters(marketId); 
             pool.calculateInitCurveParams(
                 instrumentData.principal,
                 instrumentData.expectedYield,
@@ -349,6 +351,13 @@ contract Controller {
                 instrumentData.isPool
             );
         }
+
+        Data.setNewInstrument(
+         marketId, 
+         instrumentData.poolData.inceptionPrice, 
+         0, //TODO configurable 
+         false, 
+         instrumentData); // TODO more params 
 
         // add vault proposal
         instrumentData.marketId = marketId;
@@ -670,7 +679,7 @@ contract Controller {
     function poolApproval(
         uint256 marketId,
         uint256 juniorSupply,
-        Vault.PoolData memory data
+        PoolData memory data
     ) internal {
         require(data.leverageFactor > 0, "0 LEV_FACTOR");
         approvalDatas[marketId] = ApprovalData(

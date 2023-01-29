@@ -17,6 +17,7 @@ import {ReputationManager} from "../contracts/protocol/reputationmanager.sol";
 
 import {CustomTestBase} from "./testbase.sol";
 import {LeverageManager} from "../contracts/protocol/leveragemanager.sol"; 
+import "../contracts/global/types.sol"; 
 
 contract ReputationSystemTests is CustomTestBase {
 
@@ -40,14 +41,8 @@ contract ReputationSystemTests is CustomTestBase {
         poolFactory = new SyntheticZCBPoolFactory(address(controller), address(zcbfactory)); 
         reputationManager = new ReputationManager(address(controller), address(marketmanager));
 
-        vm.startPrank(deployer); 
-        controller.setMarketManager(address(marketmanager));
-        controller.setVaultFactory(address(vaultFactory));
-        controller.setPoolFactory(address(poolFactory)); 
-        controller.setReputationManager(address(reputationManager));
-        validatorManager = new ValidatorManager(address(controller), address(marketmanager),address(reputationManager) );      
-        controller.setValidatorManager(address(validatorManager)); 
-        vm.stopPrank(); 
+        controllerSetup(); 
+
 
         controller.createVault(
             address(collateral),
@@ -55,7 +50,7 @@ contract ReputationSystemTests is CustomTestBase {
             0,
             type(uint256).max,
             type(uint256).max,
-            MarketManager.MarketParameters(N, sigma, alpha, omega, delta, r, s, steak),
+            MarketParameters(N, sigma, alpha, omega, delta, r, s, steak),
             "description"
         ); //vaultId = 1; 
         vault_ad = controller.getVaultfromId(1); 

@@ -1,7 +1,7 @@
 pragma solidity ^0.8.16;
 
 import {Auth} from "./auth/Auth.sol";
-import {ERC4626} from "./mixins/ERC4626.sol";
+import {ERC4626} from "solmate/mixins/ERC4626.sol";
 
 import {SafeCastLib} from "solmate/utils/SafeCastLib.sol";
 import {SafeTransferLib} from "solmate/utils/SafeTransferLib.sol";
@@ -32,7 +32,7 @@ contract Vault is ERC4626{
     uint256 public totalInstrumentHoldings; //total holdings deposited into all Instruments collateral
     ERC20 public immutable UNDERLYING;
     Controller private controller;
-    MarketManager.MarketParameters default_params; 
+    MarketParameters default_params; 
     string public description;
 
     ///// For Factory
@@ -56,45 +56,6 @@ contract Vault is ERC4626{
         Other
     }
 
-
-    /// @param trusted Whether the Instrument is trusted.
-    /// @param balance The amount of underlying tokens held in the Instrument.
-    struct InstrumentData {
-      bytes32 name;
-      bool isPool; 
-      // Used to determine if the Vault will operate on a Instrument.
-      bool trusted;
-      // Balance of the contract denominated in Underlying, 
-      // used to determine profit and loss during harvests of the Instrument.  
-      // represents the amount of debt the Instrument has incurred from this vault   
-      uint256 balance; // in underlying, IMPORTANT to get this number right as it modifies key states 
-      uint256 faceValue; // in underlying
-      uint256 marketId;
-      uint256 principal; //this is total available allowance in underlying
-      uint256 expectedYield; // total interest paid over duration in underlying
-      uint256 duration;
-      string description;
-      address instrument_address;
-      InstrumentType instrument_type;
-      uint256 maturityDate;
-      PoolData poolData; 
-    }
-
-    /// @notice probably should have default parameters for each vault
-    struct PoolData{
-      uint256 saleAmount; 
-      uint256 initPrice; // init price of longZCB in the amm 
-      uint256 promisedReturn; //per unit time 
-      uint256 inceptionTime;
-      uint256 inceptionPrice; // init price of longZCB after assessment 
-      uint256 leverageFactor; // leverageFactor * manager collateral = capital from vault to instrument
-      uint256 managementFee; // sum of discounts for high reputation managers/validators
-    }
-
-    struct ResolveVar{
-        uint256 endBlock; 
-        bool isPrepared; 
-    }
     address public owner; 
 
     constructor(
@@ -102,7 +63,7 @@ contract Vault is ERC4626{
         address _controller, 
         address _owner,
         bytes memory _configData,
-        MarketManager.MarketParameters memory _default_params
+        MarketParameters memory _default_params
     )
         ERC4626(
             ERC20(_UNDERLYING),
@@ -161,7 +122,6 @@ contract Vault is ERC4626{
     // }
     /// @notice amount is always in WAD, so need to convert if decimals mismatch
     function trusted_transfer(uint256 amount, address to) external onlyController{
-        if (decimal_mismatch) amount = decSharesToAssets(amount); 
         UNDERLYING.transfer(to, amount); 
     }
 
@@ -665,7 +625,7 @@ contract Vault is ERC4626{
     // } 
 
 
-    function get_vault_params() public view returns(MarketManager.MarketParameters memory){
+    function get_vault_params() public view returns(MarketParameters memory){
       return default_params; 
     }
 
@@ -704,7 +664,7 @@ contract Vault is ERC4626{
         assets = previewMint(shares); // No need to check for rounding error, previewMint rounds up.
 
         // Need to transfer before minting or ERC777s could reenter.
-        asset.safeTransferFrom(msg.sender, address(this), assets);
+        asset.transferFrom(msg.sender, address(this), assets);
    
         _mint(receiver, shares);
 
@@ -737,6 +697,6 @@ contract Vault is ERC4626{
 
         emit Withdraw(msg.sender, receiver, owner, assets, shares);
 
-        asset.safeTransfer(receiver, assets);
+        asset.transfer(receiver, assets);
     }
 }

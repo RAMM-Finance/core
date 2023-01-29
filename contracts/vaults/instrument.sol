@@ -7,7 +7,7 @@ import {ERC20} from "solmate/tokens/ERC20.sol";
 import "openzeppelin-contracts/utils/math/Math.sol";
 import {FixedPointMathLib} from "./utils/FixedPointMathLib.sol";
 import "forge-std/console.sol";
-
+import "../global/types.sol"; 
 
 /// @notice Minimal interface for Vault compatible strategies.
 abstract contract Instrument {
@@ -37,7 +37,7 @@ abstract contract Instrument {
         address _Utilizer
     ) {
         vault = Vault(_vault);
-        underlying = ERC20(vault.UNDERLYING());
+        underlying =vault.UNDERLYING();
         underlying.approve(_vault, MAX_UINT); // Give Vault unlimited access 
         Utilizer = _Utilizer;
     }
@@ -147,13 +147,11 @@ abstract contract Instrument {
 
     event LiquidityTransfer(address indexed from ,address indexed to, uint256 amount);
     function transfer_liq(address to, uint256 amount) internal notLocked {
-        if (vault.decimal_mismatch()) amount = vault.decSharesToAssets(amount); 
         underlying.transfer(to, amount);
         emit LiquidityTransfer(address(this), to, amount);
     }
 
     function transfer_liq_from(address from, address to, uint256 amount) internal notLocked {
-        if (vault.decimal_mismatch()) amount = vault.decSharesToAssets(amount); 
         underlying.transferFrom(from, to, amount);
         emit LiquidityTransfer(from, to, amount);
     }
@@ -162,7 +160,6 @@ abstract contract Instrument {
     function store_internal_balance() external onlyVault{
 
         maturity_balance = balanceOfUnderlying(address(this)); 
-        if (vault.decimal_mismatch()) maturity_balance = vault.decAssetsToShares(maturity_balance); 
 
     }
 

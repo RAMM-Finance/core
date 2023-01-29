@@ -2,7 +2,6 @@ pragma solidity ^0.8.16;
 
 import "./reputationtoken.sol"; 
 import {Controller} from "./controller.sol";
-import {ERC20} from "solmate/tokens/ERC20.sol";
 import "forge-std/console.sol";
 import {SafeTransferLib} from "solmate/utils/SafeTransferLib.sol";
 import {FixedPointMathLib} from "solmate/utils/FixedPointMathLib.sol";
@@ -14,12 +13,14 @@ import {ERC4626} from "../vaults/mixins/ERC4626.sol";
 import {Vault} from "../vaults/vault.sol"; 
 import {ReputationManager} from "./reputationmanager.sol"; 
 import {StorageHandler} from "../global/GlobalStorage.sol"; 
+import {PerpTranchePricer} from "../libraries/pricerLib.sol"; 
 
-contract MarketManager 
- // VRFConsumerBaseV2 
- {
+import "../global/types.sol"; 
+
+contract MarketManager {
   using FixedPointMathLib for uint256;
   using SafeTransferLib for ERC20;
+  using PerpTranchePricer for PricingInfo; 
 
   // Chainlink state variables
   // VRFCoordinatorV2Interface COORDINATOR;
@@ -49,48 +50,6 @@ contract MarketManager
   mapping(uint256=> mapping(address=>uint256)) public shortTrades;
   mapping(uint256=> uint256) public loggedCollaterals;
 
-  struct CoreMarketData {
-    SyntheticZCBPool bondPool; 
-    ERC20 longZCB;
-    ERC20 shortZCB; 
-    string description; // instrument description
-    uint256 creationTimestamp;
-    uint256 resolutionTimestamp;
-    bool isPool; 
-  }
-
-  struct MarketPhaseData {
-    bool duringAssessment;
-    bool onlyReputable;
-    bool resolved;
-    bool alive;
-    bool atLoss;
-    // uint256 min_rep_score;
-    uint256 base_budget;
-  }
-
-  /// @param N: upper bound on number of validators chosen.
-  /// @param sigma: validators' stake
-  /// @param alpha: minimum managers' stake
-  /// @param omega: high reputation's stake 
-  /// @param delta: Upper and lower bound for price which is added/subtracted from alpha 
-  /// @param r: reputation percentile for reputation constraint phase
-  /// @param s: senior coefficient; how much senior capital the managers can attract at approval 
-  /// @param steak: steak*approved_principal is the staking amount.
-  /// param beta: how much volatility managers are absorbing 
-  /// param leverage: how much leverage managers can apply 
-  /// param base_budget: higher base_budget means lower decentralization, 
-  /// @dev omega always <= alpha
-  struct MarketParameters{
-      uint256 N;
-      uint256 sigma; 
-      uint256 alpha; 
-      uint256 omega;
-      uint256 delta; 
-      uint256 r;
-      uint256 s;
-      uint256 steak;
-  }
 
   modifier onlyController(){
     require(address(controller) == msg.sender || msg.sender == owner || msg.sender == address(this), "!controller"); 
@@ -530,6 +489,7 @@ event MarketDenied(uint256 indexed marketId);
     vars.instrument = address(vars.vault.Instruments(_marketId)); 
 
     // Get price a_lock_nd sell longZCB with this price
+    // (vars.psu, vars.pju, vars.levFactor) = Data.viewCurrentPricing(_marketId); 
     (vars.psu, vars.pju, vars.levFactor ) = vars.vault.poolZCBValue(_marketId);
 
     vars.underlying.transferFrom(_caller, address(this), _amountIn);

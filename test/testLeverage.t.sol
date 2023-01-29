@@ -19,6 +19,7 @@ import {CustomTestBase} from "./testbase.sol";
 import {LeverageManager} from "../contracts/protocol/leveragemanager.sol"; 
 import {VariableInterestRate} from "../contracts/instruments/VariableInterestRate.sol";
 import {LinearInterestRate} from "../contracts/instruments/LinearInterestRate.sol";
+import "../contracts/global/types.sol"; 
 
 contract LeverageModuleTest is CustomTestBase {
     using FixedPointMath for uint256; 
@@ -62,18 +63,8 @@ contract LeverageModuleTest is CustomTestBase {
         ZCBFactory zcbfactory = new ZCBFactory(); 
         poolFactory = new SyntheticZCBPoolFactory(address(controller), address(zcbfactory)); 
         reputationManager = new ReputationManager(address(controller), address(marketmanager));
-        leverageManager = new LeverageManager(address(controller), 
-            address(marketmanager),address(reputationManager) );
 
-        vm.startPrank(deployer); 
-        controller.setMarketManager(address(marketmanager));
-        controller.setVaultFactory(address(vaultFactory));
-        controller.setPoolFactory(address(poolFactory)); 
-        controller.setReputationManager(address(reputationManager));
-        validatorManager = new ValidatorManager(address(controller), address(marketmanager),address(reputationManager) );        
-        controller.setValidatorManager(address(validatorManager)); 
-        controller.setLeverageManager(address(leverageManager)); 
-        vm.stopPrank(); 
+        controllerSetup(); 
 
         controller.createVault(
             address(collateral),
@@ -81,7 +72,7 @@ contract LeverageModuleTest is CustomTestBase {
             0,
             type(uint256).max,
             type(uint256).max,
-            MarketManager.MarketParameters(N, sigma, alpha, omega, delta, r, s, steak),
+            MarketParameters(N, sigma, alpha, omega, delta, r, s, steak),
             "description"
         ); //vaultId = 1; 
         vault_ad = controller.getVaultfromId(1); 
