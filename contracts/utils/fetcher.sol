@@ -4,7 +4,6 @@ import {MarketManager} from "../protocol/marketmanager.sol";
 import {Vault} from "../vaults/vault.sol";
 import {VaultFactory} from "../protocol/factories.sol";
 import {Controller} from "../protocol/controller.sol";
-import {ERC20} from "../vaults/tokens/ERC20.sol";
 import {ERC721} from "solmate/tokens/ERC721.sol";
 import {SyntheticZCBPool} from "../bonds/synthetic.sol";
 import {FixedPointMathLib} from "solmate/utils/FixedPointMathLib.sol";
@@ -61,7 +60,7 @@ contract Fetcher {
         string symbol;
         uint256 vaultId;
         uint256[] marketIds;
-        MarketManager.MarketParameters default_params;
+        MarketParameters default_params;
         bool onlyVerified; 
         uint256 r; //reputation ranking  
         uint256 asset_limit; 
@@ -104,8 +103,8 @@ contract Fetcher {
         uint256 discountCap;
         uint256 discountedReserves;
 
-        MarketManager.MarketParameters parameters;
-        MarketManager.MarketPhaseData phase;
+        MarketParameters parameters;
+        MarketPhaseData phase;
         ValidatorBundle validatorData;
     }
 
@@ -174,7 +173,7 @@ contract Fetcher {
         uint256 duration;
         string description;
         address instrument_address;
-        Vault.InstrumentType instrument_type;
+        InstrumentType instrument_type;
         uint256 maturityDate;
         bytes32 name;
         uint256 seniorAPR; 
@@ -261,7 +260,7 @@ contract Fetcher {
     function buildInstrumentBundle(uint256 mid, uint256 vid, Controller controller, MarketManager marketManager) internal view returns (InstrumentBundle memory bundle) {
         Vault vault = controller.vaults(vid);
         (,address utilizer) = controller.market_data(mid);
-        Vault.InstrumentData memory data = vault.fetchInstrumentData(mid);
+        InstrumentData memory data = vault.fetchInstrumentData(mid);
 
 
         (uint256 managerStake, uint256 exposurePercentage, uint256 seniorAPR, uint256 approvalPrice) = controller.getInstrumentSnapShot(mid);
@@ -284,11 +283,11 @@ contract Fetcher {
         bundle.instrument_address = address(data.instrument_address);
         bundle.utilizer = utilizer;
         bundle.name = data.name;
-        if (data.instrument_type == Vault.InstrumentType.LendingPool) {
+        if (data.instrument_type == InstrumentType.LendingPool) {
             bundle.poolData = buildPoolBundle(mid, vid, controller, marketManager);
-        } else if (data.instrument_type == Vault.InstrumentType.CoveredCallShort) {
+        } else if (data.instrument_type == InstrumentType.CoveredCallShort) {
             bundle.optionsData = buildCoveredCallBundle(bundle.instrument_address);
-        } else if (data.instrument_type == Vault.InstrumentType.CreditLine) {
+        } else if (data.instrument_type == InstrumentType.CreditLine) {
             bundle.creditlineData = buildCreditlineBundle(bundle.instrument_address);
         }
     }
@@ -329,7 +328,7 @@ contract Fetcher {
     function buildPoolBundle(uint256 mid, uint256 vid, Controller controller, MarketManager marketManager) internal view returns (PoolBundle memory bundle) {
         Vault vault = controller.vaults(vid);
         address instrument = address(vault.Instruments(mid));
-        Vault.InstrumentData memory instrumentData = vault.fetchInstrumentData(mid);
+        InstrumentData memory instrumentData = vault.fetchInstrumentData(mid);
 
         bundle.saleAmount = instrumentData.poolData.saleAmount;
         bundle.initPrice = instrumentData.poolData.initPrice;
@@ -392,7 +391,7 @@ contract Fetcher {
     function buildMarketBundle(uint256 mid, uint256 vid, Controller controller, MarketManager marketManager) internal view returns (MarketBundle memory bundle) {
         bundle.marketId = mid;
         bundle.vaultId = vid;
-        MarketManager.CoreMarketData memory data = marketManager.getMarket(mid);
+        CoreMarketData memory data = marketManager.getMarket(mid);
         bundle.creationTimestamp = data.creationTimestamp;
         bundle.resolutionTimestamp = data.resolutionTimestamp;
         bundle.marketConditionMet = controller.marketCondition(mid);
@@ -484,7 +483,7 @@ contract Fetcher {
             "",
             0,
             new uint256[](0),
-            MarketManager.MarketParameters(0,0,0,0,0,0,0,0),
+           MarketParameters(0,0,0,0,0,0,0,0),
             false,
             0,
             0,

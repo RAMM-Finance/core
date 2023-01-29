@@ -3,7 +3,7 @@ pragma solidity ^0.8.4;
 import {Vault} from "../vaults/vault.sol";
 import {MarketManager} from "./marketmanager.sol";
 import {Controller} from "./controller.sol";
-
+import "../global/types.sol"; 
 
 /// @notice Anyone can create a vault. These can be users who  
 /// a) want exposure to specific instrument types(vault that focuses on uncollateralized RWA loans)
@@ -50,7 +50,7 @@ contract VaultFactory{
     address underlying,
     address _controller,
     bytes memory _configData,
-    MarketManager.MarketParameters memory default_params
+    MarketParameters memory default_params
   ) external onlyController returns(Vault, uint256) {
     require(default_params.alpha >= 1e16, "Alpha too small"); 
     

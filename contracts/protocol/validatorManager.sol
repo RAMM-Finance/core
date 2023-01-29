@@ -9,6 +9,7 @@ import {ERC4626} from "../vaults/mixins/ERC4626.sol";
 import {SafeTransferLib} from "solmate/utils/SafeTransferLib.sol";
 import {ERC20} from "solmate/tokens/ERC20.sol";
 import {FixedPointMathLib} from "solmate/utils/FixedPointMathLib.sol";
+import {Vault} from "../vaults/vault.sol";
 
 contract ValidatorManager {
     using SafeTransferLib for ERC20;
@@ -126,7 +127,7 @@ contract ValidatorManager {
     function _setValidatorStake(uint256 marketId, uint256 principal) internal {
         //get vault
         uint256 vaultId = controller.id_parent(marketId);
-        ERC4626 vault = controller.vaults(vaultId);
+        Vault vault = controller.vaults(vaultId);
         // ERC4626 vault = ERC4626(vaults[id_parent[marketId]]);
         uint256 shares = vault.convertToShares(principal);
         (, , , , , , , uint256 steak) = marketManager.parameters(marketId);
@@ -171,7 +172,7 @@ contract ValidatorManager {
 
         // market early denial, no loss.
         uint256 vaultId = controller.id_parent(marketId);
-        ERC4626 vault = ERC4626(controller.vaults(vaultId));
+        Vault vault = controller.vaults(vaultId);
         if (duringMarketAssessment) {
             ERC20(controller.getVaultAd(marketId)).safeTransfer(
                 validator,
@@ -204,7 +205,7 @@ contract ValidatorManager {
         }
 
         uint256 vaultId = controller.id_parent(marketId);
-        ERC4626 vault = ERC4626(controller.vaults(vaultId));
+        Vault vault = controller.vaults(vaultId);
         uint256 p_shares = vault.convertToShares(principal);
         uint256 p_loss_shares = vault.convertToShares(principal_loss);
 

@@ -16,6 +16,7 @@ import {ReputationManager} from "../contracts/protocol/reputationmanager.sol";
 import {LeverageManager} from "../contracts/protocol/leveragemanager.sol"; 
 import {Instrument} from "../contracts/vaults/instrument.sol"; 
 import {StorageHandler} from "../contracts/global/GlobalStorage.sol"; 
+import "contracts/global/types.sol"; 
 
 contract CustomTestBase is Test {
     using FixedPointMath for uint256; 
@@ -137,7 +138,7 @@ contract CustomTestBase is Test {
     }
 
     function initiateCreditMarket() public {
-        Vault.InstrumentData memory data;
+        InstrumentData memory data;
 
         data.trusted = false; 
         data.balance = 0;
@@ -148,7 +149,7 @@ contract CustomTestBase is Test {
         data.duration = duration;
         data.description = "test";
         data.instrument_address = address(instrument);
-        data.instrument_type = Vault.InstrumentType.CreditLine;
+        data.instrument_type = InstrumentType.CreditLine;
         data.maturityDate = 10; 
 
         controller.initiateMarket(jott, data, 1);
@@ -171,7 +172,7 @@ contract CustomTestBase is Test {
             10,
             block.timestamp); 
         otc.setUtilizer(toku); 
-        Vault.InstrumentData memory data;
+        InstrumentData memory data;
         data.trusted = false; 
         data.balance = 0;
         data.faceValue = faceValue;
@@ -181,7 +182,7 @@ contract CustomTestBase is Test {
         data.duration = duration;
         data.description = "test";
         data.instrument_address = address(otc);
-        data.instrument_type = Vault.InstrumentType.CoveredCallShort;
+        data.instrument_type = InstrumentType.CoveredCallShort;
         data.maturityDate = 10; 
         controller.initiateMarket(toku, data, 1);
         uint256[] memory words = new uint256[](N);
@@ -192,8 +193,8 @@ contract CustomTestBase is Test {
     }
 
     function initiateSimpleNFTLendingPool() public {
-        Vault.InstrumentData memory data; 
-        Vault.PoolData memory poolData; 
+        InstrumentData memory data; 
+        PoolData memory poolData; 
 
         // poolData.saleAmount = principal/4; 
         // poolData.initPrice = 7e17; 
@@ -219,7 +220,7 @@ contract CustomTestBase is Test {
         data.duration = 0;
         data.description = "test";
         data.instrument_address = address(nftPool);
-        data.instrument_type = Vault.InstrumentType.LendingPool;
+        data.instrument_type = InstrumentType.LendingPool;
         data.maturityDate = 0; 
         data.poolData = poolData; 
 
@@ -231,6 +232,23 @@ contract CustomTestBase is Test {
         }
         controller.fulfillRandomWords(1, words);
 
+    }
+
+    function controllerSetup() public{
+        vm.startPrank(deployer); 
+        controller.setMarketManager(address(marketmanager));
+        controller.setVaultFactory(address(vaultFactory));
+        controller.setPoolFactory(address(poolFactory)); 
+        controller.setReputationManager(address(reputationManager));
+        validatorManager = new ValidatorManager(address(controller), address(marketmanager),address(reputationManager) );      
+        controller.setValidatorManager(address(validatorManager)); 
+        leverageManager = new LeverageManager(address(controller), 
+            address(marketmanager),address(reputationManager) );
+        controller.setLeverageManager(address(leverageManager));
+        Data = new StorageHandler(); 
+        controller.setDataStore(address(Data)) ; 
+        vm.stopPrank(); 
+        
     }
     function closeMarket(uint256 marketId) public {
         controller.testResolveMarket( marketId); 

@@ -16,6 +16,7 @@ import {ERC20} from "solmate/tokens/ERC20.sol";
 import {SimpleNFTPool} from "../contracts/vaults/nftLending.sol"; 
 import {ReputationManager} from "../contracts/protocol/reputationmanager.sol";
 import {CustomTestBase} from "./testbase.sol"; 
+import "../contracts/global/types.sol"; 
 
 contract FixedTest is CustomTestBase {
     using FixedPointMath for uint256; 
@@ -44,6 +45,11 @@ contract FixedTest is CustomTestBase {
         controller.setVaultFactory(address(vaultFactory));
         controller.setPoolFactory(address(poolFactory)); 
         controller.setReputationManager(address(reputationManager));
+        leverageManager = new LeverageManager(address(controller), 
+            address(marketmanager),address(reputationManager) );
+        controller.setLeverageManager(address(leverageManager));
+        Data = new StorageHandler(); 
+        controller.setDataStore(address(Data)) ; 
         vm.stopPrank(); 
 
         controller.createVault(
@@ -52,7 +58,7 @@ contract FixedTest is CustomTestBase {
             0,
             type(uint256).max,
             type(uint256).max,
-            MarketManager.MarketParameters(N, sigma, alpha, omega, delta, r, s, steak),
+            MarketParameters(N, sigma, alpha, omega, delta, r, s, steak),
             "description"
         ); //vaultId = 1; 
         vault_ad = controller.getVaultfromId(1); 

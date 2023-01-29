@@ -40,14 +40,8 @@ contract FixedTest is CustomTestBase {
         poolFactory = new SyntheticZCBPoolFactory(address(controller), address(zcbfactory));
         reputationManager = new ReputationManager(address(controller), address(marketmanager)); 
 
-        vm.startPrank(deployer); 
-        controller.setMarketManager(address(marketmanager));
-        controller.setVaultFactory(address(vaultFactory));
-        controller.setPoolFactory(address(poolFactory)); 
-        controller.setReputationManager(address(reputationManager));
-        validatorManager = new ValidatorManager(address(controller), address(marketmanager),address(reputationManager) );       
-        controller.setValidatorManager(address(validatorManager)); 
-        vm.stopPrank(); 
+        controllerSetup(); 
+
 
         controller.createVault(
             address(collateral),
@@ -55,7 +49,7 @@ contract FixedTest is CustomTestBase {
             0,
             type(uint256).max,
             type(uint256).max,
-            MarketManager.MarketParameters(N, sigma, alpha, omega, delta, r, s, steak),
+            MarketParameters(N, sigma, alpha, omega, delta, r, s, steak),
             "description"
         ); //vaultId = 1; 
         console.log("vault created", controller.vaults(1).description());

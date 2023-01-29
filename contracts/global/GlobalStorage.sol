@@ -7,18 +7,32 @@ contract StorageHandler{
 	using PerpTranchePricer for PricingInfo; 
 
 	mapping(uint256=> PricingInfo) public PricingInfos; 
+	mapping(uint256=> InstrumentData) public InstrumentDatas; 
+
+
 
     modifier onlyProtocol() {
         
         _;
     }
 
+
+	/// @notice called at market creation 
+	function setNewInstrument(
+		uint256 marketId, 
+		uint256 initialPrice, 
+		uint256 multiplier, 
+		bool constantRF, 
+		InstrumentData memory data) external onlyProtocol{
+		PricingInfos[marketId].setNewPrices(initialPrice, multiplier, marketId, constantRF); 
+		storeNewProposal(marketId, data); 
+	}
+
+
+    //--- Pricing ---// 
+
 	function getPricingInfo(uint256 marketId) public view returns(PricingInfo memory){
 		return PricingInfos[marketId]; 
-	}
-	function setNewPricingInfo(uint256 marketId, uint256 initialPrice, uint256 multiplier, 
-		bool constantRF) external onlyProtocol{
-		PricingInfos[marketId].setNewPrices(initialPrice, multiplier, marketId, constantRF); 
 	}
 
 	function updatePricingInfo(uint256 marketId, PricingInfo memory newInfo) external onlyProtocol{
@@ -26,11 +40,23 @@ contract StorageHandler{
 	}
 
 	function refreshPricing(uint256 marketId, uint256 uRate) public onlyProtocol{
-		PricingInfos[marketId].storeNewPSU(
- 		 uRate
- 		); 
-
+		PricingInfos[marketId].storeNewPSU(uRate); 
 	}
+
+	function viewCurrentPricing(uint256 marketId) public view returns(uint256, uint256, uint256) {
+		PricingInfos[marketId].viewCurrentPricing(InstrumentDatas[marketId].poolData); 
+	}
+
+
+
+
+	// //--- Instrument ---//
+
+	function storeNewProposal(uint256 marketId, InstrumentData memory data) public onlyProtocol{
+		InstrumentDatas[marketId] = data; 
+	}
+
+
 
 
 }
