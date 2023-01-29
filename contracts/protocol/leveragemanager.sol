@@ -282,7 +282,8 @@ contract LeverageManager is ERC721Enumerable{
 
         vars.leveragePool.borrow(
             vars.maxBorrowableAmount, address(vars.vault), 
-            0, collateralAmount, address(this) 
+            0, collateralAmount, address(this),
+            true
             ); 
 
         console.log('new collateral amount', collateralAmount); 
@@ -332,7 +333,7 @@ contract LeverageManager is ERC721Enumerable{
         vars.availableLiquidity = vars.leveragePool.totalAssetAvailable(); 
 
         if(vars.availableLiquidity == 0) revert("Not Enough Liq"); 
-        (,,vars.collateralPower,) = vars.leveragePool.collateralData(address(vars.vault),0); 
+        (,,vars.collateralPower,) = vars.leveragePool.collateralConfigs(vars.leveragePool.computeId(address(vars.vault),0)); 
 
         // Initial minting 
         vars.shares = vars.vault.deposit(suppliedCapital, address(this));

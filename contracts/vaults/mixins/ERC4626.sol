@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity >=0.8.0;
 
-import {ERC20} from "../tokens/ERC20.sol";
+import {ERC20} from "solmate/tokens/ERC20.sol";
 // import {ERC20} from "../../ERC20/ERC20.sol";
 import "forge-std/console.sol";
-import {SafeTransferLib} from "../utils/SafeTransferLib.sol";
+import {SafeTransferLib} from "solmate/utils/SafeTransferLib.sol";
 import {FixedPointMathLib} from "../utils/FixedPointMathLib.sol";
 
 /// @notice Minimal ERC4626 tokenized Vault implementation.

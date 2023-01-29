@@ -3,11 +3,11 @@ pragma solidity ^0.8.16;
 import {Auth} from "./auth/Auth.sol";
 import {ERC4626} from "./mixins/ERC4626.sol";
 
-import {SafeCastLib} from "./utils/SafeCastLib.sol";
-import {SafeTransferLib} from "./utils/SafeTransferLib.sol";
-import {FixedPointMathLib} from "./utils/FixedPointMathLib.sol";
+import {SafeCastLib} from "solmate/utils/SafeCastLib.sol";
+import {SafeTransferLib} from "solmate/utils/SafeTransferLib.sol";
+import {FixedPointMathLib} from "solmate/utils/FixedPointMathLib.sol";
 
-import {ERC20} from "./tokens/ERC20.sol";
+import {ERC20} from "solmate/tokens/ERC20.sol";
 import {Instrument} from "./instrument.sol";
 import {PoolInstrument} from "../instruments/poolInstrument.sol";
 import {Controller} from "../protocol/controller.sol";
@@ -424,8 +424,6 @@ contract Vault is ERC4626{
     function pullFromLM(uint256 amount) public
     //onlyowner or internal 
     {
-
-
       // check if amount is available liquidity, and is appropriate for the given
       // shares this vault has of it. 
       Instrument instrument = fetchInstrument(0); 

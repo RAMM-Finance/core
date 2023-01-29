@@ -24,6 +24,8 @@ contract PricerTest is CustomTestBase {
     using FixedPointMath for uint256; 
     using stdStorage for StdStorage; 
 
+
+
     function setUp() public {
 
         controller = new Controller(deployer, address(0)); // zero addr for interep
@@ -39,6 +41,8 @@ contract PricerTest is CustomTestBase {
         ZCBFactory zcbfactory = new ZCBFactory(); 
         poolFactory = new SyntheticZCBPoolFactory(address(controller), address(zcbfactory)); 
         reputationManager = new ReputationManager(address(controller), address(marketmanager));
+        
+        leverageManager = new LeverageManager(address(controller), address(marketmanager), address(reputationManager));
         Data = new StorageHandler(); 
 
         vm.startPrank(deployer); 
@@ -48,7 +52,9 @@ contract PricerTest is CustomTestBase {
         controller.setReputationManager(address(reputationManager));
         validatorManager = new ValidatorManager(address(controller), address(marketmanager),address(reputationManager) );     
         controller.setValidatorManager(address(validatorManager)); 
+                controller.setLeverageManager(address(leverageManager));
         controller.setDataStore(address(Data)); 
+
         vm.stopPrank(); 
 
         controller.createVault(
@@ -71,8 +77,7 @@ contract PricerTest is CustomTestBase {
         doInvest(vault_ad,  toku, 1e18*10000); 
 
 
-        leverageManager = new LeverageManager(address(controller), 
-            address(marketmanager),address(reputationManager) );
+
     }
    
 

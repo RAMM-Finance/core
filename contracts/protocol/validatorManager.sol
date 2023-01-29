@@ -9,6 +9,7 @@ import {ERC4626} from "../vaults/mixins/ERC4626.sol";
 import {SafeTransferLib} from "solmate/utils/SafeTransferLib.sol";
 import {ERC20} from "solmate/tokens/ERC20.sol";
 import {FixedPointMathLib} from "solmate/utils/FixedPointMathLib.sol";
+import "forge-std/console.sol";
 
 contract ValidatorManager {
     using SafeTransferLib for ERC20;
@@ -58,8 +59,12 @@ contract ValidatorManager {
         bool isPool
     ) external onlyController {
         require(principal != 0, "0 principal");
+
+
         _getValidators(marketId);
+
         _setValidatorCap(marketId, principal, isPool);
+
         _setValidatorStake(marketId, principal);
     }
 

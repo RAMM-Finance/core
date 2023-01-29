@@ -19,12 +19,15 @@ import {VariableInterestRate} from "contracts/instruments/VariableInterestRate.s
 import {TestNFT} from "contracts/utils/TestNFT.sol";
 import {VariableInterestRate} from "../contracts/instruments/VariableInterestRate.sol";
 import {LinearInterestRate} from "../contracts/instruments/LinearInterestRate.sol";
+import {ValidatorManager} from "../contracts/protocol/validatorManager.sol";
 
 contract FetcherTest is Test {
     using FixedPointMath for uint256; 
     using stdStorage for StdStorage; 
 
     ReputationManager reputationManager;
+
+    ValidatorManager validatorManager;
 
     Controller controller;
     MarketManager marketmanager;
@@ -86,7 +89,7 @@ contract FetcherTest is Test {
     uint256 wad = 1e18;
 
     PoolInstrument.CollateralLabel[] clabels;
-    PoolInstrument.Collateral[] collaterals;
+    PoolInstrument.Config[] collaterals;
 
     function setUsers() public {
         jonna = address(0xbabe);
@@ -156,7 +159,7 @@ contract FetcherTest is Test {
             )
         );
         collaterals.push(
-            PoolInstrument.Collateral(
+            PoolInstrument.Config(
             0,
             wad/2,
             wad/4,
@@ -178,12 +181,15 @@ contract FetcherTest is Test {
         ZCBFactory zcbfactory = new ZCBFactory(); 
         poolFactory = new SyntheticZCBPoolFactory(address(controller), address(zcbfactory));    
 
+        validatorManager = new ValidatorManager(address(controller), address(marketmanager), address(reputationManager));
+        
+
         vm.startPrank(deployer); 
         controller.setMarketManager(address(marketmanager));
         controller.setVaultFactory(address(vaultFactory));
         controller.setPoolFactory(address(poolFactory)); 
         controller.setReputationManager(address(reputationManager));
-        // controller.setValidatorManager(address(validatorManager));
+        controller.setValidatorManager(address(validatorManager));
         vm.stopPrank();
 
         controller.createVault(
@@ -218,12 +224,13 @@ contract FetcherTest is Test {
         
         bytes memory bites;
         PoolInstrument.CollateralLabel[] memory _clabels = clabels;
-        PoolInstrument.Collateral[] memory _collaterals = collaterals;
+        PoolInstrument.Config[] memory _collaterals = collaterals;
+        
         poolInstrument = new PoolInstrument(
             vault_ad,
-            address(controller),
+            address(reputationManager),
+            0,
             chris,
-            address(collateral),
             "pool name",
             "POOL1",
             address(rateCalculator),
@@ -247,6 +254,110 @@ contract FetcherTest is Test {
         // initiateOptionsOTCMarket(); 
         initiateLendingPool();
     }
+
+    // function testSetup2() public {
+    //     clabels.push(
+    //         PoolInstrument.CollateralLabel(
+    //             address(collateral),
+    //             0
+    //         )
+    //     );
+    //     collaterals.push(
+    //         PoolInstrument.Config(
+    //         0,
+    //         wad/2,
+    //         wad/4,
+    //         true
+    //     )
+    //     );
+    //     controller = new Controller(deployer, address(0)); // zero addr for interep
+    //     vaultFactory = new VaultFactory(address(controller));
+    //     collateral = new Cash("n","n",18);
+    //     collateral2 = new Cash("nn", "nn", 18); 
+    //     bytes32  data;
+    //     marketmanager = new MarketManager(
+    //         deployer,
+    //         address(controller), 
+    //         address(0),data, uint64(0)
+    //     );
+    //     reputationManager = new ReputationManager(address(controller), address(marketmanager));
+        
+    //     ZCBFactory zcbfactory = new ZCBFactory(); 
+    //     poolFactory = new SyntheticZCBPoolFactory(address(controller), address(zcbfactory));    
+
+    //     validatorManager = new ValidatorManager(address(controller), address(marketmanager), address(reputationManager));
+        
+
+    //     vm.startPrank(deployer); 
+    //     controller.setMarketManager(address(marketmanager));
+    //     controller.setVaultFactory(address(vaultFactory));
+    //     controller.setPoolFactory(address(poolFactory)); 
+    //     controller.setReputationManager(address(reputationManager));
+    //     controller.setValidatorManager(address(validatorManager));
+    //     vm.stopPrank();
+
+    //     controller.createVault(
+    //         address(collateral),
+    //         false,
+    //         0,
+    //         type(uint256).max,
+    //         type(uint256).max,
+    //         MarketManager.MarketParameters(N, sigma, alpha, omega, delta, r, s, steak),
+    //         "description"
+    //     ); //vaultId = 1; 
+    //     vault_ad = controller.getVaultfromId(1); 
+
+    //     console.log("A");
+    //     setUsers();
+    //     console.log("B");
+
+    //     instrument = new CreditLine(
+    //         vault_ad, 
+    //         jott, principal, interest, duration, faceValue, 
+    //         address(collateral ), address(collateral), principal, 2
+    //         ); 
+    //     instrument.setUtilizer(jott); 
+
+    //     rateCalculator = new VariableInterestRate();
+
+    //     col1 = new Cash("ERC20_1", "ERC20_1", 6);
+    //     col2 = new Cash("ERC20_2", "ERC20_2", 7);
+
+    //     nft1 = new TestNFT("NFT_1", "NFT_1");
+    //     nft2 = new TestNFT("NFT_2", "NFT_2");
+        
+    //     bytes memory bites;
+    //     PoolInstrument.CollateralLabel[] memory _clabels = clabels;
+    //     PoolInstrument.Config[] memory _collaterals = collaterals;
+        
+    //     poolInstrument = new PoolInstrument(
+    //         vault_ad,
+    //         address(reputationManager),
+    //         0,
+    //         chris,
+    //         "pool name",
+    //         "POOL1",
+    //         address(rateCalculator),
+    //         bites,
+    //         _clabels,
+    //         _collaterals
+    //     );
+    //     otc = new CoveredCallOTC(
+    //         vault_ad, toku, 
+    //         strikeprice, //strikeprice 
+    //         pricePerContract, //price per contract
+    //         shortCollateral, 
+    //         longCollateral, 
+    //         address(collateral),
+    //         10, 
+    //         block.timestamp); 
+    //     otc.setUtilizer(toku); 
+        
+
+    //     // initiateCreditMarket(); 
+    //     // initiateOptionsOTCMarket(); 
+    //     initiateLendingPool();
+    // }
 
     function initiateCreditMarket() public {
         Vault.InstrumentData memory data;
@@ -348,6 +459,7 @@ contract FetcherTest is Test {
         for (uint256 i=0; i< words.length; i++) {
             words[i] = uint256(keccak256(abi.encodePacked(i)));
         }
+        console.log("2nd part");
         controller.fulfillRandomWords(1, words);
         vm.stopPrank();
     }

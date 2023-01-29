@@ -4,7 +4,7 @@ import {MarketManager} from "../protocol/marketmanager.sol";
 import {Vault} from "../vaults/vault.sol";
 import {VaultFactory} from "../protocol/factories.sol";
 import {Controller} from "../protocol/controller.sol";
-import {ERC20} from "../vaults/tokens/ERC20.sol";
+import {ERC20} from "solmate/tokens/ERC20.sol";
 import {ERC721} from "solmate/tokens/ERC721.sol";
 import {SyntheticZCBPool} from "../bonds/synthetic.sol";
 import {FixedPointMathLib} from "solmate/utils/FixedPointMathLib.sol";
@@ -349,9 +349,9 @@ contract Fetcher {
             (uint256 totalCollateral,
             uint256 maxAmount,
             uint256 maxBorrowAmount,
-            bool isERC20) = PoolInstrument(instrument).collateralData(labels[i].tokenAddress, labels[i].tokenId);
+            bool isERC20) = PoolInstrument(instrument).collateralConfigs(PoolInstrument(instrument).computeId(labels[i].tokenAddress, labels[i].tokenId));
             bundle.collaterals[i] = buildCollateralBundle(labels[i].tokenAddress, labels[i].tokenId, maxAmount, maxBorrowAmount, isERC20, totalCollateral);
-            bundle.collaterals[i].owner = PoolInstrument(instrument).userCollateralNFTs(labels[i].tokenAddress, labels[i].tokenId);
+            bundle.collaterals[i].owner = PoolInstrument(instrument).userERC721s(PoolInstrument(instrument).computeId(labels[i].tokenAddress, labels[i].tokenId));
         }
         
         

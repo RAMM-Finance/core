@@ -35,7 +35,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363734383438353230303738"
+              "__CACHE_BREAKER__": "0x0000000000000031363734393738313337383735"
             }
           }
         }
@@ -89,7 +89,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363734383438353230303738"
+              "__CACHE_BREAKER__": "0x0000000000000031363734393738313337383735"
             }
           }
         }
@@ -138,7 +138,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363734383438353230303738"
+              "__CACHE_BREAKER__": "0x0000000000000031363734393738313337383735"
             }
           }
         }
@@ -152,8 +152,8 @@
       ]
     },
     "/Users/zekiel/Documents/GitHub/core/contracts/utils/fetcher.sol": {
-      "lastModificationDate": 1674841076008,
-      "contentHash": "6d0b4208402a66cdd2a2f7534271a873",
+      "lastModificationDate": 1674971563706,
+      "contentHash": "401abd2a5e9ecb9680c10f0d18d82d12",
       "sourceName": "contracts/utils/fetcher.sol",
       "solcConfig": {
         "version": "0.8.16",
@@ -185,7 +185,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363734383438353230303738"
+              "__CACHE_BREAKER__": "0x0000000000000031363734393738313337383735"
             }
           }
         }
@@ -195,7 +195,7 @@
         "../vaults/vault.sol",
         "../protocol/factories.sol",
         "../protocol/controller.sol",
-        "../vaults/tokens/ERC20.sol",
+        "lib/solmate/src/tokens/ERC20.sol",
         "lib/solmate/src/tokens/ERC721.sol",
         "../bonds/synthetic.sol",
         "lib/solmate/src/utils/FixedPointMathLib.sol",
@@ -203,7 +203,8 @@
         "../instruments/poolInstrument.sol",
         "lib/forge-std/src/console.sol",
         "../vaults/dov.sol",
-        "../vaults/instrument.sol"
+        "../vaults/instrument.sol",
+        "../global/types.sol"
       ],
       "versionPragmas": [
         "^0.8.16"
@@ -213,8 +214,8 @@
       ]
     },
     "/Users/zekiel/Documents/GitHub/core/contracts/protocol/marketmanager.sol": {
-      "lastModificationDate": 1674796601429,
-      "contentHash": "73ef9a343e7aefa09b6fc8453b9200ee",
+      "lastModificationDate": 1674848585208,
+      "contentHash": "d0a5f538c983824acee3ead81e7706c5",
       "sourceName": "contracts/protocol/marketmanager.sol",
       "solcConfig": {
         "version": "0.8.16",
@@ -246,7 +247,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363734383438353230303738"
+              "__CACHE_BREAKER__": "0x0000000000000031363734393738313337383735"
             }
           }
         }
@@ -264,7 +265,8 @@
         "../bonds/synthetic.sol",
         "../vaults/mixins/ERC4626.sol",
         "../vaults/vault.sol",
-        "./reputationmanager.sol"
+        "./reputationmanager.sol",
+        "../global/GlobalStorage.sol"
       ],
       "versionPragmas": [
         "^0.8.16"
@@ -274,8 +276,8 @@
       ]
     },
     "/Users/zekiel/Documents/GitHub/core/contracts/vaults/vault.sol": {
-      "lastModificationDate": 1674710957947,
-      "contentHash": "af3db76a7a80e5057d8dfd14b4867d97",
+      "lastModificationDate": 1674888287667,
+      "contentHash": "9e7ba9b55dd068b5d3d8b5249e76d489",
       "sourceName": "contracts/vaults/vault.sol",
       "solcConfig": {
         "version": "0.8.16",
@@ -307,7 +309,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363734383438353230303738"
+              "__CACHE_BREAKER__": "0x0000000000000031363734393738313337383735"
             }
           }
         }
@@ -315,16 +317,17 @@
       "imports": [
         "./auth/Auth.sol",
         "./mixins/ERC4626.sol",
-        "./utils/SafeCastLib.sol",
-        "./utils/SafeTransferLib.sol",
-        "./utils/FixedPointMathLib.sol",
-        "./tokens/ERC20.sol",
+        "lib/solmate/src/utils/SafeCastLib.sol",
+        "lib/solmate/src/utils/SafeTransferLib.sol",
+        "lib/solmate/src/utils/FixedPointMathLib.sol",
+        "lib/solmate/src/tokens/ERC20.sol",
         "./instrument.sol",
         "../instruments/poolInstrument.sol",
         "../protocol/controller.sol",
         "../protocol/marketmanager.sol",
         "lib/openzeppelin-contracts/contracts/utils/math/Math.sol",
-        "lib/forge-std/src/console.sol"
+        "lib/forge-std/src/console.sol",
+        "../global/types.sol"
       ],
       "versionPragmas": [
         "^0.8.16"
@@ -367,7 +370,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363734383438353230303738"
+              "__CACHE_BREAKER__": "0x0000000000000031363734393738313337383735"
             }
           }
         }
@@ -385,8 +388,8 @@
       ]
     },
     "/Users/zekiel/Documents/GitHub/core/contracts/protocol/controller.sol": {
-      "lastModificationDate": 1674757741902,
-      "contentHash": "e4996062e1c791e317995fa64358ee76",
+      "lastModificationDate": 1674975540426,
+      "contentHash": "150d3d249c9b3befaca2f29ae4f01b3c",
       "sourceName": "contracts/protocol/controller.sol",
       "solcConfig": {
         "version": "0.8.16",
@@ -418,7 +421,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363734383438353230303738"
+              "__CACHE_BREAKER__": "0x0000000000000031363734393738313337383735"
             }
           }
         }
@@ -442,7 +445,10 @@
         "../instruments/poolInstrument.sol",
         "../bonds/GBC.sol",
         "./leveragemanager.sol",
-        "./validatorManager.sol"
+        "./validatorManager.sol",
+        "../global/GlobalStorage.sol",
+        "../global/types.sol",
+        "../libraries/pricerLib.sol"
       ],
       "versionPragmas": [
         "^0.8.16"
@@ -485,7 +491,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363734383438353230303738"
+              "__CACHE_BREAKER__": "0x0000000000000031363734393738313337383735"
             }
           }
         }
@@ -499,8 +505,8 @@
       ]
     },
     "/Users/zekiel/Documents/GitHub/core/contracts/bonds/synthetic.sol": {
-      "lastModificationDate": 1673581417360,
-      "contentHash": "89535f60ed87d1bc92bd638a43d841ef",
+      "lastModificationDate": 1674969779381,
+      "contentHash": "de3d8620901a4c0f1622751d506e3cd1",
       "sourceName": "contracts/bonds/synthetic.sol",
       "solcConfig": {
         "version": "0.8.16",
@@ -532,7 +538,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363734383438353230303738"
+              "__CACHE_BREAKER__": "0x0000000000000031363734393738313337383735"
             }
           }
         }
@@ -554,8 +560,8 @@
       ]
     },
     "/Users/zekiel/Documents/GitHub/core/contracts/instruments/poolInstrument.sol": {
-      "lastModificationDate": 1673378181237,
-      "contentHash": "6319f00db94f9fd54e5c697503637c37",
+      "lastModificationDate": 1674973660383,
+      "contentHash": "b356636f7e735377010211017d4873a8",
       "sourceName": "contracts/instruments/poolInstrument.sol",
       "solcConfig": {
         "version": "0.8.16",
@@ -587,7 +593,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363734383438353230303738"
+              "__CACHE_BREAKER__": "0x0000000000000031363734393738313337383735"
             }
           }
         }
@@ -607,7 +613,8 @@
         "lib/solmate/src/mixins/ERC4626.sol",
         "lib/solmate/src/tokens/ERC721.sol",
         "../vaults/vault.sol",
-        "lib/forge-std/src/console.sol"
+        "lib/forge-std/src/console.sol",
+        "../protocol/reputationmanager.sol"
       ],
       "versionPragmas": [
         "^0.8.16"
@@ -650,7 +657,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363734383438353230303738"
+              "__CACHE_BREAKER__": "0x0000000000000031363734393738313337383735"
             }
           }
         }
@@ -698,7 +705,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363734383438353230303738"
+              "__CACHE_BREAKER__": "0x0000000000000031363734393738313337383735"
             }
           }
         }
@@ -745,7 +752,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363734383438353230303738"
+              "__CACHE_BREAKER__": "0x0000000000000031363734393738313337383735"
             }
           }
         }
@@ -792,7 +799,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363734383438353230303738"
+              "__CACHE_BREAKER__": "0x0000000000000031363734393738313337383735"
             }
           }
         }
@@ -839,7 +846,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363734383438353230303738"
+              "__CACHE_BREAKER__": "0x0000000000000031363734393738313337383735"
             }
           }
         }
@@ -853,8 +860,8 @@
       ]
     },
     "/Users/zekiel/Documents/GitHub/core/contracts/vaults/mixins/ERC4626.sol": {
-      "lastModificationDate": 1671019151771,
-      "contentHash": "1132a91f1cd2f19e4c7647c36d5e3819",
+      "lastModificationDate": 1674888223055,
+      "contentHash": "66f83f44c8d572a84767ff609bd636f2",
       "sourceName": "contracts/vaults/mixins/ERC4626.sol",
       "solcConfig": {
         "version": "0.8.16",
@@ -886,15 +893,15 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363734383438353230303738"
+              "__CACHE_BREAKER__": "0x0000000000000031363734393738313337383735"
             }
           }
         }
       },
       "imports": [
-        "../tokens/ERC20.sol",
+        "lib/solmate/src/tokens/ERC20.sol",
         "lib/forge-std/src/console.sol",
-        "../utils/SafeTransferLib.sol",
+        "lib/solmate/src/utils/SafeTransferLib.sol",
         "../utils/FixedPointMathLib.sol"
       ],
       "versionPragmas": [
@@ -938,7 +945,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363734383438353230303738"
+              "__CACHE_BREAKER__": "0x0000000000000031363734393738313337383735"
             }
           }
         }
@@ -956,8 +963,8 @@
       ]
     },
     "/Users/zekiel/Documents/GitHub/core/contracts/protocol/reputationmanager.sol": {
-      "lastModificationDate": 1673918542620,
-      "contentHash": "49cd94b8d612204adb10617b1cda3a3d",
+      "lastModificationDate": 1674848585209,
+      "contentHash": "e3885befaf5fb26e53cc7d7b045d2627",
       "sourceName": "contracts/protocol/reputationmanager.sol",
       "solcConfig": {
         "version": "0.8.16",
@@ -989,7 +996,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363734383438353230303738"
+              "__CACHE_BREAKER__": "0x0000000000000031363734393738313337383735"
             }
           }
         }
@@ -998,7 +1005,8 @@
         "lib/forge-std/src/console.sol",
         "../utils/helpers.sol",
         "lib/solmate/src/utils/FixedPointMathLib.sol",
-        "./controller.sol"
+        "./controller.sol",
+        "../global/GlobalStorage.sol"
       ],
       "versionPragmas": [
         "^0.8.16"
@@ -1041,7 +1049,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363734383438353230303738"
+              "__CACHE_BREAKER__": "0x0000000000000031363734393738313337383735"
             }
           }
         }
@@ -1090,7 +1098,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363734383438353230303738"
+              "__CACHE_BREAKER__": "0x0000000000000031363734393738313337383735"
             }
           }
         }
@@ -1137,7 +1145,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363734383438353230303738"
+              "__CACHE_BREAKER__": "0x0000000000000031363734393738313337383735"
             }
           }
         }
@@ -1190,7 +1198,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363734383438353230303738"
+              "__CACHE_BREAKER__": "0x0000000000000031363734393738313337383735"
             }
           }
         }
@@ -1239,7 +1247,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363734383438353230303738"
+              "__CACHE_BREAKER__": "0x0000000000000031363734393738313337383735"
             }
           }
         }
@@ -1286,7 +1294,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363734383438353230303738"
+              "__CACHE_BREAKER__": "0x0000000000000031363734393738313337383735"
             }
           }
         }
@@ -1333,7 +1341,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363734383438353230303738"
+              "__CACHE_BREAKER__": "0x0000000000000031363734393738313337383735"
             }
           }
         }
@@ -1348,8 +1356,8 @@
       ]
     },
     "/Users/zekiel/Documents/GitHub/core/contracts/vaults/instrument.sol": {
-      "lastModificationDate": 1674794414791,
-      "contentHash": "bc390045e4c1784ca831f783460e43e3",
+      "lastModificationDate": 1674888327798,
+      "contentHash": "ef3f6781eb4b17bbe2f1c15035e7d5b4",
       "sourceName": "contracts/vaults/instrument.sol",
       "solcConfig": {
         "version": "0.8.16",
@@ -1381,14 +1389,14 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363734383438353230303738"
+              "__CACHE_BREAKER__": "0x0000000000000031363734393738313337383735"
             }
           }
         }
       },
       "imports": [
         "./vault.sol",
-        "./tokens/ERC20.sol",
+        "lib/solmate/src/tokens/ERC20.sol",
         "lib/openzeppelin-contracts/contracts/utils/math/Math.sol",
         "./utils/FixedPointMathLib.sol",
         "lib/forge-std/src/console.sol"
@@ -1437,7 +1445,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363734383438353230303738"
+              "__CACHE_BREAKER__": "0x0000000000000031363734393738313337383735"
             }
           }
         }
@@ -1484,7 +1492,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363734383438353230303738"
+              "__CACHE_BREAKER__": "0x0000000000000031363734393738313337383735"
             }
           }
         }
@@ -1531,7 +1539,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363734383438353230303738"
+              "__CACHE_BREAKER__": "0x0000000000000031363734393738313337383735"
             }
           }
         }
@@ -1578,7 +1586,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363734383438353230303738"
+              "__CACHE_BREAKER__": "0x0000000000000031363734393738313337383735"
             }
           }
         }
@@ -1625,7 +1633,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363734383438353230303738"
+              "__CACHE_BREAKER__": "0x0000000000000031363734393738313337383735"
             }
           }
         }
@@ -1672,7 +1680,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363734383438353230303738"
+              "__CACHE_BREAKER__": "0x0000000000000031363734393738313337383735"
             }
           }
         }
@@ -1723,7 +1731,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363734383438353230303738"
+              "__CACHE_BREAKER__": "0x0000000000000031363734393738313337383735"
             }
           }
         }
@@ -1772,7 +1780,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363734383438353230303738"
+              "__CACHE_BREAKER__": "0x0000000000000031363734393738313337383735"
             }
           }
         }
@@ -1819,7 +1827,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363734383438353230303738"
+              "__CACHE_BREAKER__": "0x0000000000000031363734393738313337383735"
             }
           }
         }
@@ -1833,8 +1841,8 @@
       ]
     },
     "/Users/zekiel/Documents/GitHub/core/contracts/protocol/validatorManager.sol": {
-      "lastModificationDate": 1673180138504,
-      "contentHash": "7a7ed0a871727964ad05b67ef4fe3e17",
+      "lastModificationDate": 1674975130605,
+      "contentHash": "566e2a678e52682eb592cfe46eb6bc1a",
       "sourceName": "contracts/protocol/validatorManager.sol",
       "solcConfig": {
         "version": "0.8.16",
@@ -1866,7 +1874,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363734383438353230303738"
+              "__CACHE_BREAKER__": "0x0000000000000031363734393738313337383735"
             }
           }
         }
@@ -1880,7 +1888,8 @@
         "../vaults/mixins/ERC4626.sol",
         "lib/solmate/src/utils/SafeTransferLib.sol",
         "lib/solmate/src/tokens/ERC20.sol",
-        "lib/solmate/src/utils/FixedPointMathLib.sol"
+        "lib/solmate/src/utils/FixedPointMathLib.sol",
+        "lib/forge-std/src/console.sol"
       ],
       "versionPragmas": [
         "^0.8.16"
@@ -1923,7 +1932,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363734383438353230303738"
+              "__CACHE_BREAKER__": "0x0000000000000031363734393738313337383735"
             }
           }
         }
@@ -1972,7 +1981,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363734383438353230303738"
+              "__CACHE_BREAKER__": "0x0000000000000031363734393738313337383735"
             }
           }
         }
@@ -2019,7 +2028,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363734383438353230303738"
+              "__CACHE_BREAKER__": "0x0000000000000031363734393738313337383735"
             }
           }
         }
@@ -2074,7 +2083,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363734383438353230303738"
+              "__CACHE_BREAKER__": "0x0000000000000031363734393738313337383735"
             }
           }
         }
@@ -2121,7 +2130,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363734383438353230303738"
+              "__CACHE_BREAKER__": "0x0000000000000031363734393738313337383735"
             }
           }
         }
@@ -2170,7 +2179,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363734383438353230303738"
+              "__CACHE_BREAKER__": "0x0000000000000031363734393738313337383735"
             }
           }
         }
@@ -2219,7 +2228,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363734383438353230303738"
+              "__CACHE_BREAKER__": "0x0000000000000031363734393738313337383735"
             }
           }
         }
@@ -2266,7 +2275,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363734383438353230303738"
+              "__CACHE_BREAKER__": "0x0000000000000031363734393738313337383735"
             }
           }
         }
@@ -2315,7 +2324,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363734383438353230303738"
+              "__CACHE_BREAKER__": "0x0000000000000031363734393738313337383735"
             }
           }
         }
@@ -2362,7 +2371,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363734383438353230303738"
+              "__CACHE_BREAKER__": "0x0000000000000031363734393738313337383735"
             }
           }
         }
@@ -2411,7 +2420,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363734383438353230303738"
+              "__CACHE_BREAKER__": "0x0000000000000031363734393738313337383735"
             }
           }
         }
@@ -2461,7 +2470,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363734383438353230303738"
+              "__CACHE_BREAKER__": "0x0000000000000031363734393738313337383735"
             }
           }
         }
@@ -2477,8 +2486,8 @@
       ]
     },
     "/Users/zekiel/Documents/GitHub/core/contracts/vaults/nftLending.sol": {
-      "lastModificationDate": 1673192458559,
-      "contentHash": "7563fa2b9e21398817f3db6de865cd27",
+      "lastModificationDate": 1674971192119,
+      "contentHash": "ea0e010c6c3c3dd90d38ae51fb0c47f0",
       "sourceName": "contracts/vaults/nftLending.sol",
       "solcConfig": {
         "version": "0.8.16",
@@ -2510,17 +2519,15 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363734383438353230303738"
+              "__CACHE_BREAKER__": "0x0000000000000031363734393738313337383735"
             }
           }
         }
       },
       "imports": [
         "./vault.sol",
-        "./tokens/ERC20.sol",
         "./mixins/ERC4626.sol",
         "lib/openzeppelin-contracts/contracts/utils/math/Math.sol",
-        "./utils/FixedPointMathLib.sol",
         "lib/forge-std/src/console.sol",
         "./instrument.sol",
         "./tokens/ERC721.sol"
@@ -2566,7 +2573,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363734383438353230303738"
+              "__CACHE_BREAKER__": "0x0000000000000031363734393738313337383735"
             }
           }
         }
@@ -2614,7 +2621,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363734383438353230303738"
+              "__CACHE_BREAKER__": "0x0000000000000031363734393738313337383735"
             }
           }
         }
@@ -2631,8 +2638,8 @@
       ]
     },
     "/Users/zekiel/Documents/GitHub/core/contracts/vaults/dov.sol": {
-      "lastModificationDate": 1674588509945,
-      "contentHash": "7dc5c0dfe5e666c17837cb5b4ac42ca2",
+      "lastModificationDate": 1674971163818,
+      "contentHash": "a0301822ca0c2cdf52e80af284526140",
       "sourceName": "contracts/vaults/dov.sol",
       "solcConfig": {
         "version": "0.8.16",
@@ -2664,16 +2671,14 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363734383438353230303738"
+              "__CACHE_BREAKER__": "0x0000000000000031363734393738313337383735"
             }
           }
         }
       },
       "imports": [
         "./vault.sol",
-        "./tokens/ERC20.sol",
         "lib/openzeppelin-contracts/contracts/utils/math/Math.sol",
-        "./utils/FixedPointMathLib.sol",
         "lib/forge-std/src/console.sol",
         "./instrument.sol",
         "./vault.sol"
@@ -2719,7 +2724,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363734383438353230303738"
+              "__CACHE_BREAKER__": "0x0000000000000031363734393738313337383735"
             }
           }
         }
@@ -2769,7 +2774,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363734383438353230303738"
+              "__CACHE_BREAKER__": "0x0000000000000031363734393738313337383735"
             }
           }
         }
@@ -2820,7 +2825,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363734383438353230303738"
+              "__CACHE_BREAKER__": "0x0000000000000031363734393738313337383735"
             }
           }
         }
@@ -2867,7 +2872,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363734383438353230303738"
+              "__CACHE_BREAKER__": "0x0000000000000031363734393738313337383735"
             }
           }
         }
@@ -2916,7 +2921,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363734383438353230303738"
+              "__CACHE_BREAKER__": "0x0000000000000031363734393738313337383735"
             }
           }
         }
@@ -2965,7 +2970,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363734383438353230303738"
+              "__CACHE_BREAKER__": "0x0000000000000031363734393738313337383735"
             }
           }
         }
@@ -3014,7 +3019,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363734383438353230303738"
+              "__CACHE_BREAKER__": "0x0000000000000031363734393738313337383735"
             }
           }
         }
@@ -3063,7 +3068,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363734383438353230303738"
+              "__CACHE_BREAKER__": "0x0000000000000031363734393738313337383735"
             }
           }
         }
@@ -3112,7 +3117,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363734383438353230303738"
+              "__CACHE_BREAKER__": "0x0000000000000031363734393738313337383735"
             }
           }
         }
@@ -3161,7 +3166,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363734383438353230303738"
+              "__CACHE_BREAKER__": "0x0000000000000031363734393738313337383735"
             }
           }
         }
@@ -3210,7 +3215,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363734383438353230303738"
+              "__CACHE_BREAKER__": "0x0000000000000031363734393738313337383735"
             }
           }
         }
@@ -3257,7 +3262,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363734383438353230303738"
+              "__CACHE_BREAKER__": "0x0000000000000031363734393738313337383735"
             }
           }
         }
@@ -3302,7 +3307,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363734383438353230303738"
+              "__CACHE_BREAKER__": "0x0000000000000031363734393738313337383735"
             }
           }
         }
@@ -3345,7 +3350,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363734383438353230303738"
+              "__CACHE_BREAKER__": "0x0000000000000031363734393738313337383735"
             }
           }
         }
@@ -3392,7 +3397,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363734383438353230303738"
+              "__CACHE_BREAKER__": "0x0000000000000031363734393738313337383735"
             }
           }
         }
@@ -3439,7 +3444,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363734383438353230303738"
+              "__CACHE_BREAKER__": "0x0000000000000031363734393738313337383735"
             }
           }
         }
@@ -3482,7 +3487,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363734383438353230303738"
+              "__CACHE_BREAKER__": "0x0000000000000031363734393738313337383735"
             }
           }
         }
@@ -3529,7 +3534,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363734383438353230303738"
+              "__CACHE_BREAKER__": "0x0000000000000031363734393738313337383735"
             }
           }
         }
@@ -3576,7 +3581,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363734383438353230303738"
+              "__CACHE_BREAKER__": "0x0000000000000031363734393738313337383735"
             }
           }
         }
@@ -3621,7 +3626,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363734383438353230303738"
+              "__CACHE_BREAKER__": "0x0000000000000031363734393738313337383735"
             }
           }
         }
@@ -3668,7 +3673,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363734383438353230303738"
+              "__CACHE_BREAKER__": "0x0000000000000031363734393738313337383735"
             }
           }
         }
@@ -3715,7 +3720,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363734383438353230303738"
+              "__CACHE_BREAKER__": "0x0000000000000031363734393738313337383735"
             }
           }
         }
@@ -3760,7 +3765,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363734383438353230303738"
+              "__CACHE_BREAKER__": "0x0000000000000031363734393738313337383735"
             }
           }
         }
@@ -3808,7 +3813,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363734383438353230303738"
+              "__CACHE_BREAKER__": "0x0000000000000031363734393738313337383735"
             }
           }
         }
@@ -3855,7 +3860,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363734383438353230303738"
+              "__CACHE_BREAKER__": "0x0000000000000031363734393738313337383735"
             }
           }
         }
@@ -3904,7 +3909,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363734383438353230303738"
+              "__CACHE_BREAKER__": "0x0000000000000031363734393738313337383735"
             }
           }
         }
@@ -3951,7 +3956,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363734383438353230303738"
+              "__CACHE_BREAKER__": "0x0000000000000031363734393738313337383735"
             }
           }
         }
@@ -3965,8 +3970,8 @@
       ]
     },
     "/Users/zekiel/Documents/GitHub/core/contracts/protocol/leveragemanager.sol": {
-      "lastModificationDate": 1674757741902,
-      "contentHash": "29a37cab7f5a321ff2026ea572ac61a3",
+      "lastModificationDate": 1674971391313,
+      "contentHash": "a55700165dd6da9e97780cd75578e028",
       "sourceName": "contracts/protocol/leveragemanager.sol",
       "solcConfig": {
         "version": "0.8.16",
@@ -3998,7 +4003,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363734383438353230303738"
+              "__CACHE_BREAKER__": "0x0000000000000031363734393738313337383735"
             }
           }
         }
@@ -4014,7 +4019,9 @@
         "lib/solmate/src/utils/SafeCastLib.sol",
         "./marketmanager.sol",
         "./reputationmanager.sol",
-        "../vaults/mixins/ERC4626.sol"
+        "../vaults/mixins/ERC4626.sol",
+        "../bonds/synthetic.sol",
+        "../global/GlobalStorage.sol"
       ],
       "versionPragmas": [
         "^0.8.4"
@@ -4024,8 +4031,8 @@
       ]
     },
     "/Users/zekiel/Documents/GitHub/core/contracts/libraries/pricerLib.sol": {
-      "lastModificationDate": 1674710957945,
-      "contentHash": "64cda163b9755c374297834c170ef641",
+      "lastModificationDate": 1674848585207,
+      "contentHash": "49318c11c1e117898ae66fdacd1f17d2",
       "sourceName": "contracts/libraries/pricerLib.sol",
       "solcConfig": {
         "version": "0.8.16",
@@ -4057,7 +4064,7 @@
           },
           "libraries": {
             "": {
-              "__CACHE_BREAKER__": "0x0000000000000031363734383438353230303738"
+              "__CACHE_BREAKER__": "0x0000000000000031363734393738313337383735"
             }
           }
         }
@@ -4065,13 +4072,109 @@
       "imports": [
         "lib/solmate/src/utils/FixedPointMathLib.sol",
         "../protocol/controller.sol",
-        "../vaults/vault.sol"
+        "../vaults/vault.sol",
+        "../global/types.sol"
       ],
       "versionPragmas": [
         "^0.8.16"
       ],
       "artifacts": [
         "PerpTranchePricer"
+      ]
+    },
+    "/Users/zekiel/Documents/GitHub/core/contracts/global/types.sol": {
+      "lastModificationDate": 1674848585207,
+      "contentHash": "75920ca9289cb761ae7dc46a6dae0043",
+      "sourceName": "contracts/global/types.sol",
+      "solcConfig": {
+        "version": "0.8.16",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata",
+                "devdoc",
+                "userdoc",
+                "storageLayout",
+                "evm.gasEstimates"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          },
+          "metadata": {
+            "useLiteralContent": true
+          },
+          "libraries": {
+            "": {
+              "__CACHE_BREAKER__": "0x0000000000000031363734393738313337383735"
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.16"
+      ],
+      "artifacts": []
+    },
+    "/Users/zekiel/Documents/GitHub/core/contracts/global/GlobalStorage.sol": {
+      "lastModificationDate": 1674848585206,
+      "contentHash": "548dcb5074eb3a61ef51d3632f803fff",
+      "sourceName": "contracts/global/GlobalStorage.sol",
+      "solcConfig": {
+        "version": "0.8.16",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata",
+                "devdoc",
+                "userdoc",
+                "storageLayout",
+                "evm.gasEstimates"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          },
+          "metadata": {
+            "useLiteralContent": true
+          },
+          "libraries": {
+            "": {
+              "__CACHE_BREAKER__": "0x0000000000000031363734393738313337383735"
+            }
+          }
+        }
+      },
+      "imports": [
+        "./types.sol",
+        "../libraries/pricerLib.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.16"
+      ],
+      "artifacts": [
+        "StorageHandler"
       ]
     }
   }
