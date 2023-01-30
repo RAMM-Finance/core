@@ -6,9 +6,12 @@ import {PerpTranchePricer} from "../libraries/pricerLib.sol";
 contract StorageHandler{
 	using PerpTranchePricer for PricingInfo; 
 
+	uint256 constant BASE_UNIT = 1e18; 
+
 	mapping(uint256=> PricingInfo) public PricingInfos; 
 	mapping(uint256=> InstrumentData) public InstrumentDatas; 
-
+	mapping(uint256=>CoreMarketData) public MarketDatas; 
+  	CoreMarketData[] public markets;
 
 
     modifier onlyProtocol() {
@@ -23,9 +26,12 @@ contract StorageHandler{
 		uint256 initialPrice, 
 		uint256 multiplier, 
 		bool constantRF, 
-		InstrumentData memory data) external onlyProtocol{
+		InstrumentData memory idata, 
+		CoreMarketData memory mdata) external onlyProtocol{
 		PricingInfos[marketId].setNewPrices(initialPrice, multiplier, marketId, constantRF); 
-		storeNewProposal(marketId, data); 
+
+		storeNewProposal(marketId, idata); 
+		storeNewMarket(marketId, mdata); 
 	}
 
 
@@ -44,17 +50,31 @@ contract StorageHandler{
 	}
 
 	function viewCurrentPricing(uint256 marketId) public view returns(uint256, uint256, uint256) {
-		PricingInfos[marketId].viewCurrentPricing(InstrumentDatas[marketId].poolData); 
+		PricingInfos[marketId].viewCurrentPricing(
+			InstrumentDatas[marketId].poolData, 
+			markets[marketId].longZCB.totalSupply()
+			 ); 
 	}
 
 
 
 
-	// //--- Instrument ---//
+	//--- Instrument ---//
 
 	function storeNewProposal(uint256 marketId, InstrumentData memory data) public onlyProtocol{
 		InstrumentDatas[marketId] = data; 
 	}
+
+
+	//--- Market ---//
+	function storeNewMarket(uint256 marketId, CoreMarketData memory data) public onlyProtocol{
+		MarketDatas[marketId] = data; 
+		// uint256 base_budget = 1000 * BASE_UNIT; //TODO 
+
+		// setMarketPhase(marketId, true, true, base_budget);
+
+	}
+
 
 
 
