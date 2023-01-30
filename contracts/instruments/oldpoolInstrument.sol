@@ -14,7 +14,6 @@ import {ERC4626} from "solmate/mixins/ERC4626.sol";
 import {ERC721TokenReceiver} from "solmate/tokens/ERC721.sol";
 import {Vault} from "../vaults/vault.sol";
 import "forge-std/console.sol";
-import {ReputationManager} from "../protocol/reputationmanager.sol";
 // import "@prb/math/SD59x18.sol";
 
 // https://github.com/FraxFinance/fraxlend
@@ -47,44 +46,49 @@ contract PoolInstrument is ERC4626, Instrument, PoolConstants, ReentrancyGuard, 
     /// should always be more than the maxBorrowAmount, acts as buffer for protocol and borrower. this is the value to determine whether
     /// a borrower is liquidatable
     /// @param maxBorrowAmount max amount in underlying that a user can borrow per base unit of collateral (unit = 1 for NFTs, 1e18 for ERC20s)
-    struct Config {
+    struct Collateral {
         uint256 totalCollateral; 
         uint256 maxAmount;
         uint256 maxBorrowAmount;
         bool isERC20;
-        // auction parameters
-        uint256 tau; // seconds after auction start when the price reaches zero -> linearDecrease
-        uint256 cusp; // percentage price drop that can occur before an auction must be reset.
-        uint256 tail; // seconds that can elapse before an auction must be reset. 
-        uint256 buf; // auction start price = buf * maxAmount
     }
 
-    /// @notice dutch auction
-    struct Auction { // linearDecrease for beta only.
-        address borrower;
-        address collateral;
-        uint256 tokenId;
-        uint256 top; // initialPrice
-        uint256 creationTimestamp; // auction start
-        bool alive; // delete auction.
-    }
+    /// @notice dutch auctions for NFTs, GDA for illiquid ERC20s.
+    /// @param borrower address of borrower
+    /// @param collateral address of collateral
+    /// @param tokenId tokenId of collateral, 0 for ERC20
+    /// @param initialPrice initial price of collateral currently is (account liquidity / collateral amount) + maxAmount.
+    /// @param decayConstant parameter that controls price decay, stored as a 59x18 fixed precision number
+    /// @param startTime for dutch auction: start time of auction, for GDA: time of last auction.
+    /// @param emissionRate for dutch auction: 0, for GDA: amount of collateral to be auctioned off per second.
+    // struct Auction {
+    //     address borrower;
+    //     address collateral;
+    //     uint256 tokenId;
+    //     SD59x18 initialPrice;
+    //     SD59x18 minimumPrice;
+    //     SD59x18 decayConstant;
+    //     SD59x18 startTime;
+    //     // SD59x18 emissionRate;
+    //     bool alive;
+    // }
 
     /// @notice amount: asset token borrowed, shares = total shares outstanding
     VaultAccount public totalBorrow;
     /// @notice amount: total asset supplied + interest earned, shares = total shares outstanding
     VaultAccount public totalAsset;
 
-    mapping(bytes32 => Config) public collateralConfigs; // collateral address => tokenId (0 for erc20) => collateral data.
-    mapping(bytes32=>bool) public approvedCollateral;
-    mapping(bytes32=>mapping(address => uint256)) public userERC20s; // per collateral, user balance of collateral. id -> user -> balance.
-    mapping(bytes32=> address) public userERC721s; // nft addr => tokenId => owner.
-    mapping(address=>uint256) public userBorrowShares; // user -> shares, this should be equivalent to balanceOf(user), since pool is vault.
+    mapping(address=>mapping(uint256 => Collateral)) public collateralData; // collateral address => tokenId (0 for erc20) => collateral data.
+    mapping(address=>mapping(uint256=>bool)) public approvedCollateral;
+    mapping(address=>mapping(address=>uint256)) public userCollateralERC20; // per collateral, user balance of collateral.
+    mapping(address=>mapping(uint256 => address)) public userCollateralNFTs; // nft addr => tokenId => owner.
+    mapping(address=>uint256) public userBorrowShares;
+    mapping(address=>uint256) public userAuctionId; // user => current auction id, if 0 then no auction.
     
-    // mapping(address=>uint256) private baseUnits; // equivalent to 10**decimals for ERC20s, 1 for NFTs.
-    mapping(address=>mapping(bytes32=>bool)) enabledCollateral; // user -> collateral -> enabled.
-    mapping(address=> CollateralLabel[]) userCollateral;
+    /// @dev auction id => order of creation.
+    // mapping(uint256=>Auction) public auctions; // auction id => auction data, auction id is in order of creation.
 
-    // *** id for collateral = keccak256(abi.encodePacked(collateral, tokenId))
+    uint256 public numAuctions; // number of auction ids.
 
     IRateCalculator public rateContract;
 
@@ -92,68 +96,67 @@ contract PoolInstrument is ERC4626, Instrument, PoolConstants, ReentrancyGuard, 
     bytes public rateInitCallData;
     
     CurrentRateInfo public currentRateInfo;
-    CollateralLabel[] private collaterals; //approved collaterals.
-    ReputationManager private reputationManager;
-    uint256 public r; // reputation score for this instrument.
+    CollateralLabel[] collaterals; //approved collaterals.
+    address controller;
     
     constructor (
         address _vault,
-        address _reputationManager,
-        uint256 _r,
+        address _controller,
         address _utilizer,
+        address _asset,
         string memory _name,
         string memory _symbol,
         address _rateCalculator,
         bytes memory _rateInitCallData,
         CollateralLabel[] memory _collaterals,
-        Config[] memory _collateralData
-    ) Instrument(_vault, _utilizer) ERC4626(Vault(_vault).UNDERLYING(), _name, _symbol) {
+        Collateral[] memory _collateralDatas
+    ) Instrument(_vault, _utilizer) ERC4626(ERC20(_asset), _name, _symbol) {
+        controller = _controller;
         rateContract = IRateCalculator(_rateCalculator);
         rateInitCallData = _rateInitCallData;
         rateContract.requireValidInitData(_rateInitCallData);
 
-        // need to check for added collateral that erc20 is erc20. ability to add or remove accepted collateral.
-
-        reputationManager = ReputationManager(_reputationManager);
-        r = _r;
-
         for (uint i = 0; i < _collaterals.length; i ++) {
-            _addAcceptedCollateral(_collaterals[i].tokenAddress, _collaterals[i].tokenId, _collateralData[i], _collaterals[i]);
+            collaterals.push(_collaterals[i]);
+            Collateral memory _collateral = _collateralDatas[i];
+            _collateral.totalCollateral = 0;
+            collateralData[_collaterals[i].tokenAddress][_collaterals[i].tokenId] = _collateral;
         }
     }
 
-    /**
-     helper fxn for computing id for collateral, tokenId == 0 for ERC20s.
-     */
-    function computeId(address _addr, uint256 _tokenId) public pure returns (bytes32) {
-        return keccak256(abi.encodePacked(_addr, _tokenId));
-    }
+    // should be gated function
+    /// tokenId 0 for ERC20.
+    // function initialize(
+    // ) external {
+
+    // }
 
     function getAcceptedCollaterals() view public returns (CollateralLabel[] memory) {
         return collaterals;
     }
 
-    // event NewCollateralAdded(address collateral, uint256 tokenId, uint256 maxAmount, uint256 maxBorrowAmount, bool isERC20);
+    event NewCollateralAdded(address collateral, uint256 tokenId, uint256 maxAmount, uint256 maxBorrowAmount, bool isERC20);
     // legacy for tests, remove later.
-
-    function addAcceptedCollateral(address _collateral, uint256 _tokenId, Config calldata _config) public {
-        _addAcceptedCollateral(_collateral, _tokenId, _config, CollateralLabel(_collateral, _tokenId));
-    }
-
-    function _addAcceptedCollateral(address _collateral, uint256 _tokenId, Config memory _config, CollateralLabel memory _label) internal {
-        // need to ensure that _config isERC20 is correct.
-        // max borrow must be less than max amount.
-        bytes32 id = computeId(_collateral, _tokenId);
-        require(!approvedCollateral[id], "already approved");
-        _config.totalCollateral = 0;
-        collateralConfigs[id] = _config;
-        collaterals.push(_label);
+    function addAcceptedCollateral(
+        address _collateral,
+        uint256 _tokenId,
+        uint256 _maxAmount,
+        uint256 _maxBorrowAmount,
+        bool _isERC20
+    ) external  {
+        require(msg.sender == controller || msg.sender == address(vault), "!authorized");
+        if (approvedCollateral[_collateral][_tokenId]) return; 
+        require(_maxAmount > _maxBorrowAmount, "maxAmount must be greater than maxBorrowAmount");
+        approvedCollateral[_collateral][_tokenId] = true;
+        collaterals.push(CollateralLabel(_collateral, _tokenId));
+        collateralData[_collateral][_tokenId] = Collateral(0,_maxAmount, _maxBorrowAmount, _isERC20);
+        emit NewCollateralAdded(_collateral, _tokenId, _maxAmount, _maxBorrowAmount, _isERC20);
     }
 
     // INTERNAL HELPERS
 
     modifier onlyApprovedCollateral(address _collateral, uint256 _tokenId) {
-        require(approvedCollateral[computeId(_collateral, _tokenId)], "collateral not approved");
+        require(approvedCollateral[_collateral][_tokenId], "collateral not approved");
         _;
     }
 
@@ -282,17 +285,14 @@ contract PoolInstrument is ERC4626, Instrument, PoolConstants, ReentrancyGuard, 
 
     function getMaxBorrow(address _borrower) public view returns(uint256 _maxBorrowableAmount){
 
-        CollateralLabel[] memory userCollaterals = userCollateral[msg.sender];
-
-        for (uint256 i; i < userCollaterals.length; i++) {
-            CollateralLabel memory _collateral = userCollaterals[i];
-            bytes32 id = computeId(_collateral.tokenAddress, _collateral.tokenId);
-            Config memory _collateralData = collateralConfigs[id];
-            if (_collateralData.isERC20 && userERC20s[id][_borrower] > 0) {
+        for (uint256 i; i < collaterals.length; i++) {
+            CollateralLabel memory _collateral = collaterals[i];
+            Collateral memory _collateralData = collateralData[_collateral.tokenAddress][_collateral.tokenId];
+            if (_collateralData.isERC20 && userCollateralERC20[_collateral.tokenAddress][_borrower] > 0) {
                 uint256 _d = ERC20(_collateral.tokenAddress).decimals();
-                _maxBorrowableAmount += userERC20s[id][_borrower] * _collateralData.maxBorrowAmount / (10**_d); // <= precision of collateral.
+                _maxBorrowableAmount += userCollateralERC20[_collateral.tokenAddress][_borrower] * _collateralData.maxBorrowAmount / (10**_d); // <= precision of collateral.
             } else {
-                if (userERC721s[id] == _borrower) {
+                if (userCollateralNFTs[_collateral.tokenAddress][_collateral.tokenId] == _borrower) {
                     _maxBorrowableAmount += _collateralData.maxBorrowAmount;
                 }
             }
@@ -304,8 +304,7 @@ contract PoolInstrument is ERC4626, Instrument, PoolConstants, ReentrancyGuard, 
         //800 borrowable = 800 * 1, 600borrowed (800-x)*1 - 600 = 0 x=? 
         //800*1-x*1-600 , x = (800*1 - 600)/1
         uint256 _maxBorrowableAmount = getMaxBorrow(_borrower); 
-        bytes32 id = computeId(collateral, tokenId);
-        uint256 perUnitMaxBorrowAmount = collateralConfigs[id].maxBorrowAmount; 
+        uint256 perUnitMaxBorrowAmount = collateralData[collateral][tokenId].maxBorrowAmount; 
         //check solvency
         return (_maxBorrowableAmount - totalBorrow.toAmount(userBorrowShares[_borrower], true)) 
             * 1e18/ perUnitMaxBorrowAmount; 
@@ -323,17 +322,12 @@ contract PoolInstrument is ERC4626, Instrument, PoolConstants, ReentrancyGuard, 
         address _collateral,
         uint256 _tokenId,
         uint256 _collateralAmount,
-        address _reciever,
-        bool _enable
+        address _reciever
     ) canBorrow(msg.sender) nonReentrant whenNotPaused external returns (uint256 _shares) {
         _addInterest();
 
         if (_collateral != address(0) && (_collateralAmount > 0 || _tokenId > 0)) {
-            bytes32 id = computeId(_collateral, _tokenId);
-            require(approvedCollateral[id], "unapproved collateral");
-            if (_enable) {
-                enableCollateral(_collateral, _tokenId);
-            }
+            require(approvedCollateral[_collateral][_tokenId], "unapproved collateral");
             _addCollateral(msg.sender, _collateral, _collateralAmount, msg.sender, _tokenId);
         }
         // borrow asset.
@@ -419,46 +413,10 @@ contract PoolInstrument is ERC4626, Instrument, PoolConstants, ReentrancyGuard, 
     }
 
 
-    // ADD/REMOVE/ENABLE/DISABLE COLLATERAL LOGIC
+    // ADD/REMOVE COLLATERAL LOGIC
     event AddCollateral(address indexed borrower, address collateral, uint256 tokenId, uint256 amount);
     event RemoveCollateral(address indexed borrower, address collateral, uint256 tokenId, uint256 amount);
 
-    
-    function enableCollateral(address _collateral, uint256 _tokenId) onlyApprovedCollateral(_collateral, _tokenId) public {
-        // if already enabled, then return
-        bytes32 id = computeId(_collateral, _tokenId);
-        if (enabledCollateral[msg.sender][id]) {
-            return;
-        }
-        enabledCollateral[msg.sender][id] = true;
-        userCollateral[msg.sender].push(CollateralLabel(_collateral, _tokenId));
-    }
-
-    /**
-     can only disable collateral if no collateral balance.
-     */
-    function disableCollateral(address _collateral, uint256 _tokenId) onlyApprovedCollateral(_collateral, _tokenId) public {
-        // if already enabled, then return
-        bytes32 id = computeId(_collateral, _tokenId);
-        if (!enabledCollateral[msg.sender][id]) {
-            return;
-        }
-
-        // require zero collateral, maybe this isn't necessary.
-        require(userERC20s[id][msg.sender] == 0 || userERC721s[id] != address(msg.sender), "must remove all remaining collateral to disable");
-
-        // switch w/ last and pop
-        CollateralLabel[] memory arr = userCollateral[msg.sender];
-        for (uint256 i; i < arr.length; i++) {
-            if (arr[i].tokenAddress == _collateral && arr[i].tokenId == _tokenId) {
-                userCollateral[msg.sender][i] = userCollateral[msg.sender][userCollateral[msg.sender].length - 1];
-                userCollateral[msg.sender].pop();
-                break;
-            }
-        }
-
-        enabledCollateral[msg.sender][id] = false;
-    }
     
     /// @notice The ```addCollateral``` function allows the caller to add Collateral Token to a borrowers position
     /// @dev msg.sender must call ERC20.approve() on the Collateral Token contract prior to invocation, or ERC721.approve().
@@ -468,15 +426,9 @@ contract PoolInstrument is ERC4626, Instrument, PoolConstants, ReentrancyGuard, 
         address _collateral,
         uint256 _tokenId,
         uint256 _collateralAmount,
-        address _borrower,
-        bool _enable
+        address _borrower
     ) external onlyApprovedCollateral(_collateral, _tokenId) nonReentrant {
         _addInterest();
-
-        if (_enable) {
-            enableCollateral(_collateral, _tokenId);
-        }
-
         _addCollateral(msg.sender, _collateral, _collateralAmount, _borrower, _tokenId);
     }
 
@@ -489,16 +441,15 @@ contract PoolInstrument is ERC4626, Instrument, PoolConstants, ReentrancyGuard, 
     ) internal {
 
         // Interactions
-        bytes32 id = computeId(_collateral, _tokenId);
-        bool _isERC20 = collateralConfigs[id].isERC20;
+        bool _isERC20 = collateralData[_collateral][_tokenId].isERC20;
     
         if (_sender != address(this)) {
             if (_isERC20)  {
-                userERC20s[id][_borrower] += _collateralAmount;
-                collateralConfigs[id].totalCollateral += _collateralAmount;
+                userCollateralERC20[_collateral][_borrower] += _collateralAmount;
+                collateralData[_collateral][0].totalCollateral += _collateralAmount;
                 ERC20(_collateral).safeTransferFrom(_sender, address(this), _collateralAmount);
             } else {
-                userERC721s[id] = _borrower;
+                userCollateralNFTs[_collateral][_tokenId] = _borrower;
                 ERC721(_collateral).safeTransferFrom(_sender, address(this), _tokenId);
             }
         }
@@ -523,14 +474,9 @@ contract PoolInstrument is ERC4626, Instrument, PoolConstants, ReentrancyGuard, 
         address _collateral, 
         uint256 _tokenId,
         uint256 _collateralAmount,
-        address _receiver,
-        bool _disable
+        address _receiver
     ) external nonReentrant canBorrow(msg.sender) onlyApprovedCollateral(_collateral, _tokenId) {
         _addInterest();
-
-        if (_disable) {
-            disableCollateral(_collateral, _tokenId);
-        }
 
         // Note: exchange rate is irrelevant when borrower has no debt shares
         _removeCollateral(_collateral, _collateralAmount, _tokenId, msg.sender, _receiver);
@@ -545,19 +491,19 @@ contract PoolInstrument is ERC4626, Instrument, PoolConstants, ReentrancyGuard, 
     ) internal {
 
         // Interactions
-        bytes32 id = computeId(_collateral, _tokenId);
-        bool _isERC20 = collateralConfigs[id].isERC20;
+        bool _isERC20 = collateralData[_collateral][_tokenId].isERC20;
         if (_receiver != address(this)) {
             if (_isERC20) {
-                // console.log("removing erc20 collateral");
-                // console.log("userCollateralerc20: ", userERC20s[id][_borrower] );
-                // console.log("collateralAmount: ", _collateralAmount);
-                userERC20s[id][_borrower] -= _collateralAmount;
-                collateralConfigs[id].totalCollateral -= _collateralAmount;
+                console.log("removing erc20 collateral");
+                console.log("userCollateralerc20: ", userCollateralERC20[_collateral][_borrower] );
+                console.log("collateralAmount: ", _collateralAmount);
+                console.log("total: ", collateralData[_collateral][0].totalCollateral);
+                userCollateralERC20[_collateral][_borrower] -= _collateralAmount;
+                collateralData[_collateral][0].totalCollateral -= _collateralAmount;
                 ERC20(_collateral).safeTransfer(_receiver, _collateralAmount);
             } else {
-                require(userERC721s[id] == _borrower, "not owner of nft");
-                delete userERC721s[id];
+                require(userCollateralNFTs[_collateral][_tokenId] == _borrower, "not owner of nft");
+                delete userCollateralNFTs[_collateral][_tokenId];
                 ERC721(_collateral).safeTransferFrom(address(this), _receiver, _tokenId);
             }
         }
@@ -575,16 +521,14 @@ contract PoolInstrument is ERC4626, Instrument, PoolConstants, ReentrancyGuard, 
     function _isLiquidatable(address _borrower) public view returns (bool, int256 accountLiq) {
         uint256 _maxBorrowableAmount;
 
-        CollateralLabel[] memory userCollaterals = userCollateral[_borrower];
-        for (uint256 i; i < userCollaterals.length; i++) {
-            CollateralLabel memory _collateral = userCollaterals[i];
-            bytes32 id = computeId(_collateral.tokenAddress, _collateral.tokenId);
-            Config memory _collateralData = collateralConfigs[id];
-            if (_collateralData.isERC20 && userERC20s[id][_borrower] > 0) {
+        for (uint256 i; i < collaterals.length; i++) {
+            CollateralLabel memory _collateral = collaterals[i];
+            Collateral memory _collateralData = collateralData[_collateral.tokenAddress][_collateral.tokenId];
+            if (_collateralData.isERC20 && userCollateralERC20[_collateral.tokenAddress][_borrower] > 0) {
                 uint256 _d = ERC20(_collateral.tokenAddress).decimals();
-                _maxBorrowableAmount += userERC20s[id][_borrower] * _collateralData.maxAmount / (10**_d); // <= precision of collateral.
+                _maxBorrowableAmount += userCollateralERC20[_collateral.tokenAddress][_borrower] * _collateralData.maxAmount / (10**_d); // <= precision of collateral.
             } else {
-                if (userERC721s[id] == _borrower) {
+                if (userCollateralNFTs[_collateral.tokenAddress][_collateral.tokenId] == _borrower) {
                     _maxBorrowableAmount += _collateralData.maxAmount;
                 }
             }
@@ -598,60 +542,91 @@ contract PoolInstrument is ERC4626, Instrument, PoolConstants, ReentrancyGuard, 
 
     /// AUCTION LOGIC
 
-    // mapping(address=>uint256[]) public userAuctionIds; // user => auction ids, if 0 then no auction.
-    
-    // /// @dev auction id => order of creation.
-    // mapping(uint256=>Auction) public auctions; // auction id => auction data, auction id is in order of creation.
-    // mapping(address=>mapping(bytes32=>bool)) private userAuctionActive; // user => collateral id => bool, true if already have an active auction for the user + collateral.
+    event AuctionCreated(uint256 indexed id, address indexed borrower, address indexed collateral, uint256 tokenId);
+    event AuctionClosed(uint256 indexed id, address indexed borrower, address indexed collateral, uint256 tokenId);
+    event CollateralPurchased(uint256 indexed id, address indexed buyer, address indexed collateral, uint256 tokenId, uint256 amount);
 
-    // uint256 public numAuctions; // number of auction ids.
-
-    // event AuctionCreated(uint256 indexed id, address indexed borrower, address indexed collateral, uint256 tokenId);
-    // event AuctionClosed(uint256 indexed id, address indexed borrower, address indexed collateral, uint256 tokenId);
-    // event CollateralPurchased(uint256 indexed id, address indexed buyer, address indexed collateral, uint256 tokenId, uint256 amount);
-
-    // /**
-    //  @notice can only be called when user is liquidatable, all auctions are terminated if not the case.
-    //  */
-    // function triggerAuction(
-    //     address _borrower,
-    //     address _collateral,
-    //     uint256 _tokenId
-    // ) external onlyApprovedCollateral(_collateral, _tokenId) nonReentrant returns (uint256 _auctionId){
-    //     _addInterest();
+    function liquidate(
+        address _borrower
+    ) external nonReentrant returns (CollateralLabel memory _collateral, uint256 _auctionId){
+        _addInterest();
         
-    //     (bool _liquidatable, int256 _accountLiq) = _isLiquidatable(_borrower);
-    //     require(_liquidatable, "borrower is not liquidatable");
-    //     require(!userAuctionActive[_borrower][computeId(_collateral, _tokenId)], "auction already exists");
-    //     // _accountLiq < 0 if _liquidatable.
-    //     if (_liquidatable) {
-    //         (_collateral, _auctionId) = _createAuction(_borrower, _collateral, _tokenId, uint256(-_accountLiq));
-    //     }
-    // }
+        (bool _liquidatable, int256 _accountLiq) = _isLiquidatable(_borrower);
+        require(_liquidatable, "borrower is not liquidatable");
+        require(userAuctionId[_borrower] == 0, "auction already exists");
+        // _accountLiq < 0 if _liquidatable.
+        //(_collateral, _auctionId) = _createAuction(_borrower, uint256(-_accountLiq));
+    }
 
-    // // since we don't know the price of the collateral, will just use largest maxAmount collateral, presumably the most "liquid"
-    // /// @dev _accountLiq in wad.
-    // function _createAuction(address _borrower, address _collateral, uint256 _tokenId, uint256 _accountLiq) internal returns (uint256 _auctionId) {
-    //     bytes32 id = computeId(_collateral, _tokenId);
+    // since we don't know the price of the collateral, will just use largest maxAmount collateral, presumably the most "liquid"
+    /// @dev _accountLiq in wad.
+    // function _createAuction(address _borrower, uint256 _accountLiq) internal returns (CollateralLabel memory _collateral, uint256 _auctionId) {
     //     CollateralLabel[] memory _collaterals = collaterals;
 
     //     uint256 maxBorrowableAmount;
+    //     for (uint256 i; i<_collaterals.length; i++) {
+    //         CollateralLabel memory _collateralLabel = _collaterals[i];
+    //         Collateral memory _collateralData = collateralData[_collateralLabel.tokenAddress][_collateralLabel.tokenId];
+    //         if (_collateralData.isERC20) {
+    //             uint256 _amount = userCollateralERC20[_collateralLabel.tokenAddress][_borrower] * _collateralData.maxAmount / 1e18; // <= precision of collateral.
+    //             if (_amount > maxBorrowableAmount) {
+    //                 maxBorrowableAmount = _amount;
+    //                 _collateral = _collateralLabel;
+    //             }
+    //         } else {
+    //             if (userCollateralNFTs[_collateralLabel.tokenAddress][_collateralLabel.tokenId] == _borrower) {
+    //                 if (_collateralData.maxAmount > maxBorrowableAmount) {
+    //                     maxBorrowableAmount = _collateralData.maxAmount;
+    //                     _collateral = _collateralLabel;
+    //                 }
+    //             }
+    //         }
+    //     }
 
     //     // creates auction for collateral user collateral.
-    //     Config memory _data = collateralConfigs[id];
+    //     Collateral memory _data = collateralData[_collateral.tokenAddress][_collateral.tokenId];
 
     //     uint256 _id = numAuctions + 1;
 
+    //     SD59x18 _balance;
+    //     if (_data.isERC20) {
+    //         uint256 _d = ERC20(_collateral.tokenAddress).decimals();
+    //         _balance = sd(int256(userCollateralERC20[_collateral.tokenAddress][_borrower] * 10**(18-_d)));
+    //     } else {
+    //         _balance = toSD59x18(1);
+    //     }
+    //     console.log("accountLiq: ", _accountLiq);
+    //     console.logInt(SD59x18.unwrap(_balance));
+    //     console.log("maxAmount: ", _data.maxAmount);
+    //     console.logInt(int256(_data.maxAmount));
+
+    //     SD59x18 _initialPrice = sd(int256(_accountLiq)).div(_balance).add(sd(int256(_data.maxAmount))); // per collateral token.
+    //     // console.logInt(SD59x18.unwrap(_initialPrice));
+
+    //     console.log("shares: ", totalBorrow.toShares(uint256(SD59x18.unwrap(_initialPrice)), true));
+    //     console.log("total.shares: ", totalBorrow.shares);
+    //     console.log("total.amount: ", totalBorrow.amount);
+
+    //     SD59x18 _decayConstant = sd(1e17).div(toSD59x18(86400));// decayConstant * deltaTime * initial price = discount.
+    //     SD59x18 _minimumPrice = _initialPrice.div(toSD59x18(4)); // minimum price is 1/4 of initial price.
+        
+    //     // sd(1219450412706); // 10% a day. 1.219450412706322930873853944899453684098615428047153617638... × 10^-6
+    //     // SD59x18 _emissionRate = _balance.div(toSD59x18(86400).div(toSD59x18(2))); // 1/2 balance in a day, tokens per second.
     //     auctions[_id] = Auction({
+    //         collateral: _collateral.tokenAddress,
+    //         tokenId: _collateral.tokenId,
     //         borrower: _borrower,
-    //         collateral: _collateral,
-    //         tokenId: _tokenId, // can't repay more than the userBorrowAmount anyway. would you want quicker settlement on larger debt? i.e. would the size of the collateral up for auction
-    //         creationTimestamp: block.timestamp,
+    //         initialPrice: _initialPrice,
+    //         minimumPrice: _minimumPrice,
+    //         decayConstant: _decayConstant,
+    //         startTime: toSD59x18(int256(block.timestamp)),
+    //         //emissionRate: _emissionRate,
     //         alive: true
     //     });
     
     //     numAuctions = numAuctions + 1;
     //     _auctionId = _id;
+    //     userAuctionId[_borrower] = _auctionId;
 
     //     emit AuctionCreated(_id, _borrower, _collateral.tokenAddress, _collateral.tokenId);
     // }
@@ -716,7 +691,7 @@ contract PoolInstrument is ERC4626, Instrument, PoolConstants, ReentrancyGuard, 
     //     totalCost = uint256(SD59x18.unwrap(_price.mul(_quantity)));
     // }
 
-    // // /// @param _id is the auction id to purchase the collateral from
+    // /// @param _id is the auction id to purchase the collateral from
     // function purchaseERC721Collateral(uint256 _id) external returns (uint256 _totalCost) {
     //     Auction memory _auction = auctions[_id];
 
@@ -882,15 +857,11 @@ update interest rate,
 onlyVault
 update oracle,
 update rateCalculator
-
 minting, redeeming, depositing
-
  add collateral in batches
  batch liquidation
  update exchange rate + accue interest when *necessary
-
  virtual function, is approved borrower.
-
  instrument functions to override: 
  function estimatedTotalAssets() public view virtual returns (uint256){}
  prepareWithdraw

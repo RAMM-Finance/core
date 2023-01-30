@@ -5,16 +5,21 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   const { deployments, getNamedAccounts } = hre;
   const { deployer } = await getNamedAccounts();
   const controller_addr = (await deployments.get("Controller")).address;
-  const market_addr = (await deployments.get("MarketManager")).address;
-  const reputationManager_addr = (await deployments.get("ReputationManager")).address;
+  const args = [controller_addr];
 
-  await deployments.deploy("LeverageManager", {
+  const linear_library = await deployments.deploy("PerpTranchePricer", {
     from: deployer,
-    args:[controller_addr, market_addr, reputationManager_addr],
+    log: true
+  })
+  const{address:perpAddr} = await deployments.get("PerpTranchePricer"); 
+
+  await deployments.deploy("StorageHandler", {
+    from: deployer,
     log: true,
+    libraries: {PerpTranchePricer: perpAddr}
   });
 };
   
-func.tags = ["Leverage"];
+func.tags = ["reputation nft"];
   
 export default func;

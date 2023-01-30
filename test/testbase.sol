@@ -121,20 +121,21 @@ contract CustomTestBase is Test {
         vm.prank(toku);
         collateral.faucet(10000000*precision);
 
-        vm.prank(toku); 
-        controller.testVerifyAddress(); 
-        vm.prank(jott);
-        controller.testVerifyAddress();
-        vm.prank(jonna);
-        controller.testVerifyAddress();
-        vm.prank(gatdang); 
-        controller.testVerifyAddress(); 
-        vm.prank(chris); 
-        controller.testVerifyAddress(); 
-        vm.prank(miku); 
-        controller.testVerifyAddress(); 
-        vm.prank(sybal); 
-        controller.testVerifyAddress();
+        vm.startPrank(deployer);
+        controller.verifyAddress(toku); 
+
+        controller.verifyAddress(jott);
+
+        controller.verifyAddress(jonna);
+
+        controller.verifyAddress(gatdang); 
+
+        controller.verifyAddress(chris); 
+
+        controller.verifyAddress(miku); 
+
+        controller.verifyAddress(sybal);
+        vm.stopPrank();
     }
 
     function initiateCreditMarket() public {
@@ -247,8 +248,7 @@ contract CustomTestBase is Test {
         controller.setLeverageManager(address(leverageManager));
         Data = new StorageHandler(); 
         controller.setDataStore(address(Data)) ; 
-        vm.stopPrank(); 
-        
+        vm.stopPrank();
     }
     function closeMarket(uint256 marketId) public {
         controller.testResolveMarket( marketId); 

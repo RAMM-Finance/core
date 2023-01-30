@@ -52,7 +52,8 @@ contract LeverageModuleTest is CustomTestBase {
             0,
             wad/2,
             wad/4,
-            true
+            true,
+            0,0,0,0
         )
         );
         marketmanager = new MarketManager(
@@ -109,9 +110,15 @@ contract LeverageModuleTest is CustomTestBase {
         pool.addAcceptedCollateral(
             vault_ad,
             0,
+            PoolInstrument.Config(
+            0,
             precision, 
             precision*9/10, 
-            true
+            true,
+            0,
+            0,
+            0,
+            0)
         );      
 
     }
