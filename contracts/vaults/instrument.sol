@@ -183,6 +183,9 @@ abstract contract Instrument {
     /// requirement need to check if this address has the specific amount of collateral
     /// @dev called to be checked at the approve phase from controller  
     function instrumentApprovalCondition() public virtual view returns(bool); 
+
+    /// @notice fetches how much asset the instrument has in underlying for the given share supply 
+    function assetOracle(uint256 supply) public view virtual returns(uint256){}
 }
 
 

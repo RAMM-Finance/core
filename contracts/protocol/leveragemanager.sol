@@ -81,7 +81,8 @@ contract LeverageManager is ERC721Enumerable{
 
         // stack collateral from trader and loan from vault 
         uint256 amountPulled = _amountIn.divWadDown(_leverage); 
-        underlying.transferFrom(msg.sender, address(this), amountPulled); 
+        marketManager.transferTraderCap(address(underlying), msg.sender, address(this), amountPulled); 
+        // underlying.transferFrom(msg.sender, address(this), amountPulled); 
         controller.pullLeverage(_marketId, _amountIn - amountPulled); 
 
         underlying.approve(address(marketManager), _amountIn); 
@@ -150,7 +151,7 @@ contract LeverageManager is ERC721Enumerable{
 
         // stack collateral from trader and borrowing from vault 
         uint256 amountPulled = _amountIn.divWadDown(_leverage); 
-        underlying.transferFrom(msg.sender, address(this), amountPulled); 
+        marketManager.transferTraderCap(address(underlying), msg.sender, address(this), amountPulled); 
         controller.pullLeverage(_marketId, _amountIn - amountPulled); 
 
         // Buy bond to this address 

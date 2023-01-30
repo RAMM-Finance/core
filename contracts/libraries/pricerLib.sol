@@ -3,6 +3,7 @@ import {FixedPointMathLib} from "solmate/utils/FixedPointMathLib.sol";
 import {Controller} from "../protocol/controller.sol"; 
 import {Vault} from "../vaults/vault.sol"; 
 import  "../global/types.sol"; 
+import {Instrument} from "../vaults/instrument.sol"; 
 
 library PerpTranchePricer{
     using FixedPointMathLib for uint256;
@@ -44,49 +45,50 @@ library PerpTranchePricer{
 
 	function refreshViewCurrentPricing(
 		PricingInfo storage _self, 
+		address instrument, 
 		uint256 uRate, 
 		uint256 juniorSupply, 
 		PoolData memory perp
 		) public returns(uint256 psu, uint256 pju, uint256 levFactor){
 		_self.storeNewPSU(uRate); 
-		return viewCurrentPricing(_self, perp,juniorSupply ); 
+		return viewCurrentPricing(_self, instrument, perp,juniorSupply ); 
 	}
 
 	function viewCurrentPricing(
 		PricingInfo memory _self,
+		address instrument, 
 		PoolData memory perp, 
 		uint256 juniorSupply
 		) public view returns(uint256 psu, uint256 pju, uint256 levFactor){
 	    //TODO should not tick during assessment 
-	 //    localVars memory vars; 
-	 //    uint256 marketId = _self.ID; 
-	 //    levFactor = perp.leverageFactor; 
+	    localVars memory vars; 
+	    uint256 marketId = _self.ID; 
+	    levFactor = perp.leverageFactor; 
 
-	 //    require(perp.inceptionPrice > 0, "0 price"); 
+	    require(perp.inceptionPrice > 0, "0 price"); 
 
-	 //    vars.seniorSupply = vars.juniorSupply.mulWadDown(perp.leverageFactor); 
-	 //    vars.totalAssetsHeldScaled = vault.instrumentAssetOracle(marketId, vars.juniorSupply, vars.seniorSupply)
-	 //      .mulWadDown(perp.inceptionPrice); 
+	    vars.seniorSupply = vars.juniorSupply.mulWadDown(perp.leverageFactor); 
+	    vars.totalAssetsHeldScaled = Instrument(instrument).assetOracle(vars.juniorSupply + vars.seniorSupply)
+	    	 .mulWadDown(perp.inceptionPrice); 
 
-	 //    if (vars.seniorSupply == 0) return(psu, psu,levFactor); 
+	    if (vars.seniorSupply == 0) return(psu, psu,levFactor); 
 
-		// if(_self.constantRF){
-		// 	psu = perp.inceptionPrice.mulWadDown((BASE_UNIT+ perp.promised_return)
-  //   		 .rpow(block.timestamp - perp.inceptionTime, BASE_UNIT));
-		// } else {
-		// 	psu = _self.psu; 
-		// }
+		if(_self.constantRF){
+			psu = perp.inceptionPrice.mulWadDown((BASE_UNIT+ perp.promisedReturn)
+    		 .rpow(block.timestamp - perp.inceptionTime, BASE_UNIT));
+		} else {
+			psu = _self.psu; 
+		}
 
-		// // Check if all seniors can redeem
-	 //    if (vars.totalAssetsHeldScaled < psu.mulWadDown(vars.seniorSupply)){
-	 //    	psu = vars.totalAssetsHeldScaled.divWadDown(vars.seniorSupply); 
-	 //    	vars.belowThreshold = true; 
-	 //    }
+		// Check if all seniors can redeem
+	    if (vars.totalAssetsHeldScaled < psu.mulWadDown(vars.seniorSupply)){
+	    	psu = vars.totalAssetsHeldScaled.divWadDown(vars.seniorSupply); 
+	    	vars.belowThreshold = true; 
+	    }
 
-	 //    // should be 0 otherwise 
-	 //    if(!vars.belowThreshold) pju = (vars.totalAssetsHeldScaled 
-	 //      - psu.mulWadDown(vars.seniorSupply)).divWadDown(vars.juniorSupply); 
-	 //    console.log('psuhere', psu, pju, levFactor); 
+	    // should be 0 otherwise 
+	    if(!vars.belowThreshold) pju = (vars.totalAssetsHeldScaled 
+	      - psu.mulWadDown(vars.seniorSupply)).divWadDown(vars.juniorSupply); 
 	}
 
   

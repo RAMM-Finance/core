@@ -895,6 +895,14 @@ contract PoolInstrument is ERC4626, Instrument, PoolConstants, ReentrancyGuard, 
     function previewRedeem(uint256 shares) public view override virtual returns (uint256) {
         return convertToAssets(shares);
     }
+
+    function assetOracle(uint256 totalSupply) public view override virtual returns(uint256){
+      // Default balance oracle 
+      return totalSupply.mulWadDown(previewMint(1e18)); 
+      //TODO custom oracle 
+    }
+
+
 }
 
 /**
