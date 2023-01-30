@@ -148,11 +148,11 @@ contract Controller {
     //     interep.verifyProof(TWITTER_UNRATED_GROUP_ID, signal, nullifier_hash, external_nullifier, proof);
     //     verified[msg.sender] = true;
     // }
-    bool public selfVerify = true; 
-    function canSelfVerify() external {
-        require(msg.sender == creator_address, "!auth"); 
-        selfVerify = !selfVerify; 
-    }
+    // bool public selfVerify = true; 
+    // function canSelfVerify() external {
+    //     require(msg.sender == creator_address, "!auth"); 
+    //     selfVerify = !selfVerify; 
+    // }
 
     function verifyAddress(address who) external{
         require(msg.sender == creator_address, "!auth"); 
@@ -161,11 +161,11 @@ contract Controller {
     }
 
 
-    function testVerifyAddress() external {
-        require(selfVerify, "!selfVerify"); 
-        verified[msg.sender] = true;
-        reputationManager.setTraderScore(msg.sender, 1e18); 
-    }
+    // function testVerifyAddress() external {
+    //     require(selfVerify, "!selfVerify"); 
+    //     verified[msg.sender] = true;
+    //     reputationManager.setTraderScore(msg.sender, 1e18); 
+    // }
 
     event RedeemTransfer(uint256 indexed marketId, uint256 amount, address to);
     /// @notice called only when redeeming, transfer funds from vault

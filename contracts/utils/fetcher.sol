@@ -10,6 +10,8 @@ import {SyntheticZCBPool} from "../bonds/synthetic.sol";
 import {FixedPointMathLib} from "solmate/utils/FixedPointMathLib.sol";
 import {LinearCurve} from "../bonds/GBC.sol"; 
 import {PoolInstrument} from "../instruments/poolInstrument.sol";
+// import {PoolInstrument } from "../instruments/oldpoolInstrument.sol";
+
 import "forge-std/console.sol";
 import {CoveredCallOTC} from "../vaults/dov.sol";
 import { CreditLine } from "../vaults/instrument.sol";
@@ -349,7 +351,7 @@ contract Fetcher {
             (uint256 totalCollateral,
             uint256 maxAmount,
             uint256 maxBorrowAmount,
-            bool isERC20) = PoolInstrument(instrument).collateralConfigs(PoolInstrument(instrument).computeId(labels[i].tokenAddress, labels[i].tokenId));
+            bool isERC20, , , ,) = PoolInstrument(instrument).collateralConfigs(PoolInstrument(instrument).computeId(labels[i].tokenAddress, labels[i].tokenId));
             bundle.collaterals[i] = buildCollateralBundle(labels[i].tokenAddress, labels[i].tokenId, maxAmount, maxBorrowAmount, isERC20, totalCollateral);
             bundle.collaterals[i].owner = PoolInstrument(instrument).userERC721s(PoolInstrument(instrument).computeId(labels[i].tokenAddress, labels[i].tokenId));
         }

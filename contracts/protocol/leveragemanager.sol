@@ -6,6 +6,7 @@ import "forge-std/console.sol";
 import {Vault} from "../vaults/vault.sol";
 import {FixedPointMathLib} from "solmate/utils/FixedPointMathLib.sol";
 import {PoolInstrument} from "../instruments/poolInstrument.sol"; 
+// import {PoolInstrument} from "../instruments/oldpoolInstrument.sol";
 import {SafeCastLib} from "solmate/utils/SafeCastLib.sol";
 import {MarketManager} from "./marketmanager.sol"; 
 import {ReputationManager} from "./reputationmanager.sol"; 
@@ -333,7 +334,7 @@ contract LeverageManager is ERC721Enumerable{
         vars.availableLiquidity = vars.leveragePool.totalAssetAvailable(); 
 
         if(vars.availableLiquidity == 0) revert("Not Enough Liq"); 
-        (,,vars.collateralPower,) = vars.leveragePool.collateralConfigs(vars.leveragePool.computeId(address(vars.vault),0)); 
+        (,,vars.collateralPower,,,,,) = vars.leveragePool.collateralConfigs(vars.leveragePool.computeId(address(vars.vault),0)); 
 
         // Initial minting 
         vars.shares = vars.vault.deposit(suppliedCapital, address(this));

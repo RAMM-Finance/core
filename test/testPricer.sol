@@ -54,7 +54,7 @@ contract PricerTest is CustomTestBase {
         controller.setReputationManager(address(reputationManager));
         validatorManager = new ValidatorManager(address(controller), address(marketmanager),address(reputationManager) );     
         controller.setValidatorManager(address(validatorManager)); 
-                controller.setLeverageManager(address(leverageManager));
+        controller.setLeverageManager(address(leverageManager));
         controller.setDataStore(address(Data)); 
 
         vm.stopPrank(); 
