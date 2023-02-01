@@ -1,6 +1,7 @@
 pragma solidity ^0.8.16;
 import "./types.sol"; 
 import {PerpTranchePricer} from "../libraries/pricerLib.sol"; 
+import {Instrument} from "../vaults/instrument.sol"; 
 
 
 contract StorageHandler{
@@ -10,7 +11,7 @@ contract StorageHandler{
 
 	mapping(uint256=> PricingInfo) public PricingInfos; 
 	mapping(uint256=> InstrumentData) public InstrumentDatas; 
-	mapping(uint256=>CoreMarketData) public MarketDatas; 
+	// mapping(uint256=>CoreMarketData) public MarketDatas; 
   	CoreMarketData[] public markets;
 
 
@@ -31,7 +32,7 @@ contract StorageHandler{
 		PricingInfos[marketId].setNewPrices(initialPrice, multiplier, marketId, constantRF); 
 
 		storeNewProposal(marketId, idata); 
-		storeNewMarket(marketId, mdata); 
+		// storeNewMarket(marketId, mdata); 
 	}
 
 
@@ -50,11 +51,14 @@ contract StorageHandler{
 	}
 
 	function viewCurrentPricing(uint256 marketId) public view returns(uint256, uint256, uint256) {
+		InstrumentData memory data = InstrumentDatas[marketId]; 
 		PricingInfos[marketId].viewCurrentPricing(
-			InstrumentDatas[marketId].poolData, 
+			data.instrument_address, 
+			data.poolData, 
 			markets[marketId].longZCB.totalSupply()
-			 ); 
+		); 
 	}
+
 
 
 
@@ -67,12 +71,12 @@ contract StorageHandler{
 
 
 	//--- Market ---//
-	function storeNewMarket(uint256 marketId, CoreMarketData memory data) public onlyProtocol{
-		MarketDatas[marketId] = data; 
+	function storeNewMarket(CoreMarketData memory data) public onlyProtocol returns(uint256 marketId){
+		// MarketDatas[marketId] = data; 
+		marketId = markets.length; 
+		markets.push(data); 
 		// uint256 base_budget = 1000 * BASE_UNIT; //TODO 
-
 		// setMarketPhase(marketId, true, true, base_budget);
-
 	}
 
 
@@ -83,6 +87,11 @@ contract StorageHandler{
 
 
 
+	// function queryTrancheAssetOracle(uint256 marketId, uint256 supply) public view returns(uint256){
+	// 	uint256 juniorSupply = markets[marketId].longZCB.totalSupply(); 
+	// 	uint256 seniorSupply = juniorSupply.mulWadDown()
+	// 	Instrument(Instrument[marketId].instrument_address).assetOracle(supply); 
+	// }
 
 // library GlobalStorage{
 

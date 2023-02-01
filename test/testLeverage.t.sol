@@ -250,7 +250,7 @@ contract LeverageModuleTest is CustomTestBase {
 
         doApproveFromStart(vars.marketId,  amountToBuy); 
 
-        doApproveCol(address(leverageManager), jonna); 
+        doApproveCol(address(marketmanager), jonna); 
         doApproveCol(vars.vault_ad, jonna); 
 
         vm.prank(jonna); 
@@ -341,7 +341,7 @@ contract LeverageModuleTest is CustomTestBase {
         uint amountToBuy = Vault(vars.vault_ad).fetchInstrumentData(vars.marketId).poolData.saleAmount*3/2; 
 
         uint start = marketmanager.getMarket(vars.marketId).longZCB.balanceOf(address(leverageManager));
-        doApproveCol(address(leverageManager), jonna); 
+        doApproveCol(address(marketmanager), jonna); 
 
         vm.prank(jonna);
         leverageManager.buyBondLevered(

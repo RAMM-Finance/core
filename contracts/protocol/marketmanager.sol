@@ -790,6 +790,15 @@ event MarketDenied(uint256 indexed marketId);
 
   }
 
+  /// @notice marketmanager is the only approved contract
+  function transferTraderCap(
+    address token, 
+    address trader, 
+    address to, 
+    uint256 amount) external {
+    require(msg.sender == leverageManager_ad, "unauthorized");
+    ERC20(token).transferFrom(trader, to, amount); 
+  }
 
   function min(uint256 a, uint256 b) internal pure returns (uint256) {
         return a <= b ? a : b;
