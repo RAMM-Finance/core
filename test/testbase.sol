@@ -17,6 +17,8 @@ import {LeverageManager} from "../contracts/protocol/leveragemanager.sol";
 import {Instrument} from "../contracts/vaults/instrument.sol"; 
 import {StorageHandler} from "../contracts/global/GlobalStorage.sol"; 
 import "contracts/global/types.sol"; 
+import {PoolInstrument} from "../contracts/instruments/poolInstrument.sol";
+import {TestNFT} from "../contracts/utils/TestNFT.sol";
 
 contract CustomTestBase is Test {
     using FixedPointMath for uint256; 
@@ -77,6 +79,14 @@ contract CustomTestBase is Test {
 
     ReputationManager reputationManager;
 
+    // pool instrument vars
+    Cash cash1;
+    Cash cash2;
+    TestNFT nft1;
+    TestNFT nft2;
+
+    PoolInstrument poolInstrument;
+
     function setUsers() public {
         jonna = address(0xbabe);
         vm.label(jonna, "jonna"); // manager1
@@ -136,6 +146,14 @@ contract CustomTestBase is Test {
 
         controller.verifyAddress(sybal);
         vm.stopPrank();
+    }
+
+    function setCollaterals() public {
+        collateral = new Cash("Collateral", "COLL", 18);
+        cash1 = new Cash("Collateral", "COLL", 18);
+        cash2 = new Cash("Collateral2", "COLL2", 18);
+        nft1 = new TestNFT("NFT1", "NFT1");
+        nft2 = new TestNFT("NFT2", "NFT2");   
     }
 
     function initiateCreditMarket() public {
@@ -233,6 +251,29 @@ contract CustomTestBase is Test {
         }
         controller.fulfillRandomWords(1, words);
 
+    }
+
+    function deployPoolInstrument(
+        PoolInstrument.CollateralLabel[] memory clabels,
+        PoolInstrument.Config[] memory configs,
+        address _vault,
+        uint256 _r,
+        address _utilizer,
+        address _rateCalculator,
+        bytes memory rateData
+    ) public {
+        poolInstrument = new PoolInstrument(
+            _vault,
+            address(reputationManager),
+            _r,
+            _utilizer,
+            "pool instrument",
+            "pool1",
+            _rateCalculator,
+            rateData,
+            clabels,
+            configs
+        );
     }
 
     function controllerSetup() public{
