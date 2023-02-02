@@ -412,30 +412,30 @@ contract Controller {
     //     vaults[id_parent[marketId]].beforeResolve(marketId);
     // }
 
-    function testResolveMarket(uint256 marketId) external {
-      vaults[id_parent[marketId]].beforeResolve(marketId);
-      (
-            bool atLoss,
-            uint256 extra_gain,
-            uint256 principal_loss,
-            bool premature
-        ) = vaults[id_parent[marketId]].resolveInstrument(marketId);
+    // function testResolveMarket(uint256 marketId) external {
+    //   vaults[id_parent[marketId]].beforeResolve(marketId);
+    //   (
+    //         bool atLoss,
+    //         uint256 extra_gain,
+    //         uint256 principal_loss,
+    //         bool premature
+    //     ) = vaults[id_parent[marketId]].resolveInstrument(marketId);
 
-        updateRedemptionPrice(
-            marketId,
-            atLoss,
-            extra_gain,
-            principal_loss,
-            premature
-        );
-        validatorManager.updateValidatorStake(
-            marketId,
-            approvalDatas[marketId].approved_principal,
-            principal_loss
-        );
-        cleanUpDust(marketId);
-        emit MarketResolved(marketId, atLoss, extra_gain, principal_loss, premature);
-    }
+    //     updateRedemptionPrice(
+    //         marketId,
+    //         atLoss,
+    //         extra_gain,
+    //         principal_loss,
+    //         premature
+    //     );
+    //     validatorManager.updateValidatorStake(
+    //         marketId,
+    //         approvalDatas[marketId].approved_principal,
+    //         principal_loss
+    //     );
+    //     cleanUpDust(marketId);
+    //     emit MarketResolved(marketId, atLoss, extra_gain, principal_loss, premature);
+    // }
 
     event MarketResolved(uint256 indexed marketId, bool atLoss, uint256 extraGain, uint256 principalLoss, bool premature);
 

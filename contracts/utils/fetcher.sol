@@ -237,7 +237,7 @@ contract Fetcher {
         vaultBundle.vault_address = address(vault);
         vaultBundle.utilizationRate = vault.utilizationRate();
         vaultBundle.totalInstrumentHoldings = vault.totalInstrumentHoldings();
-        // vaultBundle.description = vault.description();
+        vaultBundle.description = vault.description();
      
         (uint256 totalProtection, uint256 totalEstimatedAPR, uint256 goalAPR, uint256 exchangeRate) = _controller.getVaultSnapShot(vaultId);
         vaultBundle.totalProtection = totalProtection;
@@ -482,7 +482,7 @@ contract Fetcher {
 
     // }
 
-    function makeEmptyVaultBundle() pure internal returns (VaultBundle memory bundle) {
+    function makeEmptyVaultBundle() pure internal returns (VaultBundle memory) {
         return VaultBundle(
             "",
             "",

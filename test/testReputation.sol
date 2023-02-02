@@ -288,8 +288,8 @@ contract ReputationSystemTests is CustomTestBase {
         // CoveredCallOTC( address(Vault(vars.vault_ad).fetchInstrument(vars.marketId))).claim(); 
         // vm.stopPrank(); 
 
-        vm.prank(jonna); 
-        controller.testResolveMarket(vars.marketId); 
+        vm.prank(deployer); 
+        controller.resolveMarket(vars.marketId); 
 
         vm.prank(jonna); 
         marketmanager.redeem(vars.marketId); 

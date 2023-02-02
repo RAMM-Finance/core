@@ -19,6 +19,7 @@ import {StorageHandler} from "../contracts/global/GlobalStorage.sol";
 import "contracts/global/types.sol"; 
 import {PoolInstrument} from "../contracts/instruments/poolInstrument.sol";
 import {TestNFT} from "../contracts/utils/TestNFT.sol";
+import {Auctioneer} from "../contracts/instruments/auctioneer.sol";
 
 contract CustomTestBase is Test {
     using FixedPointMath for uint256; 
@@ -52,7 +53,7 @@ contract CustomTestBase is Test {
     address tyson; 
     address yoku;
     address toku; 
-    address goku; 
+    address goku;
 
     // Varaibles that sould be tinkered
     uint256 principal = 1000 * precision;
@@ -86,6 +87,7 @@ contract CustomTestBase is Test {
     TestNFT nft2;
 
     PoolInstrument poolInstrument;
+    Auctioneer auctioneer;
 
     function setUsers() public {
         jonna = address(0xbabe);
@@ -148,12 +150,14 @@ contract CustomTestBase is Test {
         vm.stopPrank();
     }
 
+
+    // only for pool instrument.
     function setCollaterals() public {
         collateral = new Cash("Collateral", "COLL", 18);
-        cash1 = new Cash("Collateral", "COLL", 18);
-        cash2 = new Cash("Collateral2", "COLL2", 18);
+        cash1 = new Cash("cash1", "CASH1", 18);
+        cash2 = new Cash("cash2", "CASH2", 18);
         nft1 = new TestNFT("NFT1", "NFT1");
-        nft2 = new TestNFT("NFT2", "NFT2");   
+        nft2 = new TestNFT("NFT2", "NFT2");
     }
 
     function initiateCreditMarket() public {
@@ -274,6 +278,11 @@ contract CustomTestBase is Test {
             clabels,
             configs
         );
+
+        auctioneer = new Auctioneer(
+            address(poolInstrument)
+        );
+        poolInstrument.setAuctioneer(address(auctioneer));
     }
 
     function controllerSetup() public{
@@ -291,8 +300,10 @@ contract CustomTestBase is Test {
         controller.setDataStore(address(Data)) ; 
         vm.stopPrank();
     }
+
     function closeMarket(uint256 marketId) public {
-        controller.testResolveMarket( marketId); 
+        vm.prank(deployer);
+        controller.resolveMarket( marketId); 
     }
 
     function donateToInstrument(address vaultad, address instrument, uint256 amount) public {
