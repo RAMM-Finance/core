@@ -429,9 +429,25 @@ contract LeverageManager is ERC721Enumerable{
                 address(this),
                 address(this)//70, 100=70, 80,30= 30
                 ); 
-            leveragePool.repayWithAmount(vars.assetReturned, address(this)); //70->80
+            // leveragePool.repayWithAmount(vars.assetReturned, address(this)); //70->80 toBorrowShares
+            leveragePool.repay(leveragePool.toBorrowShares(vars.assetReturned, true), address(this));
             // get 70 collateral in, 30 collateral in, 
-            vars.removed = leveragePool.removeAvailableCollateral(address(vault), 0, address(this)); 
+            
+            uint256 _maxBorrowableAmount = leveragePool.getMaxBorrow(address(this));
+            uint256 perUnitMaxBorrowAmount = leveragePool.getCollateralConfig(leveragePool.computeId(address(vault), tokenId)).maxBorrowAmount;
+        //check solvency
+            vars.removed = ((_maxBorrowableAmount -
+                leveragePool.toBorrowAmount(leveragePool.userBorrowShares(address(this)), true)) *
+                1e18) / perUnitMaxBorrowAmount;
+
+            leveragePool.removeCollateral(
+                 address(vault),
+                0,
+                vars.removed,
+                address(this),
+                false
+            ); 
+            
             // get 80 collateral out , 34 collateral out
             console.log('___NEW___'); 
             console.log('withdraw left', vars.withdrawAmount); 

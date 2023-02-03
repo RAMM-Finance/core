@@ -26,7 +26,7 @@ contract PoolInstrument is
     Instrument,
     PoolConstants,
     ReentrancyGuard,
-    Pausable,
+    // Pausable,
     ERC721TokenReceiver
 {
     using SafeTransferLib for ERC20;
@@ -267,10 +267,11 @@ contract PoolInstrument is
         VaultAccount memory _totalBorrow = totalBorrow;
 
         // If there are no borrows or contract is paused, no interest adds and we reset interest rate
-        if (_totalBorrow.shares == 0 || paused()) {
-            if (!paused()) {
-                _currentRateInfo.ratePerSec = DEFAULT_INT;
-            }
+        if (_totalBorrow.shares == 0) {
+            // if (!paused()) {
+            //     _currentRateInfo.ratePerSec = DEFAULT_INT;
+            // }
+            _currentRateInfo.ratePerSec = DEFAULT_INT;
             _currentRateInfo.lastTimestamp = uint64(block.timestamp);
             _currentRateInfo.lastBlock = uint64(block.number);
 
@@ -343,8 +344,8 @@ contract PoolInstrument is
 
     modifier isSolvent(address _borrower) {
         _;
-        (bool _isSolvent, ) = _isLiquidatable(_borrower);
-        require(_isSolvent, "!solvent");
+        bool isLiq = _isLiquidatable(_borrower);
+        require(!isLiq, "!solvent");
     }
 
     /// @notice checks if the borrower is can borrow
@@ -370,7 +371,7 @@ contract PoolInstrument is
         view
         returns (uint256 _maxBorrowableAmount)
     {
-        CollateralLabel[] memory userCollaterals = userCollateral[msg.sender];
+        CollateralLabel[] memory userCollaterals = userCollateral[_borrower];
 
         for (uint256 i; i < userCollaterals.length; i++) {
             CollateralLabel memory _collateral = userCollaterals[i];
@@ -391,23 +392,25 @@ contract PoolInstrument is
         }
     }
 
-    /// @notice returns how much collateral can be removed, given the borrower's current debt condition
-    function removeableCollateral(
-        address _borrower,
-        uint256 tokenId,
-        address collateral
-    ) public view returns (uint256) {
-        //800 borrowable = 800 * 1, 600borrowed (800-x)*1 - 600 = 0 x=?
-        //800*1-x*1-600 , x = (800*1 - 600)/1
-        uint256 _maxBorrowableAmount = getMaxBorrow(_borrower);
-        bytes32 id = computeId(collateral, tokenId);
-        uint256 perUnitMaxBorrowAmount = collateralConfigs[id].maxBorrowAmount;
-        //check solvency
-        return
-            ((_maxBorrowableAmount -
-                totalBorrow.toAmount(userBorrowShares[_borrower], true)) *
-                1e18) / perUnitMaxBorrowAmount;
-    }
+    /// @notice returns how much collateral can be removed from a borrower given the debt condition
+    /// borrowed assets < maxBorrowAmount, then collateral can be removed,
+    // only needed for erc20s.
+    // function removeableCollateral(
+    //     address _borrower,
+    //     uint256 tokenId,
+    //     address collateral
+    // ) public view returns (uint256) {
+    //     //800 borrowable = 800 * 1, 600borrowed (800-x)*1 - 600 = 0 x=?
+    //     //800*1-x*1-600 , x = (800*1 - 600)/1
+    //     uint256 _maxBorrowableAmount = getMaxBorrow(_borrower);
+    //     bytes32 id = computeId(collateral, tokenId);
+    //     uint256 perUnitMaxBorrowAmount = collateralConfigs[id].maxBorrowAmount;
+    //     //check solvency
+    //     return
+    //         ((_maxBorrowableAmount -
+    //             totalBorrow.toAmount(userBorrowShares[_borrower], true)) *
+    //             ERC20(collateral).decimals()) / perUnitMaxBorrowAmount;
+    // }
 
     // BORROW LOGIC
     event Borrow(address indexed _borrower, uint256 _amount, uint256 _shares);
@@ -427,7 +430,7 @@ contract PoolInstrument is
         external
         canBorrow(msg.sender)
         nonReentrant
-        whenNotPaused
+        // whenNotPaused
         returns (uint256 _shares)
     {
         _addInterest();
@@ -488,21 +491,21 @@ contract PoolInstrument is
     // REPAY LOGIC
     event Repay(address indexed borrower, uint256 amount, uint256 shares);
 
-    function repayWithAmount(uint256 _amount, address _borrower)
-        external
-        nonReentrant
-        returns (uint256 _sharesToRepay)
-    {
-        VaultAccount memory _totalBorrow = totalBorrow;
-        _sharesToRepay = _totalBorrow.toShares(_amount, true);
-        _repay(
-            _totalBorrow,
-            _amount.safeCastTo128(),
-            _sharesToRepay.safeCastTo128(),
-            msg.sender,
-            _borrower
-        );
-    }
+    // function repayWithAmount(uint256 _amount, address _borrower)
+    //     external
+    //     nonReentrant
+    //     returns (uint256 _sharesToRepay)
+    // {
+    //     VaultAccount memory _totalBorrow = totalBorrow;
+    //     _sharesToRepay = _totalBorrow.toShares(_amount, true);
+    //     _repay(
+    //         _totalBorrow,
+    //         _amount.safeCastTo128(),
+    //         _sharesToRepay.safeCastTo128(),
+    //         msg.sender,
+    //         _borrower
+    //     );
+    // }
 
     function repay(uint256 _shares, address _borrower)
         external
@@ -534,6 +537,8 @@ contract PoolInstrument is
             "userBorrowShares[_borrower]: ",
             userBorrowShares[_borrower]
         );
+        console.log("totalBorrow.amount: ", totalBorrow.amount);
+        console.log("totalBorrow.shares: ", totalBorrow.shares);
         // Effects: Bookkeeping
         _totalBorrow.amount -= _amountToRepay;
         _totalBorrow.shares -= _shares;
@@ -679,29 +684,33 @@ contract PoolInstrument is
         emit AddCollateral(_borrower, _collateral, _tokenId, _collateralAmount);
     }
 
-    function removeAvailableCollateral(
-        address _collateral,
-        uint256 _tokenId,
-        address _receiver
-    )
-        external
-        nonReentrant
-        canBorrow(msg.sender)
-        onlyApprovedCollateral(_collateral, _tokenId)
-        returns (uint256 removeable)
-    {
-        _addInterest();
+    /**
+     erc20: removes all collateral so that maxBorrow === existing borrow.
+     erc721: if can remove collateral, then removes it, otherwise reverts.
+     */
+    // function removeAvailableCollateral(
+    //     address _collateral,
+    //     uint256 _tokenId,
+    //     address _receiver
+    // )
+    //     external
+    //     nonReentrant
+    //     canBorrow(msg.sender)
+    //     onlyApprovedCollateral(_collateral, _tokenId)
+    //     returns (uint256 removeable)
+    // {
+    //     _addInterest();
 
-        removeable = removeableCollateral(msg.sender, _tokenId, _collateral);
+    //     removeable = removeableCollateral(msg.sender, _tokenId, _collateral);
 
-        _removeCollateral(
-            _collateral,
-            removeable,
-            _tokenId,
-            msg.sender,
-            _receiver
-        );
-    }
+    //     _removeCollateral(
+    //         _collateral,
+    //         removeable,
+    //         _tokenId,
+    //         msg.sender,
+    //         _receiver
+    //     );
+    // }
 
     function removeCollateral(
         address _collateral,
@@ -743,9 +752,9 @@ contract PoolInstrument is
         bool _isERC20 = collateralConfigs[id].isERC20;
         if (_receiver != address(this)) {
             if (_isERC20) {
-                // console.log("removing erc20 collateral");
-                // console.log("userCollateralerc20: ", userERC20s[id][_borrower] );
-                // console.log("collateralAmount: ", _collateralAmount);
+                console.log("removing erc20 collateral");
+                console.log("userCollateralerc20: ", userERC20s[id][_borrower] );
+                console.log("collateralAmount: ", _collateralAmount);
                 userERC20s[id][_borrower] -= _collateralAmount;
                 collateralConfigs[id].totalCollateral -= _collateralAmount;
                 ERC20(_collateral).safeTransfer(_receiver, _collateralAmount);
@@ -778,8 +787,12 @@ contract PoolInstrument is
     function _isLiquidatable(address _borrower)
         public
         view
-        returns (bool, int256 accountLiq)
+        returns (bool)
     {
+        return (accountLiquidity(_borrower) < 0);
+    }
+
+    function accountLiquidity(address _borrower) public view returns (int256) {
         uint256 _maxAmount;
 
         CollateralLabel[] memory userCollaterals = userCollateral[_borrower];
@@ -802,21 +815,16 @@ contract PoolInstrument is
             }
         }
 
-        return (
-            _maxAmount <
-                totalBorrow.toAmount(userBorrowShares[_borrower], false),
-            int256(_maxAmount) -
-                int256(totalBorrow.toAmount(userBorrowShares[_borrower], false))
-        );
+        return int256(_maxAmount) - int256(totalBorrow.toAmount(userBorrowShares[_borrower], true));
     }
 
-    function getUserCollateral(address _borrower)
-        external
-        view
-        returns (CollateralLabel[] memory)
-    {
-        return userCollateral[_borrower];
-    }
+    // function getUserCollateral(address _borrower)
+    //     external
+    //     view
+    //     returns (CollateralLabel[] memory)
+    // {
+    //     return userCollateral[_borrower];
+    // }
 
     /**
      @notice can only be called when user is liquidatable, all auctions are terminated if not the case.
@@ -834,7 +842,7 @@ contract PoolInstrument is
     {
         _addInterest();
 
-        (bool _liquidatable, ) = _isLiquidatable(_borrower);
+        bool _liquidatable = _isLiquidatable(_borrower);
         require(_liquidatable, "!liquidatable");
 
         if (_liquidatable) {
@@ -855,33 +863,24 @@ contract PoolInstrument is
     function purchaseCollateral(
         address _borrower,
         CollateralLabel calldata _label,
-        uint256 _amount
+        uint256 _amount,
+        uint256 _deadline
     ) external returns (uint128 _totalCost) {
-        // if (block.timestamp > _deadline) {
-        //     revert("past deadline");
-        // }
+        if (block.timestamp > _deadline) {
+            revert("past deadline");
+        }
 
         _addInterest();
 
         bytes32 collateralId = computeId(_label.tokenAddress, _label.tokenId);
 
-        Auctioneer.Auction memory auction = auctioneer.getAuction(
-            _borrower,
-            _label.tokenAddress,
-            _label.tokenId
-        );
         Config memory config = collateralConfigs[collateralId];
 
-        require(auction.alive, "auction is not alive");
- 
-        (bool liquidatable, ) = _isLiquidatable(_borrower);
+        require(auctioneer.getAuction(_borrower, _label.tokenAddress, _label.tokenId).alive, "!alive");
 
-        if (!liquidatable) {
-            auctioneer.closeAuction(
-                _borrower,
-                _label.tokenAddress,
-                _label.tokenId
-            );
+        (bool reset, bool closed) = checkAuction(_borrower, _label.tokenAddress, _label.tokenId);
+
+        if (reset || closed) {
             return 0;
         }
 
@@ -891,26 +890,11 @@ contract PoolInstrument is
             _label.tokenId
         ); // price of collateral in underlying.
 
-        // if tau has passed or current price is below cusp, then reset auction.
-        if (
-            (block.timestamp > auction.creationTimestamp + config.tau) ||
-            (currentPrice <
-                config.cusp.mulWadDown(config.maxAmount.mulWadDown(config.buf)))
-        ) {
-            auctioneer.resetAuction(
-                _borrower,
-                _label.tokenAddress,
-                _label.tokenId
-            );
-            return 0;
-        }
-
         if (config.isERC20) {
             //TODO need to ensure safe to cast here.
-            _totalCost = uint128(
-                (_amount * currentPrice) /
-                    (10**ERC20(_label.tokenAddress).decimals())
-            ); // <= decimals of collateral.
+            _totalCost = uint128((_amount * currentPrice) / (10**ERC20(_label.tokenAddress).decimals())); // <= decimals of collateral.
+            
+            console.log("total cost: %s", _totalCost);
             if (_amount == userERC20s[collateralId][_borrower]) {
                 auctioneer.closeAuction(
                     _borrower,
@@ -925,14 +909,24 @@ contract PoolInstrument is
                 _label.tokenAddress,
                 _label.tokenId
             );
+
+            // if nft sold for more than borrowShares, then give rest of asset to borrower
+            if (_totalCost > totalBorrow.toAmount(userBorrowShares[_borrower], false)) {
+                uint256 difference = _totalCost - totalBorrow.toAmount(userBorrowShares[_borrower], false);
+                
+                // difference goes to the pool.
+                totalAsset.amount += difference.safeCastTo128();
+                asset.safeTransferFrom(msg.sender, address(this), difference);
+
+                _totalCost = uint128(totalBorrow.toAmount(userBorrowShares[_borrower], true));
+            }
         }
 
         VaultAccount memory _totalBorrow = totalBorrow;
 
-
-        if (!config.isERC20 && totalBorrow.toShares(_totalCost, false) > userBorrowShares[_borrower]) {
-            
-        }
+        console.log("cost share: %s", totalBorrow.toShares(_totalCost, false));
+        console.log("user borrow shares: %s", userBorrowShares[_borrower]);
+        console.log("gt?", totalBorrow.toShares(_totalCost, false) > userBorrowShares[_borrower]);
 
         _repay(
             _totalBorrow,
@@ -952,6 +946,44 @@ contract PoolInstrument is
         );
 
         // total cost of collateral in asset.
+    }
+
+    /**
+        @notice checks if auction is still valid -> borrower still liq + none of the auction end conditions have been met , if not resets auction.
+        only for alive auctions
+     */
+    function checkAuction(
+        address _borrower,
+        address _collateral,
+        uint256 _tokenId
+    ) public onlyApprovedCollateral(_collateral, _tokenId) returns (bool reset, bool closed) {
+        Auctioneer.Auction memory auction = auctioneer.getAuction(
+            _borrower,
+            _collateral,
+            _tokenId
+        );
+        Config memory config = collateralConfigs[computeId(_collateral, _tokenId)];
+
+
+        // close all auctions if liquidatable.
+        if (!_isLiquidatable(_borrower)) {
+            auctioneer.closeAllAuctions(
+                _borrower
+            );
+            return (false, true);
+        }
+        
+        if (
+            (block.timestamp > auction.creationTimestamp + config.tau) ||
+            (auctioneer.purchasePrice(_borrower, _collateral, _tokenId) < config.cusp.mulWadDown(config.maxAmount.mulWadDown(config.buf)))
+        ) {
+            auctioneer.resetAuction(
+                _borrower,
+                _collateral,
+                _tokenId
+            );
+            return (true, false);
+        }
     }
 
     /**
@@ -1026,7 +1058,7 @@ contract PoolInstrument is
         _userAssetAmount = totalAsset.toAmount(_userAssetShares, false);
         _userBorrowShares = userBorrowShares[_address];
         _userBorrowAmount = totalBorrow.toAmount(_userBorrowShares, false);
-        (, _userAccountLiquidity) = _isLiquidatable(_address);
+        _userAccountLiquidity = accountLiquidity(_address);
         _userCollaterals = userCollateral[_address];
     }
 

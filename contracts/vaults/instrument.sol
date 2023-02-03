@@ -93,10 +93,10 @@ abstract contract Instrument {
     }
 
     /// @notice raw funds should not be harvested by the vault
-    function pullRawFunds(uint256 amount) public {
-        underlying.transferFrom(msg.sender,address(this), amount); 
-        rawFunds += amount; 
-    }
+    // function pullRawFunds(uint256 amount) public {
+    //     underlying.transferFrom(msg.sender,address(this), amount); 
+    //     rawFunds += amount; 
+    // }
 
 
 

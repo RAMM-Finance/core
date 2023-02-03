@@ -33,7 +33,7 @@ contract PoolInstrumentTest is CustomTestBase {
     PoolInstrument.Config[] configs;
     PoolInstrument.CollateralLabel[] clabels;
 
-    uint256 totalCollateral; 
+    uint256 totalCollateral;
     uint256 maxAmount = unit/2 + unit/10;
     uint256 maxBorrowAmount = unit/2;
 
@@ -265,10 +265,6 @@ contract PoolInstrumentTest is CustomTestBase {
 
         assertTrue(uint256(accountLiquidity(toku)) == unit/2 + unit/10 + unit + unit/10, "AL ne");
         
-        PoolInstrument.CollateralLabel[] memory collaterals = poolInstrument.getUserCollateral(toku);
-        assertTrue(collaterals.length == 2, "collaterals.length ne");
-        assertTrue(collaterals[0].tokenAddress == address(cash1), "collaterals[0].collateral ne");
-        assertTrue(collaterals[1].tokenAddress == address(nft1), "collaterals[1].collateral ne");
 
         poolInstrument.borrow(
             poolInstrument.getMaxBorrow(toku),
@@ -310,83 +306,9 @@ contract PoolInstrumentTest is CustomTestBase {
         assertTrue(auctioneer.getActiveUserAuctions(toku).length == 0, "no more auctions");
     }
 
-    function twoAuctionSetup() public {
-        PoolInstrument.CollateralLabel[] memory _clabels = clabels;
-        PoolInstrument.Config[] memory _configs = configs;
-        deployPoolInstrument(
-            _clabels,
-            _configs,
-            vault_ad,
-            0,
-            deployer,
-            address(linearRateCalculator),
-            linearRateData
-        );
-
-        vm.startPrank(vault_ad);
-        collateral.faucet(10000*unit);
-        collateral.approve(address(poolInstrument), type(uint256).max);
-        poolInstrument.deposit(10*unit, vault_ad);
 
 
-        // setup
-        changePrank(toku);
-        collateral.faucet(10000*unit);
-        collateral.approve(address(poolInstrument), type(uint256).max);
-        cash1.faucet(1000*unit);
-        cash1.approve(address(poolInstrument), type(uint256).max);
-        nft1.freeMint(toku, 1);
-        nft1.approve(address(poolInstrument), 1);
-
-
-        poolInstrument.addCollateral(
-            address(cash1),
-            0,
-            unit,
-            toku,
-            true
-        );
-        poolInstrument.addCollateral(
-            address(nft1),
-            1,
-            0,
-            toku,
-            true
-        );
-
-        assertTrue(uint256(accountLiquidity(toku)) == unit/2 + unit/10 + unit + unit/10, "AL ne");
-        
-        PoolInstrument.CollateralLabel[] memory collaterals = poolInstrument.getUserCollateral(toku);
-        assertTrue(collaterals.length == 2, "collaterals.length ne");
-        assertTrue(collaterals[0].tokenAddress == address(cash1), "collaterals[0].collateral ne");
-        assertTrue(collaterals[1].tokenAddress == address(nft1), "collaterals[1].collateral ne");
-
-        poolInstrument.borrow(
-            poolInstrument.getMaxBorrow(toku),
-            address(0),
-            0,
-            0,
-            toku,
-            false
-        );
-
-        assertTrue(accountLiquidity(toku) >= 0, "AL >= 0");
-
-        timeSkipLinear(uint256(accountLiquidity(toku)) + unit / (10**7));
-        poolInstrument.addInterest();
-        // logPoolState(poolInstrument, true);
-        assertTrue(accountLiquidity(toku) < 0, "AL < 0");
-
-        changePrank(goku);
-
-        // can trigger both auctions
-        poolInstrument.triggerAuction(toku, address(cash1), 0);
-        poolInstrument.triggerAuction(toku, address(nft1), 1);
-
-        vm.stopPrank();
-    }
-
-    function testAuction4() public {
+    function testAuction3() public {
         twoAuctionSetup();
 
         Auctioneer.Auction memory auction = auctioneer.getAuctionWithId(auctioneer.computeAuctionId(toku, address(cash1), 0));
@@ -411,7 +333,8 @@ contract PoolInstrumentTest is CustomTestBase {
                 address(cash1),
                 0
             ),
-            poolInstrument.userERC20s(cash1Id, toku)
+            poolInstrument.userERC20s(cash1Id, toku),
+            block.timestamp
         );
 
         // logUserPoolState(poolInstrument, toku);
@@ -419,7 +342,318 @@ contract PoolInstrumentTest is CustomTestBase {
         assertTrue(auctioneer.getActiveUserAuctions(toku).length == 0, "no more auctions");
     }
 
+    function testAuction4() public {
+        poolSetupWithDeposit(10*unit);
+        tokuGokuSetup();
+
+        vm.prank(toku);
+        // add collateral cash1 as toku
+        poolInstrument.addCollateral(
+            address(cash1),
+            0,
+            unit*10,
+            toku,
+            true
+        );
+
+        maxBorrowAndCreateAuction(toku, address(cash1), 0);
+
+        logUserPoolState(poolInstrument, toku);
+
+
+
+        assertTrue(poolInstrument.userBorrowShares(toku) == poolInstrument.getMaxBorrow(toku));
+
+        vm.startPrank(goku);
+        uint256 maxCollateral =poolInstrument.userERC20s(poolInstrument.computeId(address(cash1), 0), toku);
+        vm.expectRevert(stdError.arithmeticError);
+        uint256 amount = poolInstrument.purchaseCollateral(
+            toku,
+            PoolInstrument.CollateralLabel(
+                address(cash1),
+                0
+            ),
+            maxCollateral,
+            block.timestamp
+        );
+
+
+        // goku does full liq.
+        uint256 liqAmount = poolInstrument.purchaseCollateral(
+            toku,
+            PoolInstrument.CollateralLabel(
+                address(cash1),
+                0
+            ),
+            maxPurchasableCollateral(toku, address(cash1), 0),
+            block.timestamp
+        );
+
+        assertTrue(poolInstrument.userBorrowShares(toku) < 10, "user completely liquidated");
+        
+        logUserPoolState(poolInstrument, toku);
+        // auction created, test when collateral asset equivalent gt the debt.
+        // test auction reset, test borrower repay during auction   
+    }
+
+    function testAuction5() public {
+        poolSetupWithDeposit(10*unit);
+        tokuGokuSetup();
+
+        vm.prank(toku);
+        // add collateral cash1 as toku
+        poolInstrument.addCollateral(
+            address(cash1),
+            0,
+            unit*10,
+            toku,
+            true
+        );
+
+        maxBorrowAndCreateAuction(toku, address(cash1), 0);
+
+        Auctioneer.Auction memory auction = auctioneer.getAuctionWithId(auctioneer.computeAuctionId(toku, address(cash1), 0));
+        PoolInstrument.Config memory config = poolInstrument.getCollateralConfig(poolInstrument.computeId(address(cash1), 0));
+
+        // test pricing + resets
+        assertTrue(auctioneer.purchasePrice(toku, address(cash1), 0) == config.buf * config.maxAmount / 1e18, "purchase price top");  
+
+        skip(100);
+
+        assertTrue(auctioneer.purchasePrice(toku, address(cash1), 0) == config.buf * config.maxAmount / 1e18 - config.buf * config.maxAmount / 1e18 / config.tau * 100, "purhcse price middle");      
     
+        skip(config.tau - 100);
+
+        assertTrue(auctioneer.purchasePrice(toku, address(cash1), 0) == 0, "purchase price zero");
+
+        skip(100);
+        assertTrue(auctioneer.purchasePrice(toku, address(cash1), 0) == 0, "purchase price negative");
+
+        (bool reset, bool closed) = poolInstrument.checkAuction(toku, address(cash1), 0);
+
+        assertTrue(reset, "auction reset");
+
+        auction = auctioneer.getAuctionWithId(auctioneer.computeAuctionId(toku, address(cash1), 0));
+        assertTrue(auction.creationTimestamp == block.timestamp, "auction reset");
+    }
+
+    function testAuction6() public {
+        poolSetupWithDeposit(10*unit);
+        tokuGokuSetup();
+
+        vm.prank(toku);
+        // add collateral cash1 as toku
+        poolInstrument.addCollateral(
+            address(nft1),
+            1,
+            unit*10,
+            toku,
+            true
+        );
+
+        maxBorrowAndCreateAuction(toku, address(nft1), 1);
+
+        vm.startPrank(goku);
+
+        uint256 purchasePrice = auctioneer.purchasePrice(
+            toku,
+            address(nft1),
+            1
+        );
+
+        uint256 totalAssetInit = poolInstrument.totalAssets();
+        uint256 totalBorrowAmount = poolInstrument.toBorrowAmount(poolInstrument.userBorrowShares(toku), false);
+
+        uint256 totalCost = poolInstrument.purchaseCollateral(
+            toku,
+            PoolInstrument.CollateralLabel(
+                address(nft1),
+                1
+            ),
+            0,
+            block.timestamp
+        );
+
+        assertTrue(poolInstrument.totalAssets() - totalAssetInit == purchasePrice - totalBorrowAmount, "total cost");
+
+        logUserPoolState(poolInstrument, toku);
+
+        assertTrue(poolInstrument.userBorrowShares(toku) == 0, "user completely liquidated");
+    }
+
+    function twoAuctionSetup() public {
+        PoolInstrument.CollateralLabel[] memory _clabels = clabels;
+        PoolInstrument.Config[] memory _configs = configs;
+        deployPoolInstrument(
+            _clabels,
+            _configs,
+            vault_ad,
+            0,
+            deployer,
+            address(linearRateCalculator),
+            linearRateData
+        );
+
+        vm.startPrank(vault_ad);
+        collateral.faucet(10000*unit);
+        collateral.approve(address(poolInstrument), type(uint256).max);
+        poolInstrument.deposit(10*unit, vault_ad);
+
+
+        // setup
+        changePrank(toku);
+        collateral.faucet(10000*unit);
+        collateral.approve(address(poolInstrument), type(uint256).max);
+        cash1.faucet(10000*unit);
+        cash1.approve(address(poolInstrument), type(uint256).max);
+        nft1.freeMint(toku, 1);
+        nft1.approve(address(poolInstrument), 1);
+
+
+        poolInstrument.addCollateral(
+            address(cash1),
+            0,
+            unit,
+            toku,
+            true
+        );
+        poolInstrument.addCollateral(
+            address(nft1),
+            1,
+            0,
+            toku,
+            true
+        );
+
+        assertTrue(uint256(accountLiquidity(toku)) == unit/2 + unit/10 + unit + unit/10, "AL ne");
+
+        poolInstrument.borrow(
+            poolInstrument.getMaxBorrow(toku),
+            address(0),
+            0,
+            0,
+            toku,
+            false
+        );
+
+        assertTrue(accountLiquidity(toku) >= 0, "AL >= 0");
+
+        timeSkipLinear(uint256(accountLiquidity(toku)) + unit / (10**7));
+        poolInstrument.addInterest();
+        // logPoolState(poolInstrument, true);
+        assertTrue(accountLiquidity(toku) < 0, "AL < 0");
+
+        changePrank(goku);
+        collateral.faucet(10000*unit);
+        collateral.approve(address(poolInstrument), type(uint256).max);
+
+        // can trigger both auctions
+        poolInstrument.triggerAuction(toku, address(cash1), 0);
+        poolInstrument.triggerAuction(toku, address(nft1), 1);
+
+        vm.stopPrank();
+    }
+
+    function testAuction7() public {
+        twoAuctionSetup();
+
+        vm.startPrank(goku);
+
+        poolInstrument.purchaseCollateral(
+            toku,
+            PoolInstrument.CollateralLabel(
+                address(cash1),
+                0
+            ),
+            poolInstrument.userERC20s(poolInstrument.computeId(address(cash1), 0), toku),
+            block.timestamp
+        );
+
+        vm.expectRevert("!alive");
+        poolInstrument.purchaseCollateral(
+            toku,
+            PoolInstrument.CollateralLabel(
+                address(nft1),
+                1
+            ),
+            0,
+            block.timestamp
+        );
+    }
+
+    /**
+     for ERC20s only, only if collateral covers the debt fully.
+     */
+    function maxPurchasableCollateral(address user, address token, uint256 tokenId) public returns (uint256) {
+        uint256 currentPrice = auctioneer.purchasePrice(user, token, tokenId);
+        uint256 shares = poolInstrument.userBorrowShares(user);
+        uint256 borrowAmount = poolInstrument.toBorrowAmount(shares, true);
+        
+        return borrowAmount * 10**(ERC20(token).decimals()) / currentPrice;
+    }
+
+    function maxBorrowAndCreateAuction(address user, address token, uint256 tokenId) public {
+        vm.startPrank(user);
+        poolInstrument.borrow(
+            poolInstrument.getMaxBorrow(user),
+            address(0),
+            0,
+            0,
+            user,
+            false
+        );
+
+        assertTrue(accountLiquidity(user) >= 0, "AL >= 0");
+
+        timeSkipLinear(uint256(accountLiquidity(user)) + unit / (10**7));
+        poolInstrument.addInterest();
+        // logPoolState(poolInstrument, true);
+        assertTrue(accountLiquidity(user) < 0, "AL < 0");
+
+        changePrank(goku);
+
+        poolInstrument.triggerAuction(user, token, tokenId);
+
+        vm.stopPrank();
+    }
+    
+
+    function poolSetupWithDeposit(uint256 deposit) public {
+        PoolInstrument.CollateralLabel[] memory _clabels = clabels;
+        PoolInstrument.Config[] memory _configs = configs;
+        deployPoolInstrument(
+            _clabels,
+            _configs,
+            vault_ad,
+            0,
+            deployer,
+            address(linearRateCalculator),
+            linearRateData
+        );
+
+        vm.startPrank(vault_ad);
+        collateral.faucet(10000*unit);
+        collateral.approve(address(poolInstrument), type(uint256).max);
+        poolInstrument.deposit(deposit, vault_ad);
+
+        vm.stopPrank();
+    }
+
+    function tokuGokuSetup() public {
+        vm.startPrank(toku);
+        collateral.faucet(10000*unit);
+        collateral.approve(address(poolInstrument), type(uint256).max);
+        cash1.faucet(10000*unit);
+        cash1.approve(address(poolInstrument), type(uint256).max);
+        nft1.freeMint(toku, 1);
+        nft1.approve(address(poolInstrument), 1);
+        
+        changePrank(goku);
+        collateral.faucet(10000*unit);
+        collateral.approve(address(poolInstrument), type(uint256).max);
+
+        vm.stopPrank();
+    }
 
     function logUserAuctionState(address borrower) public {
         bytes32[] memory auctionIds = auctioneer.getActiveUserAuctions(borrower);
@@ -454,7 +688,7 @@ contract PoolInstrumentTest is CustomTestBase {
         (uint256 supplyAmount, uint256 supplyShares) = poolInstrument.totalAsset();
         uint256 utilizationRate = (UTIL_PREC * borrowAmount) / supplyAmount;
         bytes memory data = abi.encode(uint64(0), uint256(0), utilizationRate, uint256(0));
-        uint256 ratePerSec = linearRateCalculator.getNewRate(data,linearRateData);
+        uint256 ratePerSec = linearRateCalculator.getNewRate(data, linearRateData);
         // (uint64 lastBlock,
         // uint64 lastTimestamp,
         // uint64 ratePerSec) = poolInstrument.currentRateInfo();
@@ -514,6 +748,7 @@ contract PoolInstrumentTest is CustomTestBase {
         console.log("user borrow amount: ", _userBorrowAmount);
         console.log("account liq:");
         console.logInt(_userAccountLiquidity);
+        console.log("maxBorrow: ", poolInstrument.getMaxBorrow(toku));
 
         console.log("user collateral: ");
         for (uint i = 0; i < _userCollateral.length; i++) {

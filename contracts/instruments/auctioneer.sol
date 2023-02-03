@@ -67,6 +67,7 @@ contract Auctioneer {
     }
 
     function resetAuction(address _borrower, address _collateral, uint256 _tokenId) external onlyPool {
+        require(auctions[computeAuctionId(_borrower, _collateral, _tokenId)].alive, "!auction");
         auctions[computeAuctionId(_borrower, _collateral, _tokenId)].creationTimestamp = block.timestamp;
     }
 
@@ -79,6 +80,8 @@ contract Auctioneer {
 
         bytes32[] memory _activeAuctionIds = activeAuctionIds;
         bytes32[] memory _userAuctionIds = userAuctionIds[_borrower];
+
+
 
         for (uint256 i = 0; i < _activeAuctionIds.length; i++) {
             if (_activeAuctionIds[i] == _auctionId) {
@@ -95,6 +98,8 @@ contract Auctioneer {
                 break;
             }
         }
+
+        console.log("closing auction");
     }
 
     function getActiveUserAuctions(address _user) external view returns (bytes32[] memory) {
