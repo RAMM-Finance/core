@@ -76,9 +76,8 @@ contract PricerTest is CustomTestBase {
         nftPool.setUtilizer(toku); 
 
         initiateSimpleNFTLendingPool(); 
+        // initiateLendingPool(vault_ad); 
         doInvest(vault_ad,  toku, 1e18*10000); 
-
-
 
     }
    
@@ -105,18 +104,27 @@ contract PricerTest is CustomTestBase {
 
     }
 
-    // function testStoreNewPrices() public {
-    //     testVars1 memory vars; 
-    //     vars.marketId = controller.getMarketId(toku); 
-    //     uint256 multiplier = 1; 
-    //     uint256 initPrice = 1e18; 
+    function testStoreNewPrices() public returns(testVars1 memory) {
+        testVars1 memory vars; 
+        vars.marketId = controller.getMarketId(toku); 
+        vars.vault_ad = controller.getVaultfromId(vars.marketId);
+        uint256 multiplier = 1; 
+        uint256 initPrice = 1e18; 
 
-    //     controller.storeNewPrices( vars.marketId, multiplier, initPrice); 
 
-    //     PricingInfo memory info = Data.getPricingInfo( vars.marketId); 
+        // At start needs to be at inception price, 
+        PricingInfo memory info = Data.getPricingInfo( vars.marketId); 
+        assertEq(info.psu, Data.getInstrumentData(vars.marketId).poolData.inceptionPrice); 
 
-    //     console.log('psu', info.psu); 
-    // }
+        // after constant RF, with time needs to be same 
+        Data.setRF(vars.marketId, true); 
+
+        (vars.psu, vars.pju, ) = Data.viewCurrentPricing(vars.marketId) ; 
+        assertEq(vars.psu, info.psu); 
+        assertEq(vars.psu, vars.pju); 
+
+        return vars; 
+    }
 
     // function testPricer() public{
     //     testVars1 memory vars; 
@@ -137,65 +145,68 @@ contract PricerTest is CustomTestBase {
     //     assertEq(vars.psu, psu); 
     //     assertEq(vars.pju, pju); 
 
+
+
     // }
  
 
-    // function testPricing() public{
-    //     testVars1 memory vars; 
-    //     // 1. When approve, pricing should stay same
-    //     // 2. When issue, pricing should stay same
-    //     // 3. When begins, need to both start at inception, and when donated, pju must go up
-    //     // 4. When time passes and no donations made, psu goes up pju goes down, 
-    //     // 5. Works for all initial price <= inception price and 
-    //     vars.marketId = controller.getMarketId(toku); 
-    //     vars.vault_ad = controller.getVaultfromId(vars.marketId); //
+    function testConstantRFPricing() public{
+        testVars1 memory vars = testStoreNewPrices(); 
+        // 1. When approve, pricing should stay same
+        // 2. When issue, pricing should stay same
+        // 3. When begins, need to both start at inception, and when donated, pju must go up
+        // 4. When time passes and no donations made, psu goes up pju goes down, 
+        // 5. Works for all initial price <= inception price and 
 
-    //     // After approval 
-    //     vars.amountToBuy = Vault(vars.vault_ad).fetchInstrumentData(vars.marketId).poolData.saleAmount*3/2; 
-    //     // uint donateAmount = Vault(vars.vault_ad).UNDERLYING().balanceOf(address(Vault(vars.vault_ad).fetchInstrument(vars.marketId))) * 1/10; 
+        // After approval 
+        vars.amountToBuy = Vault(vars.vault_ad).fetchInstrumentData(vars.marketId).poolData.saleAmount*3/2; 
+        // uint donateAmount = Vault(vars.vault_ad).UNDERLYING().balanceOf(address(Vault(vars.vault_ad).fetchInstrument(vars.marketId))) * 1/10; 
      
+        // Let manager buy
+        bytes memory data; 
+        doApproveCol(address(marketmanager), jonna); 
+        vm.prank(jonna); 
+        (vars.amountIn, vars.amountOut) =
+            marketmanager.buyBond(vars.marketId, int256(vars.amountToBuy), precision , data); 
 
-    //     // Let manager buy
-    //     bytes memory data; 
-    //     doApproveCol(address(marketmanager), jonna); 
-    //     vm.prank(jonna); 
-    //     (vars.amountIn, vars.amountOut) =
-    //         marketmanager.buyBond(vars.marketId, int256(vars.amountToBuy), precision , data); 
+        (uint psu,  uint pju, ) = Data.viewCurrentPricing(vars.marketId) ; 
+        console.log('start pju', pju, psu); 
 
-    //     controller.getVault(vars.marketId).poolZCBValue(vars.marketId); 
-    //     (uint psu,  uint pju, ) = controller.getVault(vars.marketId).poolZCBValue(vars.marketId);
-    //     console.log('start pju', pju, psu); 
-    //     doApprove(vars.marketId, vars.vault_ad);
-    //     uint donateAmount = Vault(vars.vault_ad).UNDERLYING().balanceOf(address(Vault(vars.vault_ad).fetchInstrument(vars.marketId))) * 1/10; 
+        // Approve and pricing same 
+        doApprove(vars.marketId, vars.vault_ad);
+        uint donateAmount = Vault(vars.vault_ad).UNDERLYING().balanceOf(address(Vault(vars.vault_ad).fetchInstrument(vars.marketId))) * 1/10; 
+        (vars.psu, vars.pju, ) = Data.viewCurrentPricing(vars.marketId) ;
+        assertEq(vars.psu, psu); 
+        assertEq(vars.pju, pju); 
+        assertApproxEqAbs(vars.psu, vars.pju, 10); 
+        assertEq(vars.psu, controller.getVault(vars.marketId).fetchInstrumentData(vars.marketId).poolData.inceptionPrice); 
 
-
-    //     (vars.psu, vars.pju, ) = controller.getVault(vars.marketId).poolZCBValue(vars.marketId);
-    //     assertEq(vars.psu, psu); 
-    //     assertEq(vars.pju, pju); 
-    //     assertApproxEqAbs(vars.psu, vars.pju, 10); 
-    //     assertEq(vars.psu, controller.getVault(vars.marketId).fetchInstrumentData(vars.marketId).poolData.inceptionPrice); 
-    //     donateToInstrument( vars.vault_ad, address(Vault(vars.vault_ad).fetchInstrument(vars.marketId)) ,  donateAmount);
-    //     ( psu,   pju, ) = controller.getVault(vars.marketId).poolZCBValue(vars.marketId);
-    //     assertEq(psu, vars.psu); 
-    //     // if(donateAmount>0)assert(vars.pju<pju);
-    //     console.log('after donate pju', pju, psu); 
-
-
-
-    //     //After some time.. when no donations were made 
-    //     vm.warp(block.timestamp+31536000); 
-    //     donateToInstrument( vars.vault_ad, address(Vault(vars.vault_ad).fetchInstrument(vars.marketId)) ,  donateAmount);
-
-    //     ( vars.psu,   vars.pju, ) = controller.getVault(vars.marketId).poolZCBValue(vars.marketId);
-    //     assert(vars.psu>controller.getVault(vars.marketId).fetchInstrumentData(vars.marketId).poolData.inceptionPrice ); 
-    //     if(donateAmount==0) assert(pju> vars.pju); 
-    //     console.log('after time pju', vars.pju, vars.psu); 
+        // Donate and pricing same 
+        donateToInstrument( vars.vault_ad, address(Vault(vars.vault_ad).fetchInstrument(vars.marketId)) ,  donateAmount);
+        ( psu,   pju, ) = Data.viewCurrentPricing(vars.marketId) ;
+        assertEq(psu, vars.psu); 
+        // if(donateAmount>0)assert(vars.pju<pju);
+        console.log('after donate pju', pju, psu); 
 
 
-    //     // (vars.amountIn, vars.amountOut) =
-    //     //     marketmanager.buyBond(vars.marketId, int256(vars.amountToBuy), vars.curPrice + precision/2 , data); 
-    //     // marketmanager.issuePoolBond(vars.marketId, vars.amountToBuy); 
-    // }
+
+        //After some time.. when no donations were made 
+        vm.warp(block.timestamp+31536000); 
+        donateToInstrument( vars.vault_ad, address(Vault(vars.vault_ad).fetchInstrument(vars.marketId)) ,  donateAmount);
+
+        ( vars.psu,   vars.pju, ) = Data.viewCurrentPricing(vars.marketId) ;
+        console.log('after time pju', vars.pju, vars.psu, pju); 
+
+        assert(vars.psu>controller.getVault(vars.marketId).fetchInstrumentData(vars.marketId).poolData.inceptionPrice ); 
+        if(donateAmount==0) assert(pju> vars.pju); 
+
+        // Issue doesn't change price 
+        vm.prank(jonna); 
+        marketmanager.issuePoolBond(vars.marketId, vars.amountToBuy); 
+        (psu, pju, ) = Data.viewCurrentPricing(vars.marketId) ; 
+        assertEq(vars.psu, psu); 
+        assertEq(vars.pju, pju); 
+    }
 
     function testPricingIsSupplyAgnostic() public{}
 

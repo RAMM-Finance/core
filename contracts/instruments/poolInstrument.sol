@@ -1165,6 +1165,7 @@ contract PoolInstrument is
         returns (uint256)
     {
         // Default balance oracle
+        console.log('totalSupply', totalSupply, previewMint(1e18)); 
         return totalSupply.mulWadDown(previewMint(1e18));
         //TODO custom oracle
     }

@@ -4,6 +4,7 @@ import {Controller} from "../protocol/controller.sol";
 import {Vault} from "../vaults/vault.sol"; 
 import  "../global/types.sol"; 
 import {Instrument} from "../vaults/instrument.sol"; 
+import "forge-std/console.sol";
 
 library PerpTranchePricer{
     using FixedPointMathLib for uint256;
@@ -22,6 +23,10 @@ library PerpTranchePricer{
 		_self.URATE_MULTIPLIER = multiplier;  
 		_self.ID = id; 
 		_self.constantRF = constantRF; 
+	}
+
+	function setRF(PricingInfo storage _self, bool isConstant) internal{
+		_self.constantRF = isConstant; 
 	}
 
 	/// @notice needs to be updated whenver utilization rate is updated 
@@ -59,23 +64,28 @@ library PerpTranchePricer{
 		address instrument, 
 		PoolData memory perp, 
 		uint256 juniorSupply
-		) public view returns(uint256 psu, uint256 pju, uint256 levFactor){
+		) public view returns(uint256 psu, uint256 pju , uint256 levFactor ){
 	    //TODO should not tick during assessment 
 	    localVars memory vars; 
+
 	    uint256 marketId = _self.ID; 
 	    levFactor = perp.leverageFactor; 
-
 	    require(perp.inceptionPrice > 0, "0 price"); 
 
-	    vars.seniorSupply = vars.juniorSupply.mulWadDown(perp.leverageFactor); 
-	    vars.totalAssetsHeldScaled = Instrument(instrument).assetOracle(vars.juniorSupply + vars.seniorSupply)
+	    vars.seniorSupply = juniorSupply.mulWadDown(perp.leverageFactor); 
+	    vars.totalAssetsHeldScaled = Instrument(instrument).assetOracle(juniorSupply + vars.seniorSupply)
 	    	 .mulWadDown(perp.inceptionPrice); 
+	    console.log('?', _self.psu, _self.psu);
 
-	    if (vars.seniorSupply == 0) return(psu, psu,levFactor); 
+	    if (vars.seniorSupply == 0) return (_self.psu, _self.psu, levFactor); 
+	    	
+		console.log('??',_self.constantRF, block.timestamp, perp.inceptionTime ); 
 
 		if(_self.constantRF){
+
 			psu = perp.inceptionPrice.mulWadDown((BASE_UNIT+ perp.promisedReturn)
     		 .rpow(block.timestamp - perp.inceptionTime, BASE_UNIT));
+			console.log('??',psu, block.timestamp, perp.inceptionTime ); 
 		} else {
 			psu = _self.psu; 
 		}
@@ -85,10 +95,13 @@ library PerpTranchePricer{
 	    	psu = vars.totalAssetsHeldScaled.divWadDown(vars.seniorSupply); 
 	    	vars.belowThreshold = true; 
 	    }
+	    console.log('?', psu, vars.totalAssetsHeldScaled, psu.mulWadDown(vars.seniorSupply));
 
 	    // should be 0 otherwise 
 	    if(!vars.belowThreshold) pju = (vars.totalAssetsHeldScaled 
-	      - psu.mulWadDown(vars.seniorSupply)).divWadDown(vars.juniorSupply); 
+	      - psu.mulWadDown(vars.seniorSupply)).divWadDown(juniorSupply); 
+	    console.log('belowThreshold', !vars.belowThreshold, pju, (vars.totalAssetsHeldScaled 
+	      - psu.mulWadDown(vars.seniorSupply))); 
 	}
 
   
