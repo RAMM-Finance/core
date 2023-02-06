@@ -375,7 +375,7 @@ contract Controller {
          Data.storeNewMarket(marketData), 
          instrumentData.poolData.inceptionPrice, 
          0, //TODO configurable 
-         false, 
+         true, 
          instrumentData, 
          marketData); // TODO more params 
 
