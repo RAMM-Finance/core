@@ -370,9 +370,9 @@ contract Controller {
                 instrumentData.isPool
             );
         }
-
+        // Data.storeNewMarket(marketData); 
         Data.setNewInstrument(
-         marketId, 
+         Data.storeNewMarket(marketData), 
          instrumentData.poolData.inceptionPrice, 
          0, //TODO configurable 
          false, 

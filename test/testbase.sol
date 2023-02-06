@@ -20,6 +20,7 @@ import "contracts/global/types.sol";
 import {PoolInstrument} from "../contracts/instruments/poolInstrument.sol";
 import {TestNFT} from "../contracts/utils/TestNFT.sol";
 import {Auctioneer} from "../contracts/instruments/auctioneer.sol";
+import {LinearInterestRate} from "../contracts/instruments/LinearInterestRate.sol";
 
 contract CustomTestBase is Test {
     using FixedPointMath for uint256; 
@@ -256,6 +257,67 @@ contract CustomTestBase is Test {
         controller.fulfillRandomWords(1, words);
 
     }
+
+    // function initiateLendingPool(address vault_ad) public {
+    //     uint256 _minInterest = 0;
+    //     uint256 _vertexInterest = 8319516187; // 30% APR
+    //     uint256 _maxInterest = 12857214404; // 50% APR
+    //     uint256 _vertexUtilization = UTIL_PREC * 4/5; // 80% utilization
+
+    //     bytes linearRateData = abi.encode(_minInterest,_vertexInterest, _maxInterest, _vertexUtilization);
+
+    //     linearRateCalculator = (new LinearInterestRate());
+
+    //     PoolInstrument.CollateralLabel[] memory _clabels = clabels;
+    //     PoolInstrument.Config[] memory _configs = configs;
+    //     deployPoolInstrument(
+    //         _clabels,
+    //         _configs,
+    //         vault_ad,
+    //         0,
+    //         deployer,
+    //         address(linearRateCalculator),
+    //         linearRateData
+    //     );
+
+    //     auctioneer = new Auctioneer(
+    //         address(poolInstrument)
+    //     );
+    //     poolInstrument.setAuctioneer(address(auctioneer));
+
+    //     InstrumentData memory data; 
+    //     PoolData memory poolData; 
+
+    //     poolData.saleAmount = principal/4; 
+    //     poolData.initPrice = 7e17; 
+    //     poolData.promisedReturn = 3000000000; 
+    //     poolData.inceptionTime = block.timestamp; 
+    //     poolData.inceptionPrice = 8e17; 
+    //     poolData.leverageFactor = 5e18; 
+
+    //     data.isPool = true; 
+    //     data.trusted = false; 
+    //     data.balance = 0;
+    //     data.faceValue = 0;
+    //     data.marketId = 0; 
+    //     data.principal = 0;
+    //     data.expectedYield = 0;
+    //     data.duration = 0;
+    //     data.description = "test";
+    //     data.instrument_address = address(poolInstrument);
+    //     data.instrument_type = InstrumentType.LendingPool;
+    //     data.maturityDate = 0; 
+    //     data.poolData = poolData; 
+
+    //     controller.initiateMarket(toku, data, 1); 
+
+    //     uint256[] memory words = new uint256[](N);
+    //     for (uint256 i=0; i< words.length; i++) {
+    //         words[i] = uint256(keccak256(abi.encodePacked(i)));
+    //     }
+    //     controller.fulfillRandomWords(1, words);
+
+    // }
 
     function deployPoolInstrument(
         PoolInstrument.CollateralLabel[] memory clabels,

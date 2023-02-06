@@ -21,6 +21,17 @@ contract StorageHandler{
     }
 
 
+  constructor() 
+  {
+    // controller = Controller(_controllerAddress);
+    // push empty market
+    markets.push(makeEmptyMarketData());
+
+    // owner = msg.sender; 
+  }
+
+
+
 	/// @notice called at market creation 
 	function setNewInstrument(
 		uint256 marketId, 
@@ -28,11 +39,10 @@ contract StorageHandler{
 		uint256 multiplier, 
 		bool constantRF, 
 		InstrumentData memory idata, 
-		CoreMarketData memory mdata) external onlyProtocol{
+		CoreMarketData memory mdata) external onlyProtocol {
 		PricingInfos[marketId].setNewPrices(initialPrice, multiplier, marketId, constantRF); 
 
 		storeNewProposal(marketId, idata); 
-		// storeNewMarket(marketId, mdata); 
 	}
 
 
@@ -46,32 +56,39 @@ contract StorageHandler{
 		PricingInfos[marketId] = newInfo; 
 	}
 
+	function setRF(uint256 marketId, bool isConstant) external onlyProtocol {
+		PricingInfos[marketId].setRF(isConstant); 
+	}
+
 	function refreshPricing(uint256 marketId, uint256 uRate) public onlyProtocol{
 		PricingInfos[marketId].storeNewPSU(uRate); 
 	}
 
 	function viewCurrentPricing(uint256 marketId) public view returns(uint256, uint256, uint256) {
 		InstrumentData memory data = InstrumentDatas[marketId]; 
-		PricingInfos[marketId].viewCurrentPricing(
+		return (PricingInfos[marketId].viewCurrentPricing(
 			data.instrument_address, 
 			data.poolData, 
 			markets[marketId].longZCB.totalSupply()
-		); 
+		));  
 	}
 
 
 
-
-
 	//--- Instrument ---//
+	function getInstrumentData(uint256 marketId) public returns(InstrumentData memory){
+		return InstrumentDatas[marketId]; 
+	}
 
 	function storeNewProposal(uint256 marketId, InstrumentData memory data) public onlyProtocol{
 		InstrumentDatas[marketId] = data; 
 	}
 
 
+
+
 	//--- Market ---//
-	function storeNewMarket(CoreMarketData memory data) public onlyProtocol returns(uint256 marketId){
+	function storeNewMarket(CoreMarketData memory data) public onlyProtocol  returns(uint256 marketId){
 		// MarketDatas[marketId] = data; 
 		marketId = markets.length; 
 		markets.push(data); 
@@ -79,7 +96,17 @@ contract StorageHandler{
 		// setMarketPhase(marketId, true, true, base_budget);
 	}
 
-
+	function makeEmptyMarketData() internal pure returns (CoreMarketData memory) {
+		return CoreMarketData(
+		    SyntheticZCBPool(address(0)),
+		    ERC20(address(0)),
+		    ERC20(address(0)),
+		    "",
+		    0,
+		    0, 
+		    false
+		);
+	}    
 
 
 
