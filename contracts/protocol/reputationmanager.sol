@@ -51,6 +51,8 @@ contract ReputationManager {
         return repLogs[trader][marketId]; 
     }
 
+    event RecordPull(address trader, uint256 marketId, uint256 bondAmount, uint256 collateral_amount, uint256 budget, bool perpetual);
+
     /// @notice record for reputation updates whenever trader buys longZCB
     function recordPull(
         address trader, 
@@ -67,6 +69,8 @@ contract ReputationManager {
         newLog.budget = budget; 
 
         repLogs[trader][marketId] = newLog;   
+
+        emit RecordPull(trader, marketId, bondAmount, collateral_amount, budget, perpetual);
     }
 
     /// @notice updates reputation whenever trader redeems 

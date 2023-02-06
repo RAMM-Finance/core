@@ -134,6 +134,8 @@ contract LeverageManager is ERC721Enumerable{
         leveragePosition[marketId][msg.sender] = position; 
     }
 
+    //event LeveredBondBuy(uint256 indexed marketId, address indexed trader, uint256 amountIn, uint256 amountOut, bool perpetual);
+
     /// @notice for managers that are a) meet certain reputation threshold and b) choose to be more
     /// capital efficient with their zcb purchase. 
     /// @param _amountIn (in collateral) already accounts for the leverage, so the actual amount manager is transferring
@@ -143,7 +145,7 @@ contract LeverageManager is ERC721Enumerable{
     function buyBondLevered(
         uint256 _marketId, 
         uint256 _amountIn, 
-        uint256 _priceLimit, 
+        uint256 _priceLimit,
         uint256 _leverage //in 18 dec 
         ) external _lock_ returns(uint256 amountIn, uint256 amountOut){
         require(_leverage <= getMaxLeverage(msg.sender) && _leverage >= precision, "!leverage");

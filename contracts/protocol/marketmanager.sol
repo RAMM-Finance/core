@@ -411,8 +411,18 @@ event MarketDenied(uint256 indexed marketId);
   }
 
 
-  event MarketCollateralUpdate(uint256 marketId, uint256 totalCollateral);
-  event TraderCollateralUpdate(uint256 marketId, address manager, uint256 totalCollateral, bool isLong);
+  // event MarketCollateralUpdate(uint256 marketId, uint256 totalCollateral);
+  // event TraderCollateralUpdate(uint256 marketId, address manager, uint256 totalCollateral, bool isLong);
+
+  event TraderUpdate(
+    uint256 indexed marketId, 
+    address trader, 
+    uint256 totalCollateral, 
+    bool isLong, 
+    uint256 shortCollateral,
+    uint256 collateral,
+    bool isBuy
+    );
 
   /// @notice log how much collateral trader has at stake, 
   /// to be used for redeeming, restricting trades
@@ -446,11 +456,10 @@ event MarketDenied(uint256 indexed marketId);
         // revert if underflow, which means trader sold short at a profit, which is not allowed during assessment 
         shortTrades[marketId][trader] -= shortCollateral; 
         loggedCollaterals[marketId] += collateral;
-      } 
+      }
     }
 
-    emit TraderCollateralUpdate(marketId, trader, shortTrades[marketId][trader], isLong);
-    emit MarketCollateralUpdate(marketId, loggedCollaterals[marketId]);
+    emit TraderUpdate(marketId, trader, loggedCollaterals[marketId], isLong, shortCollateral, collateral, isBuy);
   }
 
   /// @notice general limitorder claim + liquidity provision funnels used post-assessment, 
@@ -645,6 +654,9 @@ event MarketDenied(uint256 indexed marketId);
     }
   }
 
+
+  event BondShort(uint256 indexed marketId, address indexed trader, uint256 amountMint, uint256 amountIn);
+
   /// @param _amountIn: amount of short trader is willing to buy
   /// @param _priceLimit: slippage tolerance on trade
   function shortBond(
@@ -661,6 +673,8 @@ event MarketDenied(uint256 indexed marketId);
     (amountOut, amountIn) = markets[_marketId].bondPool.takerOpen(false, int256(_amountIn),
        _priceLimit, abi.encode(msg.sender));
     _logTrades(_marketId, msg.sender, amountOut, amountIn, true, false);
+
+    emit BondShort(_marketId, msg.sender, _amountIn, amountIn);
   }
 
 
