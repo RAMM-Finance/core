@@ -76,7 +76,6 @@ contract LeverageManager is ERC721Enumerable{
         ) external returns(uint256 issueQTY){
         require(_leverage <= getMaxLeverage(msg.sender) && _leverage >= precision, "!leverage");
 
-        marketManager._canIssue(msg.sender, int256(_amountIn), _marketId); 
         CoreMarketData memory market = marketManager.getMarket(_marketId); 
         ERC20 underlying = ERC20(address(market.bondPool.BaseToken())); 
 

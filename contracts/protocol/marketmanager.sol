@@ -296,7 +296,7 @@ event MarketDenied(uint256 indexed marketId);
   function getTraderBudget(uint256 marketId, address trader) public view returns(uint256){
     uint256 repscore = reputationManager.trader_scores(trader);
     if (repscore==0) return 0;
-    return restriction_data[marketId].base_budget + (repscore*config.WAD).sqrt();
+    return restriction_data[marketId].base_budget.mulWadDown((repscore*config.WAD).sqrt());
   }
 
   function getParameters(uint256 marketId) public view returns(MarketParameters memory){
@@ -320,7 +320,8 @@ event MarketDenied(uint256 indexed marketId);
   function _canIssue(
     address trader,
     int256 amount,
-    uint256 marketId
+    uint256 marketId, 
+    uint256 budget
     ) public view {
     //TODO per market queue 
     //if(queuedRepUpdates[trader] > queuedRepThreshold)
@@ -329,7 +330,7 @@ event MarketDenied(uint256 indexed marketId);
     // if (!controller.isVerified(trader)) 
     //   revert("!verified");
 
-    if (getTraderBudget(marketId, trader) <= uint256(amount))
+    if (budget <= uint256(amount))
       revert("budget");
 
     if (controller.getTraderScore(trader) == 0)
@@ -341,7 +342,8 @@ event MarketDenied(uint256 indexed marketId);
   function _canBuy(
     address trader,
     int256 amount,
-    uint256 marketId
+    uint256 marketId, 
+    uint256 budget
   ) public view {
     //If after assessment there is a set buy threshold, people can't buy above this threshold
     require(restriction_data[marketId].alive, "!Active");
@@ -354,7 +356,7 @@ event MarketDenied(uint256 indexed marketId);
 
     if(amount>0){
       if (_duringMarketAssessment){
-        _canIssue(trader, amount, marketId); 
+        _canIssue(trader, amount, marketId, budget); 
       }
     }
 
@@ -483,15 +485,15 @@ event MarketDenied(uint256 indexed marketId);
     ) external returns(uint256 issueQTY){
     LocarVars memory vars; 
     require(msg.sender == address(this) || msg.sender == leverageManager_ad, "invalid entry"); 
+    _canIssue(trader, int256(_amountIn), _marketId, getTraderBudget(_marketId, trader));  
 
     vars.vault = controller.getVault(_marketId); 
     vars.underlying = ERC20(address(markets[_marketId].bondPool.BaseToken())); 
     vars.instrument = address(vars.vault.Instruments(_marketId)); 
 
     // Get price a_lock_nd sell longZCB with this price
-    // (vars.psu, vars.pju, vars.levFactor) = Data.viewCurrentPricing(_marketId); 
-    (vars.psu, vars.pju, vars.levFactor ) = vars.vault.poolZCBValue(_marketId);
-
+    // (vars.psu, vars.pju, vars.levFactor ) = vars.vault.poolZCBValue(_marketId);
+    (vars.psu, vars.pju, vars.levFactor) = Data.viewCurrentPricing( _marketId); 
     vars.underlying.transferFrom(_caller, address(this), _amountIn);
     vars.underlying.approve(vars.instrument, _amountIn); 
     ERC4626(vars.instrument).deposit(_amountIn, address(vars.vault)); 
@@ -513,7 +515,6 @@ event MarketDenied(uint256 indexed marketId);
     ) external _lock_ returns(uint256 issueQTY){
     require(!restriction_data[_marketId].duringAssessment, "Pre Approval"); 
 
-    _canIssue(msg.sender, int256(_amountIn), _marketId);  
 
     issueQTY = this.issueBond(_marketId, _amountIn, msg.sender, msg.sender); 
     //TODO Need totalAssets and exchange rate to remain same assertion 
@@ -533,12 +534,13 @@ event MarketDenied(uint256 indexed marketId);
     require(msg.sender == address(this) || msg.sender == leverageManager_ad, "invalid entry"); 
     Vault vault = controller.getVault(marketId); 
     CoreMarketData memory market = markets[marketId]; 
+    LocarVars memory vars; 
 
     require(market.isPool, "!pool"); 
 
-    (uint256 psu, uint256 pju, uint256 levFactor ) = vault.poolZCBValue(marketId);
-    collateral_redeem_amount = pju.mulWadDown(redeemAmount); 
-    seniorAmount = redeemAmount.mulWadDown(levFactor).mulWadDown(psu); 
+    (vars.psu, vars.pju, vars.levFactor) = Data.viewCurrentPricing( marketId); 
+    collateral_redeem_amount = vars.pju.mulWadDown(redeemAmount); 
+    seniorAmount = redeemAmount.mulWadDown(vars.levFactor).mulWadDown(vars.psu); 
 
     // Need to check if redeemAmount*levFactor can be withdrawn from the pool and do so
     vault.withdrawFromPoolInstrument(marketId, collateral_redeem_amount, caller, seniorAmount); 
@@ -549,7 +551,7 @@ event MarketDenied(uint256 indexed marketId);
     }
     market.bondPool.trustedBurn(caller, redeemAmount, true); 
 
-    reputationManager.recordPush(trader, marketId, pju, false, redeemAmount);
+    reputationManager.recordPush(trader, marketId, vars.pju, false, redeemAmount);
 
     // TODO assert pju stays same 
     // TODO assert need totalAssets and exchange rate to remain same 
@@ -613,9 +615,9 @@ event MarketDenied(uint256 indexed marketId);
     require(!vars.phaseData.resolved, "not resolved");
     require(vars.phaseData.duringAssessment, "only assessment"); 
 
-    _canBuy(trader, _amountIn, _marketId);
+    vars.budget = getTraderBudget(_marketId, trader); 
+    _canBuy(trader, _amountIn, _marketId, vars.budget);
 
-    //TODO return readable error on why it reverts
     CoreMarketData memory marketData = markets[_marketId]; 
     SyntheticZCBPool bondPool = marketData.bondPool; 
     
@@ -629,7 +631,6 @@ event MarketDenied(uint256 indexed marketId);
     //Need to log assessment trades for updating reputation scores or returning collateral when market denied 
     _logTrades(_marketId, trader, amountIn, 0, true, true);
 
-    // Get implied probability estimates by summing up all this manager bought for this market 
     vars.budget = getTraderBudget(_marketId, trader); 
     reputationManager.recordPull(trader, _marketId, amountOut, amountIn, vars.budget, marketData.isPool); 
 
