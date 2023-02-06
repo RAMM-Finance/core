@@ -531,14 +531,14 @@ contract PoolInstrument is
         address _payer,
         address _borrower
     ) internal {
-        console.log("_shares: ", _shares);
-        console.log("_amountToRepay: ", _amountToRepay);
-        console.log(
-            "userBorrowShares[_borrower]: ",
-            userBorrowShares[_borrower]
-        );
-        console.log("totalBorrow.amount: ", totalBorrow.amount);
-        console.log("totalBorrow.shares: ", totalBorrow.shares);
+        // console.log("_shares: ", _shares);
+        // console.log("_amountToRepay: ", _amountToRepay);
+        // console.log(
+        //     "userBorrowShares[_borrower]: ",
+        //     userBorrowShares[_borrower]
+        // );
+        // console.log("totalBorrow.amount: ", totalBorrow.amount);
+        // console.log("totalBorrow.shares: ", totalBorrow.shares);
         // Effects: Bookkeeping
         _totalBorrow.amount -= _amountToRepay;
         _totalBorrow.shares -= _shares;
@@ -752,9 +752,9 @@ contract PoolInstrument is
         bool _isERC20 = collateralConfigs[id].isERC20;
         if (_receiver != address(this)) {
             if (_isERC20) {
-                console.log("removing erc20 collateral");
-                console.log("userCollateralerc20: ", userERC20s[id][_borrower] );
-                console.log("collateralAmount: ", _collateralAmount);
+                // console.log("removing erc20 collateral");
+                // console.log("userCollateralerc20: ", userERC20s[id][_borrower] );
+                // console.log("collateralAmount: ", _collateralAmount);
                 userERC20s[id][_borrower] -= _collateralAmount;
                 collateralConfigs[id].totalCollateral -= _collateralAmount;
                 ERC20(_collateral).safeTransfer(_receiver, _collateralAmount);
@@ -842,10 +842,10 @@ contract PoolInstrument is
     {
         _addInterest();
 
-        bool _liquidatable = _isLiquidatable(_borrower);
-        require(_liquidatable, "!liquidatable");
+        // bool _liquidatable = _isLiquidatable(_borrower);
 
-        if (_liquidatable) {
+
+        if (_isLiquidatable(_borrower)) {
             _auctionId = auctioneer.createAuction(
                 _borrower,
                 _collateral,
