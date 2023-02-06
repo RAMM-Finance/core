@@ -51,7 +51,7 @@ contract ReputationManager {
         return repLogs[trader][marketId]; 
     }
 
-    event RecordPull(address trader, uint256 marketId, uint256 bondAmount, uint256 collateral_amount, uint256 budget, bool perpetual);
+    event RecordPull(address indexed trader, uint256 marketId, uint256 bondAmount, uint256 collateral_amount, uint256 budget, bool perpetual);
 
     /// @notice record for reputation updates whenever trader buys longZCB
     function recordPull(
@@ -72,6 +72,8 @@ contract ReputationManager {
 
         emit RecordPull(trader, marketId, bondAmount, collateral_amount, budget, perpetual);
     }
+
+    event RecordPush(address indexed trader, uint256 marketId, uint256 bondPrice, bool premature, uint256 redeemAmount, bool perpetual);
 
     /// @notice updates reputation whenever trader redeems 
     /// param premature is true if trader redeems/sells before maturity 
@@ -123,6 +125,7 @@ contract ReputationManager {
             delete repLogs[trader][marketId];             
         }
 
+        emit RecordPush(trader, marketId, bondPrice, premature, redeemAmount, newLog.perpetual);
 
     }
 
@@ -315,6 +318,10 @@ contract ReputationManager {
         trader_scores[msg.sender] += update;
         _updateRanking(msg.sender, true);
         emit ScoreUpdated(msg.sender, trader_scores[msg.sender]);
+    }
+
+    function getScore(address trader) view public returns (uint256) {
+        return trader_scores[trader];
     }
 
     /**

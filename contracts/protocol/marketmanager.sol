@@ -744,7 +744,7 @@ event MarketDenied(uint256 indexed marketId);
     uint256 marketId
     ) external _lock_ returns(uint256 collateral_redeem_amount){
     require(!restriction_data[marketId].alive, "!Active"); 
-    require(restriction_data[marketId].resolved, "!resolved"); 
+    require(restriction_data[marketId].resolved, "!resolved");
     require(!redeemed[marketId][msg.sender], "Redeemed");
     redeemed[marketId][msg.sender] = true; 
 
@@ -769,6 +769,7 @@ event MarketDenied(uint256 indexed marketId);
     controller.redeem_transfer(collateral_redeem_amount, msg.sender, marketId);
   }
 
+  event RedeemShort(uint256 marketId, address trader, uint256 redeemAmount, uint256 redemptionPrice);
   /// @notice called by short buyers when market is resolved for fixed term instruments 
   function redeemShortZCB(
     uint256 marketId 
@@ -790,6 +791,8 @@ event MarketDenied(uint256 indexed marketId);
 
     bondPool.trustedBurn(msg.sender, shortZCB_redeem_amount, false); 
     controller.redeem_transfer(collateral_redeem_amount, msg.sender, marketId); 
+
+    emit RedeemShort(marketId, msg.sender, shortZCB_redeem_amount, redemption_price);
   }
 
   function burnAndTransfer(

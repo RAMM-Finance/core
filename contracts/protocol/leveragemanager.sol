@@ -186,9 +186,7 @@ contract LeverageManager is ERC721Enumerable{
             ? collateral_back - uint256(position.debt) : 0; 
 
         if (!controller.isValidator(marketId, msg.sender)) {
-          // bool increment = redemption_price >= config.WAD? true: false;
-          // controller.updateReputation(marketId, msg.sender, increment);
-          // reputationManager.recordPush(msg.sender, marketId, redemption_price, false, zcb_redeem_amount); 
+          reputationManager.recordPush(msg.sender, marketId, redemption_price, false, 0);
         }
         marketManager.burnAndTransfer(marketId, address(this), position.amount, msg.sender, collateral_redeem_amount); 
 
