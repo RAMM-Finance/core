@@ -108,6 +108,10 @@ contract StorageHandler{
 		);
 	}    
 
+	function zcbMaxPrice(uint256 marketId) public view returns(uint256){
+		return 1e18; 
+	} 
+
 
 
 }

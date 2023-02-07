@@ -23,6 +23,7 @@ contract GranularBondingCurve{
     }
     
     bool private _mutex;
+
     modifier _lock_() {
         require(!_mutex, "ERR_REENTRY");
         _mutex = true;
@@ -41,6 +42,7 @@ contract GranularBondingCurve{
         fee =0; 
         factory = address(0); 
         tickSpacing = 0; 
+
         //Start liquidity 
         liquidity = 100 * uint128(PRECISION); 
 
@@ -56,8 +58,9 @@ contract GranularBondingCurve{
     int24 public immutable  tickSpacing; // only ticks/price points divisible by tickSpacing can be initialized.
 
     uint128 public liquidity;
+    uint128 public cachedLiquidity; 
 
-    mapping(uint16 => Tick.Info) public  ticks;
+    mapping(uint16 => Tick.Info) public ticks;
 
     mapping(bytes32 => Position.Info) public  positions;
 
@@ -232,8 +235,18 @@ contract GranularBondingCurve{
             StepComputations memory step; 
             step.priceStart = state.curPrice; 
             step.priceNextLimit = getNextPriceLimit(state.point, pDelta, moveUp); 
-
             step.pointNext = moveUp? state.point + 1 : state.point-1; 
+
+            // Only when during non-amortization period, make liquidity finite again when cross 
+            // modifyLiqPoint thresdhold. 
+            if (!slot0Start.amortized && state.point == slot0Start.modifyLiqPoint
+                && !moveUp&& tradeWhileModified == 0){
+
+                // move down, so amountIn is in trade 
+                // Can't be 0 since crossed mofifyLiqPoint already and cached
+                assert(cachedLiquidity !=0); 
+                state.liquidity = cachedLiquidity; 
+            }
 
             // Need liquidity for both move up and move down for path independence within a 
             // given point range. Either one of them should be 0 
@@ -253,6 +266,7 @@ contract GranularBondingCurve{
                 vars               
                 ); 
 
+
             {console.log('________'); 
             console.log('CURPRICE', state.curPrice); 
             console.log('trading; liquidity, amountleft', state.liquidity); 
@@ -261,6 +275,34 @@ contract GranularBondingCurve{
             console.log('a', vars.a); }
             console.log('amountinandout', step.amountIn, step.amountOut); 
             console.log('s,b', vars.s, vars.b); 
+
+            // Track tokens, amountOut is in tokens 
+            if(liqModified && moveUp) tradeWhileModified += step.amountOut;
+
+            // Only when during non-amortization period, add liquidity when crossing up 
+            if (!slot0Start.amortized && step.pointNext == slot0Start.modifyLiqPoint){
+                if(moveUp){
+                    cachedLiquidity = state.liquidity; 
+                    state.liquidity = addDelta(state.liquidity, dynamicLiq[step.pointNext] ); 
+
+                    // initiate tracker 
+                    liqModified = true; 
+                    }
+                } 
+            if(!slot0Start.amortized && !moveUp && state.point == slot0Start.modifyLiqPoint && tradeWhileModified != 0){
+                // move down and first cross. Consume tradeWhileModified liquidity first 
+                if (tradeWhileModified > uint256(state.amountSpecifiedRemaining)){
+                    step.amountIn = uint256(state.amountSpecifiedRemaining); 
+                    tradeWhileModified -= uint256(state.amountSpecifiedRemaining); 
+                } else{
+                    step.amountIn = tradeWhileModified; 
+                    tradeWhileModified = 0;                       
+                }
+                step.amountOut = step.amountIn.divWadDown(state.curPrice); 
+                state.curPrice += 1; 
+            console.log('amountin', step.amountIn, step.amountOut); 
+
+            }
 
             if (exactInput){
                 state.amountSpecifiedRemaining -= int256(step.amountIn); 
@@ -286,12 +328,7 @@ contract GranularBondingCurve{
                     feeGrowthGlobalTrade
                     ); 
 
-                if (!slot0Start.amortized && step.pointNext == slot0Start.modifyLiqPoint)
-                    liquidityNet = liquidityNet += dynamicLiq[step.pointNext]; 
-                    console.log('dynamicLiq', uint256(int256(dynamicLiq[step.pointNext])), uint256(int256(liquidityNet))); 
-
                 if (!moveUp) liquidityNet = -liquidityNet; 
-
 
                 state.liquidity = addDelta(state.liquidity,liquidityNet);
                 state.point = step.pointNext;  
@@ -314,9 +351,10 @@ contract GranularBondingCurve{
                                 ? moveUp ? (uint256(amountSpecified-state.amountSpecifiedRemaining ) , state.amountCalculated)//TODO roundfixes
                                          : (uint256(amountSpecified-state.amountSpecifiedRemaining ), state.amountCalculated)
                                 : (state.amountCalculated + ROUNDLIMIT, uint256(-amountSpecified+state.amountSpecifiedRemaining )); 
-                    console.log('???', uint256(state.amountSpecifiedRemaining) , uint256(amountSpecified)); 
 
     }
+    bool liqModified; 
+    uint256 tradeWhileModified; 
 
     function placeLimitOrder(
         address recipient, 

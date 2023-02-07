@@ -666,7 +666,7 @@ event MarketDenied(uint256 indexed marketId);
     uint256 _priceLimit,
     bytes calldata _tradeRequestData 
     ) external _lock_ returns (uint256 amountIn, uint256 amountOut){
-    require(!markets[_marketId].isPool, "only fixed instrument"); 
+    // require(!markets[_marketId].isPool, "only fixed instrument"); 
     require(restriction_data[_marketId].duringAssessment, "only assessment"); 
     // require(_canSell(msg.sender, _amountIn, _marketId),"Restricted");
 
@@ -744,7 +744,7 @@ event MarketDenied(uint256 indexed marketId);
     uint256 marketId
     ) external _lock_ returns(uint256 collateral_redeem_amount){
     require(!restriction_data[marketId].alive, "!Active"); 
-    require(restriction_data[marketId].resolved, "!resolved");
+    require(restriction_data[marketId].resolved, "!resolved"); 
     require(!redeemed[marketId][msg.sender], "Redeemed");
     redeemed[marketId][msg.sender] = true; 
 
@@ -769,7 +769,6 @@ event MarketDenied(uint256 indexed marketId);
     controller.redeem_transfer(collateral_redeem_amount, msg.sender, marketId);
   }
 
-  event RedeemShort(uint256 marketId, address trader, uint256 redeemAmount, uint256 redemptionPrice);
   /// @notice called by short buyers when market is resolved for fixed term instruments 
   function redeemShortZCB(
     uint256 marketId 
@@ -791,8 +790,32 @@ event MarketDenied(uint256 indexed marketId);
 
     bondPool.trustedBurn(msg.sender, shortZCB_redeem_amount, false); 
     controller.redeem_transfer(collateral_redeem_amount, msg.sender, marketId); 
+  }
 
-    emit RedeemShort(marketId, msg.sender, shortZCB_redeem_amount, redemption_price);
+  /// @notice redeemAmount is in shortZCB 
+  function redeemPerpShortZCB(
+    uint256 marketId, 
+    uint256 redeemAmount
+    ) external returns(uint256 collateral_redeem_amount, uint256 seniorAmount, uint256 juniorAmount){
+    LocarVars memory vars; 
+
+    vars.vault = controller.getVault(marketId); 
+    CoreMarketData memory market = markets[marketId]; 
+
+    require(market.isPool, "!pool"); 
+
+    (vars.psu, vars.pju, vars.levFactor) = Data.viewCurrentPricing( marketId); 
+    collateral_redeem_amount = (Data.zcbMaxPrice(marketId) - vars.pju).mulWadDown(redeemAmount); 
+    juniorAmount = vars.pju.mulWadDown(redeemAmount); 
+    seniorAmount = redeemAmount.mulWadDown(vars.levFactor).mulWadDown(vars.psu); 
+
+    // Deposit BACK to the instrument TODO deposit limit reached? 
+    vars.vault.depositIntoInstrument(marketId, juniorAmount + seniorAmount, true); 
+
+    market.bondPool.trustedBurn(msg.sender, redeemAmount, false); 
+    controller.redeem_transfer(collateral_redeem_amount, msg.sender, marketId); 
+
+    // reputationManager.recordPush(trader, marketId, vars.pju, false, redeemAmount);
   }
 
   function burnAndTransfer(
