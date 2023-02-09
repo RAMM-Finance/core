@@ -7,7 +7,6 @@ import {MarketManager} from "../contracts/protocol/marketmanager.sol";
 import {ReputationNFT} from "../contracts/protocol/reputationtoken.sol";
 import {Cash} from "../contracts/utils/Cash.sol";
 import {CreditLine, MockBorrowerContract} from "../contracts/vaults/instrument.sol";
-import {SyntheticZCBPoolFactory, ZCBFactory} from "../contracts/bonds/synthetic.sol"; 
 import {LinearCurve} from "../contracts/bonds/GBC.sol"; 
 import {FixedPointMath} from "../contracts/bonds/libraries.sol"; 
 import {CoveredCallOTC} from "../contracts/vaults/dov.sol";
@@ -81,6 +80,8 @@ contract PoolInstrumentTest is CustomTestBase {
 
         uint pju; 
         uint psu;
+        uint256 balbefore;
+        uint256 ratebefore; 
 
     }
 
@@ -96,7 +97,9 @@ contract PoolInstrumentTest is CustomTestBase {
 
         // Let manager buy
         bytes memory data; 
-        doApproveCol(address(marketmanager), jonna); 
+        doApproveCol(address(marketmanager), jonna);
+        console.log('curPrice1', marketmanager.getPool(vars.marketId).getCurPrice()); 
+
         vm.prank(jonna); 
         (vars.amountIn, vars.amountOut) =
             marketmanager.buyBond(vars.marketId, int256(vars.amountToBuy), precision , data); 
@@ -108,6 +111,7 @@ contract PoolInstrumentTest is CustomTestBase {
 
         // price needs to be at inceptionPrice
         vars.curPrice = marketmanager.getPool(vars.marketId).getCurPrice(); 
+        console.log('curprice', vars.curPrice); 
         assertApproxEqAbs(vars.curPrice, Vault(vars.vault_ad).fetchInstrumentData(vars.marketId).poolData.inceptionPrice, 100); 
 
         // let validator invest to vault and approve 
@@ -393,35 +397,47 @@ contract PoolInstrumentTest is CustomTestBase {
         doApproveCol(address(marketmanager), jonna); 
         vm.prank(jonna); 
         (vars.amountIn, vars.amountOut) =
-            marketmanager.buyBond(vars.marketId, -int256(vars.amountToBuy), precision , data); 
+            marketmanager.buyBond(vars.marketId, int256(vars.amountToBuy), precision , data); 
 
-
+        vars.amountToBuy=vars.amountToBuy*90/100; 
         vm.prank(jonna); 
         (vars.amountIn, vars.amountOut) =
-            marketmanager.shortBond(vars.marketId, vars.amountToBuy*90/100, 0 , data); 
-
-
-
+            marketmanager.shortBond(vars.marketId, vars.amountToBuy, 0 , data); 
 
         // redeem shortzcb
         return vars; 
     }
 
-    // function testShortZCBPoolSellProfit() public{
-    //     testVars1 memory vars = testShortZCBPool(); 
+    function testShortZCBPoolRedeem() public{
+        testVars1 memory vars = testShortZCBPool(); 
+        vm.prank(jonna); 
+        bytes memory data; 
 
-    //     // profit made when instrument balance goes down 
-    //     // instrument balance goes down when pool zcb value pju goes down
-    //     // pju goes down when time passes and no senior returns, or time
-    //     // passes and instrument realizes a loss 
+        (vars.amountIn, vars.amountOut) =
+            marketmanager.buyBond(vars.marketId, int256(vars.amountToBuy), precision , data); 
 
+        doApprove(vars.marketId, vars.vault_ad);
+        vars.balbefore = Vault(vars.vault_ad).UNDERLYING().balanceOf(vars.vault_ad); 
+        vars.ratebefore = Vault(vars.vault_ad).previewMint(1e18); 
+        vm.prank(jonna); 
+        (, uint256 seniorAmount, uint256 juniorAmount) = marketmanager.redeemPerpShortZCB(vars.marketId, vars.amountToBuy); 
+
+        assertEq(Data.getMarket(vars.marketId).shortZCB.balanceOf(jonna), 0); 
+        assertEq(vars.balbefore - Vault(vars.vault_ad).UNDERLYING().balanceOf(vars.vault_ad) ,seniorAmount+juniorAmount ); 
+        console.log("??", vars.ratebefore, Vault(vars.vault_ad).previewMint(1e18)); 
+        assertEq(Vault(vars.vault_ad).previewMint(1e18) - vars.ratebefore, 0); 
+
+        console.log("amounts", seniorAmount, juniorAmount, vars.amountToBuy ); 
+
+
+    }
+
+    function testShortZCBPoolSellProfit() public{
         
-
-
-    // }
-
-    function testShortZCBPoolSellNoProfit() public{
-        
+        // profit made when instrument balance goes down 
+        // instrument balance goes down when pool zcb value pju goes down
+        // pju goes down when time passes and no senior returns, or time
+        // passes and instrument realizes a loss 
 
     }
 

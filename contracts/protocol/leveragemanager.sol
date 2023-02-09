@@ -77,7 +77,7 @@ contract LeverageManager is ERC721Enumerable{
         require(_leverage <= getMaxLeverage(msg.sender) && _leverage >= precision, "!leverage");
 
         CoreMarketData memory market = marketManager.getMarket(_marketId); 
-        ERC20 underlying = ERC20(address(market.bondPool.BaseToken())); 
+        ERC20 underlying = ERC20(address(market.bondPool.baseToken())); 
 
         // stack collateral from trader and loan from vault 
         uint256 amountPulled = _amountIn.divWadDown(_leverage); 
@@ -127,7 +127,7 @@ contract LeverageManager is ERC721Enumerable{
         // If debt is fully paid, can send unlocked funds 
         if (position.debt==0) {//100-70 = 30 send me back 30!!
             postRepayLeftOver = collateral_redeem_amount - paidDebt; 
-            controller.redeem_transfer(postRepayLeftOver, msg.sender, marketId);
+            vars.vault.withdrawFromPoolInstrument(marketId, postRepayLeftOver, msg.sender, 0); 
         }
 
         leveragePosition[marketId][msg.sender] = position; 
@@ -149,7 +149,7 @@ contract LeverageManager is ERC721Enumerable{
         ) external _lock_ returns(uint256 amountIn, uint256 amountOut){
         require(_leverage <= getMaxLeverage(msg.sender) && _leverage >= precision, "!leverage");
         CoreMarketData memory market = marketManager.getMarket(_marketId); 
-        ERC20 underlying = ERC20(address(market.bondPool.BaseToken())); 
+        ERC20 underlying = ERC20(address(market.bondPool.baseToken())); 
 
         // stack collateral from trader and borrowing from vault 
         uint256 amountPulled = _amountIn.divWadDown(_leverage); 
@@ -219,7 +219,7 @@ contract LeverageManager is ERC721Enumerable{
     }
     /// @notice called by pool when buying, transfers funds from trader to pool 
     function tradeCallBack(uint256 amount, bytes calldata data) external{
-        SyntheticZCBPool(msg.sender).BaseToken().transferFrom(abi.decode(data, (address)), msg.sender, amount); 
+        SyntheticZCBPool(msg.sender).baseToken().transferFrom(abi.decode(data, (address)), msg.sender, amount); 
     }
 
 

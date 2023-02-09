@@ -3,6 +3,8 @@ pragma solidity ^0.8.4;
 import {Vault} from "../vaults/vault.sol";
 import {MarketManager} from "./marketmanager.sol";
 import {Controller} from "./controller.sol";
+import {oERC20} from "../utils/ownedERC20.sol"; 
+
 import "../global/types.sol"; 
 
 /// @notice Anyone can create a vault. These can be users who  
@@ -69,4 +71,39 @@ contract VaultFactory{
     // vaultId is numVaults after new creation of the vault.
 
   }
+}
+
+contract ZCBFactory{
+    function newBond(
+        string memory name, 
+        string memory description 
+        ) public returns(address) {
+        oERC20 bondToken = new oERC20(name,description, 18);
+        return address(bondToken); 
+    }
+
+}
+contract SyntheticZCBPoolFactory{
+    address public immutable controller;
+    address public immutable zcbFactory; 
+    constructor(address _controller, address _zcbFactory){
+        controller = _controller; 
+        zcbFactory = _zcbFactory; 
+    }
+
+    event PoolCreated(address pool, address longZCB, address shortZCB);
+
+    /// @notice param base is the collateral used in pool 
+    function newPool(
+        address base, 
+        address entry
+        ) external returns(address longZCB, address shortZCB, SyntheticZCBPool pool){
+        longZCB = ZCBFactory(zcbFactory).newBond("longZCB", "long");
+        shortZCB = ZCBFactory(zcbFactory).newBond("shortZCB", "short");
+
+        pool = new SyntheticZCBPool(
+            base, longZCB, shortZCB, entry, controller
+        ); 
+        emit PoolCreated(address(pool), longZCB, shortZCB);
+    }
 }

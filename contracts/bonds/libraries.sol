@@ -456,10 +456,11 @@ contract ERC20 {
 
         emit Transfer(from, address(0), amount);
     }
+    
     function mint(address to, uint256 amount) public {
-      _mint(to, amount); 
+        _mint(to, amount); 
     }
     function burn(address to, uint256 amount) public {
-      _burn(to, amount); 
+        _burn(to, amount); 
     }
 }

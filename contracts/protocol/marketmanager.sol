@@ -8,7 +8,6 @@ import {FixedPointMathLib} from "solmate/utils/FixedPointMathLib.sol";
 import {VRFConsumerBaseV2} from "../chainlink/VRFConsumerBaseV2.sol";
 import {VRFCoordinatorV2Interface} from "../chainlink/VRFCoordinatorV2Interface.sol";
 import {config} from "../utils/helpers.sol";
-import {SyntheticZCBPool} from "../bonds/synthetic.sol"; 
 import {ERC4626} from "../vaults/mixins/ERC4626.sol";
 import {Vault} from "../vaults/vault.sol"; 
 import {ReputationManager} from "./reputationmanager.sol"; 
@@ -408,7 +407,7 @@ event MarketDenied(uint256 indexed marketId);
   ) external onlyController {
     loggedCollaterals[marketId] += collateral_required;
     SyntheticZCBPool bondPool = getPool(marketId); 
-    bondPool.BaseToken().transferFrom(validator, address(bondPool), collateral_required); 
+    bondPool.baseToken().transferFrom(validator, address(bondPool), collateral_required); 
     bondPool.trustedDiscountedMint(validator, zcb_for_sale);
   }
 
@@ -483,7 +482,7 @@ event MarketDenied(uint256 indexed marketId);
 
   /// @notice called by pool when buying, transfers funds from trader to pool 
   function tradeCallBack(uint256 amount, bytes calldata data) external{
-    SyntheticZCBPool(msg.sender).BaseToken().transferFrom(abi.decode(data, (address)), msg.sender, amount); 
+    SyntheticZCBPool(msg.sender).baseToken().transferFrom(abi.decode(data, (address)), msg.sender, amount); 
   }
 
   function issueBond(
@@ -497,7 +496,7 @@ event MarketDenied(uint256 indexed marketId);
     _canIssue(trader, int256(_amountIn), _marketId, getTraderBudget(_marketId, trader));  
 
     vars.vault = controller.getVault(_marketId); 
-    vars.underlying = ERC20(address(markets[_marketId].bondPool.BaseToken())); 
+    vars.underlying = ERC20(address(markets[_marketId].bondPool.baseToken())); 
     vars.instrument = address(vars.vault.Instruments(_marketId)); 
 
     // Get price a_lock_nd sell longZCB with this price
@@ -654,6 +653,7 @@ event MarketDenied(uint256 indexed marketId);
       }
     }
   }
+
 
 
   event BondShort(uint256 indexed marketId, address indexed trader, uint256 amountMint, uint256 amountIn);
@@ -815,7 +815,7 @@ event MarketDenied(uint256 indexed marketId);
     market.bondPool.trustedBurn(msg.sender, redeemAmount, false); 
     controller.redeem_transfer(collateral_redeem_amount, msg.sender, marketId); 
 
-    // reputationManager.recordPush(trader, marketId, vars.pju, false, redeemAmount);
+    // reputationManager.recordPus h(trader, marketId, vars.pju, false, redeemAmount);
   }
 
   function burnAndTransfer(
@@ -841,9 +841,9 @@ event MarketDenied(uint256 indexed marketId);
     ERC20(token).transferFrom(trader, to, amount); 
   }
 
-  function min(uint256 a, uint256 b) internal pure returns (uint256) {
-        return a <= b ? a : b;
-    }
+
+  
+
 }
 
 

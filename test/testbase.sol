@@ -6,7 +6,6 @@ import {MarketManager} from "../contracts/protocol/marketmanager.sol";
 import {ReputationNFT} from "../contracts/protocol/reputationtoken.sol";
 import {Cash} from "../contracts/utils/Cash.sol";
 import {CreditLine, MockBorrowerContract} from "../contracts/vaults/instrument.sol";
-import {SyntheticZCBPoolFactory} from "../contracts/bonds/synthetic.sol"; 
 import {LinearCurve} from "../contracts/bonds/GBC.sol"; 
 import {FixedPointMath} from "../contracts/bonds/libraries.sol"; 
 import {CoveredCallOTC} from "../contracts/vaults/dov.sol";
@@ -21,6 +20,7 @@ import {PoolInstrument} from "../contracts/instruments/poolInstrument.sol";
 import {TestNFT} from "../contracts/utils/TestNFT.sol";
 import {Auctioneer} from "../contracts/instruments/auctioneer.sol";
 import {LinearInterestRate} from "../contracts/instruments/LinearInterestRate.sol";
+import {OrderManager} from "../contracts/protocol/ordermanager.sol"; 
 
 contract CustomTestBase is Test {
     using FixedPointMath for uint256; 
@@ -38,6 +38,7 @@ contract CustomTestBase is Test {
     SimpleNFTPool nftPool; 
     LeverageManager leverageManager; 
     ValidatorManager validatorManager; 
+    OrderManager orderManager; 
     StorageHandler Data; 
     address deployer = 0xb4c79daB8f259C7Aee6E5b2Aa729821864227e84;
     uint256 unit = 10**18; 
@@ -357,9 +358,12 @@ contract CustomTestBase is Test {
         controller.setValidatorManager(address(validatorManager)); 
         leverageManager = new LeverageManager(address(controller), 
             address(marketmanager),address(reputationManager) );
+        orderManager = new OrderManager(address(controller));
         controller.setLeverageManager(address(leverageManager));
+        controller.setOrderManager(address(orderManager)); 
         Data = new StorageHandler(); 
-        controller.setDataStore(address(Data)) ; 
+        controller.setDataStore(address(Data)) ;
+
         vm.stopPrank();
     }
 

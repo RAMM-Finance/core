@@ -96,6 +96,10 @@ contract StorageHandler{
 		// setMarketPhase(marketId, true, true, base_budget);
 	}
 
+	function getMarket(uint256 marketId) public view returns(CoreMarketData memory data){
+		return markets[marketId]; 
+	}
+
 	function makeEmptyMarketData() internal pure returns (CoreMarketData memory) {
 		return CoreMarketData(
 		    SyntheticZCBPool(address(0)),

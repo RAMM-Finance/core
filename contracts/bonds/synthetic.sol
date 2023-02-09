@@ -129,6 +129,11 @@ contract SyntheticZCBPool is BoundedDerivativesPool{
         discountedReserves += amount;
     }
 
+    function trustedMint(address receiver, uint256 amount, bool long) external{
+        if(long) TradeToken.mint(receiver, amount); 
+        else s_tradeToken.mint(receiver, amount); 
+    }
+
 
     function trustedBurn(
         address trader, 

@@ -6,7 +6,6 @@ import {VaultFactory} from "../protocol/factories.sol";
 import {Controller} from "../protocol/controller.sol";
 import {ERC20} from "solmate/tokens/ERC20.sol";
 import {ERC721} from "solmate/tokens/ERC721.sol";
-import {SyntheticZCBPool} from "../bonds/synthetic.sol";
 import {FixedPointMathLib} from "solmate/utils/FixedPointMathLib.sol";
 import {LinearCurve} from "../bonds/GBC.sol"; 
 import {PoolInstrument} from "../instruments/poolInstrument.sol";

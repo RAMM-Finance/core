@@ -50,7 +50,7 @@ contract BoundedDerivativesPool is GranularBondingCurve{
         BaseToken.transfer(recipient, amountOut); 
     }
 
-    function baseBal() internal view returns(uint256){
+    function baseBal() public view returns(uint256){
         return BaseToken.balanceOf(address(this)); 
     }
 

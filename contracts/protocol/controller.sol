@@ -1,24 +1,21 @@
 pragma solidity ^0.8.16;
 import {MarketManager} from "./marketmanager.sol";
-// import {ReputationNFT} from "./reputationtoken.sol";
 import {Vault} from "../vaults/vault.sol";
 import {Instrument} from "../vaults/instrument.sol";
 import {Strings} from "openzeppelin-contracts/utils/Strings.sol";
 import {FixedPointMathLib} from "solmate/utils/FixedPointMathLib.sol";
 import {VaultFactory} from "./factories.sol";
 import "forge-std/console.sol";
-// import "@interep/contracts/IInterep.sol";
 import {config} from "../utils/helpers.sol";
 import "openzeppelin-contracts/utils/math/SafeMath.sol";
 import {ERC4626} from "../vaults/mixins/ERC4626.sol";
 import {Vault} from "../vaults/vault.sol";
-// import "@interep/contracts/IInterep.sol";
-import {SyntheticZCBPoolFactory} from "../bonds/synthetic.sol";
-import {SafeTransferLib} from "solmate/utils/SafeTransferLib.sol";
+import {SyntheticZCBPoolFactory, ZCBFactory} from "./factories.sol";
 import {ReputationManager} from "./reputationmanager.sol";
 import {PoolInstrument} from "../instruments/poolInstrument.sol";
 import {LinearCurve} from "../bonds/GBC.sol"; 
 import {LeverageManager} from "./leveragemanager.sol"; 
+import {OrderManager} from "./ordermanager.sol"; 
 import {ValidatorManager} from "./validatorManager.sol";
 
 import "../global/GlobalStorage.sol"; 
@@ -28,7 +25,6 @@ import {PerpTranchePricer} from "../libraries/pricerLib.sol";
 contract Controller {
     using SafeMath for uint256;
     using FixedPointMathLib for uint256;
-    using SafeTransferLib for ERC20;
     using PerpTranchePricer for PricingInfo; 
 
 
@@ -64,6 +60,7 @@ contract Controller {
     ReputationManager public reputationManager;
     LeverageManager public leverageManager; 
     StorageHandler public Data; 
+    OrderManager public orderManager; 
 
     /* ========== MODIFIERS ========== */
     modifier onlyValidator(uint256 marketId) {
@@ -76,8 +73,10 @@ contract Controller {
 
     modifier onlyManager() {
         require(
-            msg.sender == address(marketManager) || msg.sender == address(leverageManager)|| 
-                msg.sender == creator_address,
+            msg.sender == address(marketManager) 
+            || msg.sender == address(leverageManager)
+            || msg.sender == address(orderManager)
+            || msg.sender == creator_address,
             "!manager"
         );
         _;
@@ -114,6 +113,10 @@ contract Controller {
         marketManager.setLeverageManager(_leverageManager); 
     }
 
+    function setOrderManager(address _orderManager) public onlyManager{
+        orderManager = OrderManager(_orderManager); 
+    }
+
     function setVaultFactory(address _vaultFactory) public onlyManager {
         vaultFactory = VaultFactory(_vaultFactory);
     }
@@ -124,10 +127,9 @@ contract Controller {
     function setDataStore(address _dataStore) public onlyManager{
         Data = StorageHandler(_dataStore); 
         marketManager.setDataStore( _dataStore); 
-
         reputationManager.setDataStore( _dataStore);
-
         leverageManager.setDataStore(_dataStore);
+        orderManager.setDataStore(_dataStore); 
 
     }
 
@@ -174,8 +176,8 @@ contract Controller {
         address to,
         uint256 marketId
     ) external onlyManager {
-        vaults[id_parent[marketId]].trusted_transfer(amount, to);
-
+        // vaults[id_parent[marketId]].trusted_transfer(amount, to);
+        vaults[id_parent[marketId]].UNDERLYING().transfer(to, amount); 
         emit RedeemTransfer(marketId, amount, to);
     }
 
@@ -657,10 +659,10 @@ contract Controller {
         (, , , , , , bool isPool) = marketManager.markets(marketId);
         uint256 managerCollateral = marketManager.loggedCollaterals(marketId);
 
-        // console.log("managerCollateral: ", managerCollateral);
+        console.log("managerCollateral: ", managerCollateral, pool.baseBal());
 
 
-        pool.flush(address(this), managerCollateral); 
+        pool.flush(address(this), pool.baseBal()); 
         address instrument = address(vault.fetchInstrument(marketId)); 
         vault.UNDERLYING().approve(instrument, managerCollateral); 
 
@@ -687,7 +689,7 @@ contract Controller {
         vault.trustInstrument(marketId, approvalDatas[marketId], isPool);
 
         // Since funds are transfered from pool to vault, set default liquidity in pool to 0
-        pool.resetLiq();
+        // pool.resetLiq();
 
         // console.log("approval 1: ", approvalDatas[marketId].approved_principal);
         // console.log("approval 2: ", approvalDatas[marketId].approved_yield);

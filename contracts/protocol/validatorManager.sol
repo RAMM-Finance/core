@@ -3,7 +3,7 @@ pragma solidity ^0.8.16;
 import {Controller} from "./controller.sol";
 import {MarketManager} from "./marketmanager.sol";
 import {ReputationManager} from "./reputationmanager.sol";
-import {SyntheticZCBPool} from "../bonds/synthetic.sol";
+import {SyntheticZCBPool} from "../bonds/bondPool.sol";
 import {config} from "../utils/helpers.sol";
 import {ERC4626} from "../vaults/mixins/ERC4626.sol";
 import {SafeTransferLib} from "solmate/utils/SafeTransferLib.sol";

@@ -7,7 +7,6 @@ import {MarketManager} from "../contracts/protocol/marketmanager.sol";
 import {ReputationNFT} from "../contracts/protocol/reputationtoken.sol";
 import {Cash} from "../contracts/utils/Cash.sol";
 import {CreditLine, MockBorrowerContract} from "../contracts/vaults/instrument.sol";
-import {SyntheticZCBPoolFactory, ZCBFactory} from "../contracts/bonds/synthetic.sol"; 
 import {LinearCurve} from "../contracts/bonds/GBC.sol"; 
 import {FixedPointMath} from "../contracts/bonds/libraries.sol"; 
 import {CoveredCallOTC} from "../contracts/vaults/dov.sol";
@@ -126,30 +125,6 @@ contract PricerTest is CustomTestBase {
         return vars; 
     }
 
-    // function testPricer() public{
-    //     testVars1 memory vars; 
-    //     vars.marketId = controller.getMarketId(toku); 
-    //     vars.vault_ad = controller.getVaultfromId(vars.marketId); 
-
-    //     vars.amountToBuy = Vault(vars.vault_ad).fetchInstrumentData(vars.marketId).poolData.saleAmount*3/2; 
-
-
-    //     (uint psu,  uint pju, ) = controller.getVault(vars.marketId).poolZCBValue(vars.marketId);
-
-    //     doApproveFromStart(vars.marketId,  vars.amountToBuy);
-
-    //     uint donateAmount = Vault(vars.vault_ad).UNDERLYING().balanceOf(address(Vault(vars.vault_ad).fetchInstrument(vars.marketId))) * 1/10; 
-
-
-    //     (vars.psu, vars.pju, ) = controller.getVault(vars.marketId).poolZCBValue(vars.marketId);
-    //     assertEq(vars.psu, psu); 
-    //     assertEq(vars.pju, pju); 
-
-
-
-    // }
- 
-
     function testConstantRFPricing() public{
         testVars1 memory vars = testStoreNewPrices(); 
         // 1. When approve, pricing should stay same
@@ -207,6 +182,11 @@ contract PricerTest is CustomTestBase {
         assertEq(vars.psu, psu); 
         assertEq(vars.pju, pju); 
     }
+
+    // function testDynamicRFPricing() public {
+    //     testVars1 memory vars = testStoreNewPrices(); 
+
+    // }
 
     function testPricingIsSupplyAgnostic() public{}
 

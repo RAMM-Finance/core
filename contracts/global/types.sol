@@ -1,6 +1,6 @@
 pragma solidity ^0.8.16;
 
-import {SyntheticZCBPool} from "../bonds/synthetic.sol"; 
+import {SyntheticZCBPool} from "../bonds/bondPool.sol"; 
 import {ERC20} from "solmate/tokens/ERC20.sol";
 struct PricingInfo{
 	uint256 psu; 
@@ -109,6 +109,13 @@ struct ResolveVar{
 	bool isPrepared; 
 }
 
+struct Order{
+	bool isLong; 
+	uint256 price; 
+	uint256 amount; 
+	uint256 orderId; 
+	address owner; 
+}
 
 
 
