@@ -169,7 +169,7 @@ contract LeverageManager is ERC721Enumerable{
 
     mapping(uint256=>mapping(address=> bool)) redeemed; 
 
-    /// @notice redeem all zcb at maturity 
+    /// @notice redeem all longzcb holdings at maturity 
     function redeemLeveredBond(uint256 marketId) public{
         require(marketManager.isMarketResolved( marketId), "!resolved"); 
         require(!redeemed[marketId][msg.sender], "Redeemed");
@@ -189,12 +189,12 @@ contract LeverageManager is ERC721Enumerable{
           reputationManager.recordPush(msg.sender, marketId, redemption_price, false, 0);
         }
         marketManager.burnAndTransfer(marketId, address(this), position.amount, msg.sender, collateral_redeem_amount); 
+        controller.pushLeverage(marketId,  position.debt); 
 
         position.amount = 0; 
         position.debt = 0; 
         leveragePosition[marketId][msg.sender] = position;  
     }
-
 
     function redeemDeniedLeveredBond(uint256 marketId) public returns(uint collateral_amount){
         LeveredBond memory position = leveragePosition[marketId][msg.sender]; 

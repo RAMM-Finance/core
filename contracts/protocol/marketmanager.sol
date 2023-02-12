@@ -510,7 +510,7 @@ event MarketDenied(uint256 indexed marketId);
     markets[_marketId].bondPool.trustedDiscountedMint(_caller, issueQTY); 
 
     // Need to transfer funds automatically to the instrument, seniorAmount is longZCB * levFactor * psu  
-    vars.vault.depositIntoInstrument(_marketId, issueQTY.mulWadDown(config.WAD + vars.levFactor).mulWadDown(vars.psu), true); 
+    vars.vault.depositIntoInstrument(_marketId, issueQTY.mulWadDown(vars.levFactor).mulWadDown(vars.psu), true); 
 
     reputationManager.recordPull(trader, _marketId, issueQTY, _amountIn, getTraderBudget( _marketId, trader), true); 
   }
@@ -669,7 +669,7 @@ event MarketDenied(uint256 indexed marketId);
     // require(!markets[_marketId].isPool, "only fixed instrument"); 
     require(restriction_data[_marketId].duringAssessment, "only assessment"); 
     // require(_canSell(msg.sender, _amountIn, _marketId),"Restricted");
-
+    //TODO requirements: locked VT, amount only required to hedge 
       // amountOut is base collateral down the curve, amountIn is collateral used to buy shortZCB 
     (amountOut, amountIn) = markets[_marketId].bondPool.takerOpen(false, int256(_amountIn),
        _priceLimit, abi.encode(msg.sender));

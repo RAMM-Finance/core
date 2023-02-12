@@ -339,6 +339,7 @@ contract LeverageModuleTest is CustomTestBase {
         uint leverageFactor = 3*precision; 
         uint amountToBuy = Vault(vars.vault_ad).fetchInstrumentData(vars.marketId).poolData.saleAmount*3/2; 
 
+        uint startExchangeRate = Vault(vars.vault_ad).previewMint(1e18); 
         uint start = marketmanager.getMarket(vars.marketId).longZCB.balanceOf(address(leverageManager));
         doApproveCol(address(marketmanager), jonna); 
 
@@ -351,7 +352,7 @@ contract LeverageModuleTest is CustomTestBase {
         assertApproxEqAbs(bond.amount, mid-start, 10); 
         assertApproxEqAbs(bond.debt, (amountToBuy.divWadDown(leverageFactor)).mulWadDown(leverageFactor-precision),10 ); 
         console.log('position', bond.amount, bond.debt); 
-
+        assertSameExchangeRate(startExchangeRate, vars.vault_ad); 
         // DO once more
         vm.prank(jonna);
         (vars.amountIn,vars.amountOut) = leverageManager.buyBondLevered(
