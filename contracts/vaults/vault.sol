@@ -112,91 +112,18 @@ contract Vault is ERC4626{
         _;
     }
 
-    /// @notice called by controller at maturity 
-    // function controller_burn(uint256 amount, address bc_address) external onlyController {
-    //     _burn(bc_address,amount); 
-    // }
-    /// @notice called by controller at maturity, since redeem amount > balance in bc
-    // function controller_mint(uint256 amount, address to) external onlyController {
-    //     _mint(to , amount); 
-    // }
     /// @notice amount is always in WAD, so need to convert if decimals mismatch
     function trusted_transfer(uint256 amount, address to) external onlyController{
         UNDERLYING.transfer(to, amount); 
     }
 
+    function modifyInstrumentHoldings(bool up, uint256 amount) external onlyController{
+      if(up) totalInstrumentHoldings += amount;
+      else totalInstrumentHoldings -= amount; 
+    }
+
     function balanceInUnderlying(address ad) external view returns(uint256){
         return previewRedeem(balanceOf[ad]); 
-    }
-
-    /// @notice burns all balance of address 
-    // function burnAll(address to) private{
-    //   _burn(to, balanceOf[to]); 
-    // }
-
-  struct localVars{
-    uint256 promised_return; 
-    uint256 inceptionTime; 
-    uint256 inceptionPrice; 
-    uint256 leverageFactor; 
-    uint256 managementFee; 
-
-    uint256 srpPlusOne; 
-    uint256 totalAssetsHeldScaled; 
-    uint256 juniorSupply;
-    uint256 seniorSupply; 
-
-    bool belowThreshold; 
-  }
-
-  
-
-
-  /// @notice get programmatic pricing of a pool based longZCB 
-  /// returns psu: price of senior(VT's share of investment) vs underlying 
-  /// returns pju: price of junior(longZCB) vs underlying
-  // TODO inception price needs to be modifyable for changing senior returns 
-  function poolZCBValue(uint256 marketId) 
-    public 
-    view
-    returns(uint256 psu, uint256 pju, uint256 levFactor){
-      //TODO should not tick during assessment 
-    localVars memory vars; 
-
-    (vars.promised_return, vars.inceptionTime, vars.inceptionPrice, vars.leverageFactor, 
-      vars.managementFee) = fetchPoolTrancheData(marketId); 
-    levFactor = vars.leverageFactor; 
-
-    require(vars.inceptionPrice > 0, "0"); 
-
-    // Get senior redemption price that increments per unit time 
-    vars.srpPlusOne = vars.inceptionPrice.mulWadDown((BASE_UNIT+ vars.promised_return)
-      .rpow(block.timestamp - vars.inceptionTime, BASE_UNIT));
-
-    // Get total assets held by the instrument 
-    vars.juniorSupply = controller.getTotalSupply(marketId); 
-    vars.seniorSupply = vars.juniorSupply.mulWadDown(vars.leverageFactor); 
-    vars.totalAssetsHeldScaled = instrumentAssetOracle(marketId, vars.juniorSupply, vars.seniorSupply)
-      .mulWadDown(vars.inceptionPrice); 
-
-    if (vars.seniorSupply == 0) return(vars.srpPlusOne,vars.srpPlusOne,levFactor); 
-    
-    // Check if all seniors can redeem
-    if (vars.totalAssetsHeldScaled >= vars.srpPlusOne.mulWadDown(vars.seniorSupply))
-      psu = vars.srpPlusOne; 
-    else{
-      psu = vars.totalAssetsHeldScaled.divWadDown(vars.seniorSupply);
-      vars.belowThreshold = true;  
-    }
-    // should be 0 otherwise 
-    if(!vars.belowThreshold) pju = (vars.totalAssetsHeldScaled 
-      - vars.srpPlusOne.mulWadDown(vars.seniorSupply)).divWadDown(vars.juniorSupply); 
-    uint pju_ = (BASE_UNIT+ vars.leverageFactor).mulWadDown(previewMint(BASE_UNIT.mulWadDown(vars.inceptionPrice))) 
-      -  vars.srpPlusOne.mulWadDown(vars.leverageFactor);
-
-    // assert(pju_ >= pju-10 || pju_ <= pju+10); 
-        // console.log('ok????'); 
-
     }
 
     event InstrumentHarvest(address indexed instrument, uint256 totalInstrumentHoldings, uint256 instrument_balance, uint256 mag, bool sign); //sign is direction of mag, + or -.
@@ -236,7 +163,6 @@ contract Vault is ERC4626{
     {
       Instrument instrument = fetchInstrument(marketId); 
       uint256 curBalance = UNDERLYING.balanceOf(address(this)); 
-      console.log('previewMint1', previewMint(1e18)); 
 
       totalInstrumentHoldings += underlyingAmount; 
       instrument_data[instrument].balance += underlyingAmount;
@@ -246,7 +172,6 @@ contract Vault is ERC4626{
         // TODO keep track of all this 
         UNDERLYING.approve(address(instrument), underlyingAmount); 
         require(ERC4626(address(instrument)).deposit(underlyingAmount, address(this))>0, "DEPOSIT_FAILED");
-        console.log('previewMint2', previewMint(1e18)); 
       }
 
       emit InstrumentDeposit(marketId, address(instrument), underlyingAmount, isPerp);
@@ -497,8 +422,6 @@ contract Vault is ERC4626{
         // uint256 bal = UNDERLYING.balanceOf(address(this)); 
         uint256 instrument_balance = _instrument.getMaturityBalance(); 
 
-        // InstrumentData memory data = instrument_data[_instrument];
-
         bool prematureResolve = resolveBeforeMaturity[marketId]; 
         bool atLoss; 
         uint256 total_loss; 
@@ -534,9 +457,7 @@ contract Vault is ERC4626{
     }
 
     event InstrumentDeny(uint256 indexed marketId);
-    /**
-     called on market denial by controller => denied before approval
-     */
+
     function denyInstrument(uint256 marketId) external onlyController {
         InstrumentData storage data = instrument_data[Instruments[marketId]];
 
@@ -562,18 +483,6 @@ contract Vault is ERC4626{
     function receiver_conditions(address receiver) public view returns(bool){
         return true; 
     }
-
-    /// @notice called when constructed, params set by the creater of the vault 
-    // function set_minting_conditions(
-    //   bool _onlyVerified, 
-    //   uint256 _r, 
-    //   uint256 _asset_limit,
-    //   uint256 _total_asset_limit) internal{
-    //     onlyVerified = _onlyVerified; 
-    //     r = _r; 
-    //     asset_limit = _asset_limit; 
-    //     total_asset_limit = _total_asset_limit; 
-    // } 
 
     function get_vault_params() public view returns(MarketParameters memory){
       return default_params; 
@@ -620,7 +529,6 @@ contract Vault is ERC4626{
         afterDeposit(assets, shares);
     }
 
-
     /// @notice apply fee before withdrawing to prevent just minting before maturities and withdrawing after 
      function redeem(
         uint256 shares,
@@ -646,41 +554,71 @@ contract Vault is ERC4626{
 
         asset.transfer(receiver, assets);
     }
+
+
+ struct localVars{
+    uint256 promised_return; 
+    uint256 inceptionTime; 
+    uint256 inceptionPrice; 
+    uint256 leverageFactor; 
+    uint256 managementFee; 
+
+    uint256 srpPlusOne; 
+    uint256 totalAssetsHeldScaled; 
+    uint256 juniorSupply;
+    uint256 seniorSupply; 
+
+    bool belowThreshold; 
+  }
+
+  
+
+
+  /// @notice get programmatic pricing of a pool based longZCB 
+  /// returns psu: price of senior(VT's share of investment) vs underlying 
+  /// returns pju: price of junior(longZCB) vs underlying
+  // TODO inception price needs to be modifyable for changing senior returns 
+  function poolZCBValue(uint256 marketId) 
+    public 
+    view
+    returns(uint256 psu, uint256 pju, uint256 levFactor){
+      //TODO should not tick during assessment 
+    localVars memory vars; 
+
+    (vars.promised_return, vars.inceptionTime, vars.inceptionPrice, vars.leverageFactor, 
+      vars.managementFee) = fetchPoolTrancheData(marketId); 
+    levFactor = vars.leverageFactor; 
+
+    require(vars.inceptionPrice > 0, "0"); 
+
+    // Get senior redemption price that increments per unit time 
+    vars.srpPlusOne = vars.inceptionPrice.mulWadDown((BASE_UNIT+ vars.promised_return)
+      .rpow(block.timestamp - vars.inceptionTime, BASE_UNIT));
+
+    // Get total assets held by the instrument 
+    vars.juniorSupply = controller.getTotalSupply(marketId); 
+    vars.seniorSupply = vars.juniorSupply.mulWadDown(vars.leverageFactor); 
+    vars.totalAssetsHeldScaled = instrumentAssetOracle(marketId, vars.juniorSupply, vars.seniorSupply)
+      .mulWadDown(vars.inceptionPrice); 
+
+    if (vars.seniorSupply == 0) return(vars.srpPlusOne,vars.srpPlusOne,levFactor); 
+    
+    // Check if all seniors can redeem
+    if (vars.totalAssetsHeldScaled >= vars.srpPlusOne.mulWadDown(vars.seniorSupply))
+      psu = vars.srpPlusOne; 
+    else{
+      psu = vars.totalAssetsHeldScaled.divWadDown(vars.seniorSupply);
+      vars.belowThreshold = true;  
+    }
+    // should be 0 otherwise 
+    if(!vars.belowThreshold) pju = (vars.totalAssetsHeldScaled 
+      - vars.srpPlusOne.mulWadDown(vars.seniorSupply)).divWadDown(vars.juniorSupply); 
+    uint pju_ = (BASE_UNIT+ vars.leverageFactor).mulWadDown(previewMint(BASE_UNIT.mulWadDown(vars.inceptionPrice))) 
+      -  vars.srpPlusOne.mulWadDown(vars.leverageFactor);
+
+    // assert(pju_ >= pju-10 || pju_ <= pju+10); 
+        // console.log('ok????'); 
+
+    }
+
 }
-
-
-  // function addLendingModule(address lv) external
-    // //onlyOwner
-    // { 
-    //   // The 0th instrument is always the lending module 
-    //   Instruments[0] = Instrument(lv);
-    //   instrument_data[Instruments[0]].trusted = true; 
-    //   UNDERLYING.approve(lv, type(uint256).max); 
-    // }
-
-    // /// @notice push unutilized capital to leverage vault 
-    // function pushToLM(uint256 amount) external 
-    // //onlyOwner 
-    // { 
-    //   // if amount=0, push everything this vault have 
-    //   uint256 bal = UNDERLYING.balanceOf(address(this)); 
-    //   require(amount<= bal, "push exceeds liq"); 
-    //   uint256 depositAmount = amount==0 ? bal : amount; 
-
-    //   depositIntoInstrument(0, depositAmount, true); 
-    // }
-
-    // function pullFromLM(uint256 amount) public
-    // //onlyowner or internal 
-    // {
-    //   // check if amount is available liquidity, and is appropriate for the given
-    //   // shares this vault has of it. 
-    //   Instrument instrument = fetchInstrument(0); 
-    //   uint256 shares = ERC4626(address(instrument)).balanceOf(address(this)); 
-    //   require(amount <= ERC4626(address(instrument)).previewMint(shares), "!!liq1" ); 
-    //   require(instrument.isLiquid(amount), "!liq2");
-
-    //   ERC4626(address(instrument)).withdraw(amount, address(this), address(this)); 
-
-    //   withdrawFromInstrument(instrument, amount, false);
-    // }

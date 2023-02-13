@@ -447,6 +447,11 @@ contract CustomTestBase is Test {
         doApprove(marketId, vault_ad);
     }
 
+    function assertSameExchangeRate(uint startExchangeRate, address vault_ad) public {
+        assertEq(startExchangeRate, Vault(vault_ad).previewMint(1e18)); 
+    } 
+
+
 
    
 }
