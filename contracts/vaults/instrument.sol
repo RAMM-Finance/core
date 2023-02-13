@@ -265,14 +265,14 @@ contract CreditLine is Instrument {
         uint256 _collateral_type
     )  Instrument(vault, _borrower) {
         borrower = _borrower; 
-        principal = DUST* _principal; 
-        notionalInterest =DUST* _notionalInterest; 
+        principal =  _principal; 
+        notionalInterest = _notionalInterest; 
         duration = _duration;   
-        faceValue = DUST*_faceValue;
+        faceValue = _faceValue;
 
         collateral = _collateral; 
         oracle = _oracle; 
-        collateral_balance = DUST*_collateral_balance; 
+        collateral_balance = _collateral_balance; 
         collateral_type = CollateralType(_collateral_type); 
 
         loanStatus = LoanStatus.notApproved; 

@@ -46,17 +46,17 @@ contract PricerTest is CustomTestBase {
         Data = new StorageHandler(); 
         controllerSetup(); 
 
-        vm.startPrank(deployer); 
-        controller.setMarketManager(address(marketmanager));
-        controller.setVaultFactory(address(vaultFactory));
-        controller.setPoolFactory(address(poolFactory)); 
-        controller.setReputationManager(address(reputationManager));
-        validatorManager = new ValidatorManager(address(controller), address(marketmanager),address(reputationManager) );     
-        controller.setValidatorManager(address(validatorManager)); 
-        controller.setLeverageManager(address(leverageManager));
-        controller.setDataStore(address(Data)); 
+        // vm.startPrank(deployer); 
+        // controller.setMarketManager(address(marketmanager));
+        // controller.setVaultFactory(address(vaultFactory));
+        // controller.setPoolFactory(address(poolFactory)); 
+        // controller.setReputationManager(address(reputationManager));
+        // validatorManager = new ValidatorManager(address(controller), address(marketmanager),address(reputationManager) );     
+        // controller.setValidatorManager(address(validatorManager)); 
+        // controller.setLeverageManager(address(leverageManager));
+        // controller.setDataStore(address(Data)); 
 
-        vm.stopPrank(); 
+        // vm.stopPrank(); 
 
         controller.createVault(
             address(collateral),

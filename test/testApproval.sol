@@ -39,17 +39,7 @@ contract FixedTest is CustomTestBase {
         poolFactory = new SyntheticZCBPoolFactory(address(controller), address(zcbfactory));
         reputationManager = new ReputationManager(address(controller), address(marketmanager)); 
 
-        vm.startPrank(deployer); 
-        controller.setMarketManager(address(marketmanager));
-        controller.setVaultFactory(address(vaultFactory));
-        controller.setPoolFactory(address(poolFactory)); 
-        controller.setReputationManager(address(reputationManager));
-        leverageManager = new LeverageManager(address(controller), 
-            address(marketmanager),address(reputationManager) );
-        controller.setLeverageManager(address(leverageManager));
-        Data = new StorageHandler(); 
-        controller.setDataStore(address(Data)) ; 
-        vm.stopPrank(); 
+        controllerSetup();
 
         controller.createVault(
             address(collateral),

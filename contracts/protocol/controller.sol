@@ -30,8 +30,6 @@ contract Controller {
 
     ValidatorManager validatorManager;
 
-
-
     mapping(uint256 => ApprovalData) approvalDatas;
 
     function getApprovalData(uint256 marketId)
@@ -91,47 +89,100 @@ contract Controller {
 
     /*----Setup Functions----*/
 
-    function setMarketManager(address _marketManager) public onlyManager {
-        require(_marketManager != address(0));
+    /**
+    abi.encode(
+        marketManager, 
+        reputationManager, 
+        validatorManager, 
+        leverageManager, 
+        orderManager,
+        vaultFactory,
+        poolFactory,
+        dataStore
+        )
+     */
+    function initialize(
+        bytes calldata _setup
+    ) public {
+        require(address(msg.sender) == address(creator_address));
+        (
+            address _marketManager,
+            address _reputationManager,
+            address _validatorManager,
+            address _leverageManager,
+            address _orderManager,
+            address _vaultFactory,
+            address _poolFactory,
+            address _dataStore
+        ) = abi.decode(_setup, (
+            address,
+            address,
+            address,
+            address,
+            address,
+            address,
+            address,
+            address
+        ));
+
         marketManager = MarketManager(_marketManager);
-    }
-
-    function setReputationManager(address _reputationManager)
-        public
-        onlyManager
-    {   require(address(marketManager)!= address(0), "0mm"); 
         reputationManager = ReputationManager(_reputationManager);
-        marketManager.setReputationManager(_reputationManager); 
-    }
-
-    function setValidatorManager(address _validatorManager) public onlyManager {
+        marketManager.setReputationManager(_reputationManager);
         validatorManager = ValidatorManager(_validatorManager);
-    }
-
-    function setLeverageManager(address _leverageManager) public onlyManager{
         leverageManager = LeverageManager(_leverageManager); 
         marketManager.setLeverageManager(_leverageManager); 
-    }
-
-    function setOrderManager(address _orderManager) public onlyManager{
-        orderManager = OrderManager(_orderManager); 
-    }
-
-    function setVaultFactory(address _vaultFactory) public onlyManager {
+        orderManager = OrderManager(_orderManager);
         vaultFactory = VaultFactory(_vaultFactory);
-    }
-
-    function setPoolFactory(address _poolFactory) public onlyManager {
         poolFactory = SyntheticZCBPoolFactory(_poolFactory);
-    }
-    function setDataStore(address _dataStore) public onlyManager{
         Data = StorageHandler(_dataStore); 
         marketManager.setDataStore( _dataStore); 
         reputationManager.setDataStore( _dataStore);
         leverageManager.setDataStore(_dataStore);
         orderManager.setDataStore(_dataStore); 
-
     }
+
+    // function setMarketManager(address _marketManager) public onlyManager {
+    //     require(_marketManager != address(0));
+    //     marketManager = MarketManager(_marketManager);
+        
+    // }
+
+    // function setReputationManager(address _reputationManager)
+    //     public
+    //     onlyManager
+    // {   require(address(marketManager)!= address(0), "0mm"); 
+    //     reputationManager = ReputationManager(_reputationManager);
+    //     marketManager.setReputationManager(_reputationManager); 
+    // }
+
+    // function setValidatorManager(address _validatorManager) public onlyManager {
+    //     validatorManager = ValidatorManager(_validatorManager);
+    // }
+
+    // function setLeverageManager(address _leverageManager) public onlyManager{
+    //     leverageManager = LeverageManager(_leverageManager); 
+    //     marketManager.setLeverageManager(_leverageManager); 
+    // }
+
+    // function setOrderManager(address _orderManager) public onlyManager{
+    //     orderManager = OrderManager(_orderManager); 
+    // }
+
+    // function setVaultFactory(address _vaultFactory) public onlyManager {
+    //     vaultFactory = VaultFactory(_vaultFactory);
+    // }
+
+    // function setPoolFactory(address _poolFactory) public onlyManager {
+    //     poolFactory = SyntheticZCBPoolFactory(_poolFactory);
+    // }
+    // function setDataStore(address _dataStore) public onlyManager{
+    //     Data = StorageHandler(_dataStore); 
+    //     marketManager.setDataStore( _dataStore); 
+    //     reputationManager.setDataStore( _dataStore);
+    //     leverageManager.setDataStore(_dataStore);
+    //     orderManager.setDataStore(_dataStore); 
+
+    // }
 
     // function storeNewPrices(uint256 marketId, uint256 multiplier, uint256 initPrice) public {
 
