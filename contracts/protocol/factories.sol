@@ -81,8 +81,8 @@ contract ZCBFactory{
         oERC20 bondToken = new oERC20(name,description, 18);
         return address(bondToken); 
     }
-
 }
+
 contract SyntheticZCBPoolFactory{
     address public immutable controller;
     address public immutable zcbFactory; 

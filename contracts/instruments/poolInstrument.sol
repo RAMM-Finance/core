@@ -19,6 +19,16 @@ import {Auctioneer} from "./auctioneer.sol";
 
 // import "@prb/math/SD59x18.sol";
 
+interface Bouncer {
+    function borrowerAllowed(address _borrower) external view returns (bool);
+}
+
+contract BouncerLike is Bouncer {
+    function borrowerAllowed(address _borrower) external view override returns (bool) {
+        return true;
+    }
+}
+
 // https://github.com/FraxFinance/fraxlend
 /// ****THIS IS A PROOF OF CONCEPT INSTRUMENT.
 contract PoolInstrument is
@@ -924,9 +934,9 @@ contract PoolInstrument is
 
         VaultAccount memory _totalBorrow = totalBorrow;
 
-        console.log("cost share: %s", totalBorrow.toShares(_totalCost, false));
-        console.log("user borrow shares: %s", userBorrowShares[_borrower]);
-        console.log("gt?", totalBorrow.toShares(_totalCost, false) > userBorrowShares[_borrower]);
+        // console.log("cost share: %s", totalBorrow.toShares(_totalCost, false));
+        // console.log("user borrow shares: %s", userBorrowShares[_borrower]);
+        // console.log("gt?", totalBorrow.toShares(_totalCost, false) > userBorrowShares[_borrower]);
 
         _repay(
             _totalBorrow,
@@ -962,8 +972,8 @@ contract PoolInstrument is
             _collateral,
             _tokenId
         );
-        Config memory config = collateralConfigs[computeId(_collateral, _tokenId)];
 
+        Config memory config = collateralConfigs[computeId(_collateral, _tokenId)];
 
         // close all auctions if liquidatable.
         if (!_isLiquidatable(_borrower)) {

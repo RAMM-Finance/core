@@ -375,20 +375,33 @@ contract CustomTestBase is Test {
     }
 
     function controllerSetup() public{
-        vm.startPrank(deployer); 
-        controller.setMarketManager(address(marketmanager));
-        controller.setVaultFactory(address(vaultFactory));
-        controller.setPoolFactory(address(poolFactory)); 
-        controller.setReputationManager(address(reputationManager));
-        validatorManager = new ValidatorManager(address(controller), address(marketmanager),address(reputationManager) );      
-        controller.setValidatorManager(address(validatorManager)); 
-        leverageManager = new LeverageManager(address(controller), 
-            address(marketmanager),address(reputationManager) );
+        vm.startPrank(deployer);
+        validatorManager = new ValidatorManager(address(controller), address(marketmanager),address(reputationManager) );     
+        leverageManager = new LeverageManager(address(controller), address(marketmanager),address(reputationManager) );
         orderManager = new OrderManager(address(controller));
-        controller.setLeverageManager(address(leverageManager));
-        controller.setOrderManager(address(orderManager)); 
         Data = new StorageHandler(); 
-        controller.setDataStore(address(Data)) ;
+        bytes memory stuff = abi.encode(
+        address(marketmanager), 
+        address(reputationManager), 
+        address(validatorManager), 
+        address(leverageManager), 
+        address(orderManager),
+        address(vaultFactory),
+        address(poolFactory),
+        address(Data)
+        ); 
+
+        controller.initialize(stuff);
+        // controller.setMarketManager(address(marketmanager));
+        // controller.setVaultFactory(address(vaultFactory));
+        // controller.setPoolFactory(address(poolFactory)); 
+        // controller.setReputationManager(address(reputationManager));
+ 
+        // controller.setValidatorManager(address(validatorManager)); 
+
+        // controller.setLeverageManager(address(leverageManager));
+        // controller.setOrderManager(address(orderManager)); 
+        // controller.setDataStore(address(Data)) ;
 
         vm.stopPrank();
     }
