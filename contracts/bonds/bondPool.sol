@@ -79,6 +79,7 @@ contract SyntheticZCBPool{
             s_tradeToken.mint(abi.decode(data,(address)), uint256(amountIn)); 
             poolamountIn = cached_poolamountOut; 
 
+
             // need to send cached poolamountOut(the area under the curve) data for accounting purposes
         }
 
@@ -98,8 +99,11 @@ contract SyntheticZCBPool{
         b_initial = (2*P).divWadDown(P+I) - precision; 
         a_initial = (precision-b_initial).divWadDown(P+I); 
 
+        discount_cap_collateral = P.mulWadDown(sigma); 
+        // discount_cap = 0; 
+        b = b_initial; 
         // Calculate and store maximum tokens for discounts, and get new initial price after saving for discounts
-        (discount_cap, b) =  P.mulWadDown(sigma).amountOutGivenIn(SwapParams(0, a_initial, b_initial, true, 0));
+       // (discount_cap, b) = discount_cap_collateral.amountOutGivenIn(SwapParams(0, a_initial, b_initial, true, 0));
         (, upperBound) = P.mulWadDown(alpha+delta).amountOutGivenIn(SwapParams(0, a_initial, b_initial,true, 0)); 
         curPrice = b;
         // (discount_cap, b) = LinearCurve.amountOutGivenIn(P.mulWadDown(sigma), 0, a_initial, b_initial, true);
@@ -187,6 +191,7 @@ contract SyntheticZCBPool{
     uint256 public b_initial; // b without discount cap 
     uint256 public b;
     uint256 public discount_cap; 
+    uint256 public discount_cap_collateral; 
     uint256 public discountedReserves; 
     uint256 public upperBound; 
     ERC20 public  baseToken; 

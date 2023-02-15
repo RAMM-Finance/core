@@ -556,7 +556,7 @@ event MarketDenied(uint256 indexed marketId);
 
     // This means that the sender is a manager
     if (queuedRepUpdates[trader] > 0){
-     unchecked{queuedRepUpdates[trader] -= 1;} 
+      unchecked{queuedRepUpdates[trader] -= 1;} 
     }
     market.bondPool.trustedBurn(caller, redeemAmount, true); 
 
@@ -667,14 +667,14 @@ event MarketDenied(uint256 indexed marketId);
     uint256 _priceLimit,
     bytes calldata _tradeRequestData 
     ) external _lock_ returns (uint256 amountIn, uint256 amountOut){
-    // require(!markets[_marketId].isPool, "only fixed instrument"); 
     require(restriction_data[_marketId].duringAssessment, "only assessment"); 
     // require(_canSell(msg.sender, _amountIn, _marketId),"Restricted");
+
     //TODO requirements: locked VT, amount only required to hedge 
-      // amountOut is base collateral down the curve, amountIn is collateral used to buy shortZCB 
-    (amountOut, amountIn) = markets[_marketId].bondPool.takerOpen(false, int256(_amountIn),
+      // amountIn is base collateral down the curve(under), amountOut is collateral used to buy shortZCB 
+    (amountIn, amountOut) = markets[_marketId].bondPool.takerOpen(false, int256(_amountIn),
        _priceLimit, abi.encode(msg.sender));
-    _logTrades(_marketId, msg.sender, amountOut, amountIn, true, false);
+    _logTrades(_marketId, msg.sender, amountIn, amountIn, true, false);
 
     emit BondShort(_marketId, msg.sender, _amountIn, amountIn);
   }

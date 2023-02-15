@@ -142,7 +142,7 @@ abstract contract Instrument {
     }
 
     function isLocked() public view returns(bool){
-        return locked; 
+        return true; 
     }
 
     event LiquidityTransfer(address indexed from ,address indexed to, uint256 amount);

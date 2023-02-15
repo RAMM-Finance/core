@@ -191,15 +191,13 @@ contract Vault is ERC4626{
     function withdrawFromInstrument(
       Instrument instrument, 
       uint256 underlyingAmount, 
-      bool redeem) onlyTrustedInstrument(instrument) internal virtual {
-      // require(instrument_data[instrument].trusted, "UNTRUSTED Instrument");
-      
-      // if (decimal_mismatch) underlyingAmount = decSharesToAssets(underlyingAmount); 
+      bool redeem
+      ) onlyTrustedInstrument(instrument) internal virtual {
 
       instrument_data[instrument].balance -= underlyingAmount;
       
       totalInstrumentHoldings -= underlyingAmount;
-      
+      console.log('redeemamount', underlyingAmount); 
       if (redeem) require(instrument.redeemUnderlying(underlyingAmount), "REDEEM_FAILED");
 
       emit InstrumentWithdrawal(instrument_data[instrument].marketId, address(instrument), underlyingAmount);
@@ -442,6 +440,7 @@ contract Vault is ERC4626{
             total_loss = atLoss? instrument_data[_instrument].principal - instrument_balance :0; 
             extra_gain = !atLoss? instrument_balance - instrument_data[_instrument].principal: 0; 
         }
+        console.log('atloss?', instrument_data[_instrument].faceValue, instrument_balance); 
 
         withdrawFromInstrument(_instrument, instrument_balance, true);
         removeInstrument(instrument_data[_instrument].marketId);

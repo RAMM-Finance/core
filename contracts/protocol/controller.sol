@@ -506,9 +506,7 @@ contract Controller {
             redemption_price = calcIncompleteReturns(marketId, extra_gain); 
         } else{
             if (!atLoss)
-                redemption_price =
-                    config.WAD +
-                    extra_gain.divWadDown(total_supply + total_shorts);
+                redemption_price = config.WAD +extra_gain.divWadDown(total_supply + total_shorts);
             else {
                 if (config.WAD <= loss.divWadDown(total_supply)) {
                     redemption_price = 0;
@@ -597,7 +595,7 @@ contract Controller {
         }
     }
 
-    /// GOD FUNCTION
+    /// Approve without validators 
     function testApproveMarket(uint256 marketId) external {
         require(msg.sender == creator_address, "!owner");
         require(marketCondition(marketId), "market condition not met");
@@ -613,22 +611,14 @@ contract Controller {
         Vault vault = vaults[id_parent[marketId]];
         SyntheticZCBPool pool = marketManager.getPool(marketId);
 
-
-        require(
-            marketManager.getCurrentMarketPhase(marketId) == 3,
-            "!marketCondition"
-        );
-        require(
-            vault.instrumentApprovalCondition(marketId),
-            "!instrumentCondition"
-        );
+        require(marketManager.getCurrentMarketPhase(marketId) == 3, "!marketCondition");
+        require(vault.instrumentApprovalCondition(marketId),"!instrumentCondition");
         marketManager.approveMarket(marketId);
 
         (, , , , , , bool isPool) = marketManager.markets(marketId);
         uint256 managerCollateral = marketManager.loggedCollaterals(marketId);
-
         console.log("managerCollateral: ", managerCollateral, pool.baseBal());
-
+        console.log('?????', Data.getMarket(marketId).longZCB.totalSupply()-Data.getMarket(marketId).shortZCB.totalSupply()); 
 
         pool.flush(address(this), pool.baseBal()); 
         address instrument = address(vault.fetchInstrument(marketId)); 
@@ -642,26 +632,18 @@ contract Controller {
             );
           require(ERC4626(instrument).deposit(managerCollateral, address(vault))>0, "DEPOSIT_FAILED");
         } else {
-            if (vault.getInstrumentType(marketId) == 0)
-                creditApproval(marketId, pool);
+            if (vault.getInstrumentType(marketId) == 0) creditApproval(marketId, pool);
             else generalApproval(marketId);
             vault.UNDERLYING().transfer(instrument, managerCollateral); 
         }
-
         approvalDatas[marketId].managers_stake = managerCollateral;
 
         // TODO vault exchange rate should not change
         // pull from pool to vault, which will be used to fund the instrument
 
         // Trust and deposit to the instrument contract
+
         vault.trustInstrument(marketId, approvalDatas[marketId], isPool);
-
-        // Since funds are transfered from pool to vault, set default liquidity in pool to 0
-        // pool.resetLiq();
-
-        // console.log("approval 1: ", approvalDatas[marketId].approved_principal);
-        // console.log("approval 2: ", approvalDatas[marketId].approved_yield);
-        // console.log("approval 3: ", approvalDatas[marketId].managers_stake);
         
         emit MarketApproved(marketId, approvalDatas[marketId]);
     }

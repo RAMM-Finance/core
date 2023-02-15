@@ -27,25 +27,28 @@ contract CurveTest is CustomTestBase {
     }
    
 
-    function testLinearUp() public {
-        uint P = 90e18; 
-        uint I = 11e18; 
-        uint poolamountIn = 13e18; 
+    function testLinearUp(
+        uint P,
+        uint I, 
+        uint poolamountIn) public {
+        vm.assume(P>=I); 
+
+        constrictToRange(P, 1, 1000000000e18); 
+        constrictToRange(I, 1, 200000000e18); 
+        console.log('p', P); 
+        constrictToRange(poolamountIn,1, P); 
 
         b_initial = (2*P).divWadDown(P+I) - precision; 
         a_initial = (precision-b_initial).divWadDown(P+I); 
 
-        // Calculate and store maximum tokens for discounts, and get new initial price after saving for discounts
         (discount_cap, b) =  P.mulWadDown(sigma).amountOutGivenIn(SwapParams(0, a_initial, b_initial, true, 0));
-
 
         (uint poolamountOut, uint resultPrice ) = poolamountIn.amountOutGivenIn(
             SwapParams(netSupply, a_initial, b, true, 0 )); 
 
-
         assertApproxEqAbs(poolamountIn, b.mulWadDown(poolamountOut)+ poolamountOut.mulWadDown(resultPrice-b)/2,1000); 
-
     }
+
     function testLinearDown() public {
         uint P = 90e18; 
         uint I = 11e18; 
