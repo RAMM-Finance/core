@@ -18,6 +18,7 @@ contract ValidatorManager {
     Controller private controller;
     ReputationManager private reputationManager;
     MarketManager private marketManager;
+    address private creator ; 
 
     modifier onlyController () {
         require(msg.sender == address(controller), "not controller");
@@ -52,6 +53,7 @@ contract ValidatorManager {
         controller = Controller(_controller);
         reputationManager = ReputationManager(_reputationManager);
         marketManager = MarketManager(_marketManager);
+        creator = msg.sender; 
     }
 
     function validatorSetup(
@@ -119,7 +121,7 @@ contract ValidatorManager {
 
         // Get how much ZCB validators need to buy in total, which needs to be filled for the market to be approved
         uint256 discount_cap = bondingPool.discount_cap();
-        uint256 avgPrice = valColCap.divWadDown(discount_cap);
+        uint256 avgPrice = valColCap.divWadDown(discount_cap+1);
 
         valdata.val_cap = discount_cap;
         valdata.avg_price = avgPrice;
@@ -241,7 +243,7 @@ contract ValidatorManager {
         public
         view
         returns (bool)
-    {
+    {   if(user == creator) return true;  
         address[] storage _validators = validator_data[marketId].validators;
         for (uint256 i = 0; i < _validators.length; i++) {
             if (_validators[i] == user) {

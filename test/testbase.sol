@@ -22,6 +22,14 @@ import {Auctioneer} from "../contracts/instruments/auctioneer.sol";
 import {LinearInterestRate} from "../contracts/instruments/LinearInterestRate.sol";
 import {OrderManager} from "../contracts/protocol/ordermanager.sol"; 
 
+// Two types of tests: 
+// 0. Every test have a purpose, write it down and changeable parameters
+// 1. Fuzz unit tests as much as possible 
+//  - random inputs and contract states, 
+// 2. else integration tests, fuzz if possible 
+
+
+
 contract CustomTestBase is Test {
     using FixedPointMath for uint256; 
     using stdStorage for StdStorage; 
@@ -160,6 +168,24 @@ contract CustomTestBase is Test {
         cash2 = new Cash("cash2", "CASH2", 18);
         nft1 = new TestNFT("NFT1", "NFT1");
         nft2 = new TestNFT("NFT2", "NFT2");
+    }
+
+    // Constrict values to a range, inclusive of min and max values.
+    function constrictToRange(
+        uint256 x,
+        uint256 min,
+        uint256 max
+    ) internal pure returns (uint256 result) {
+        require(max >= min, "MAX_LESS_THAN_MIN");
+        vm.assume(x<=max); 
+        vm.assume(x>= min); 
+        // if (min == max) return min;  // A range of 0 is effectively a single value.
+
+        // if (x >= min && x <= max) return x;  // Use value directly from fuzz if already in range.
+
+        // if (min == 0 && max == type(uint256).max) return x;  // The entire uint256 space is effectively x.
+
+        // return (x % ((max - min) + 1)) + min;  // Given the above exit conditions, `(max - min) + 1 <= type(uint256).max`.
     }
 
     function initiateCreditMarket() public {

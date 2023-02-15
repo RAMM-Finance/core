@@ -229,9 +229,9 @@ contract FixedTest is CustomTestBase {
         assertApproxEqAbs(marketmanager.getShortZCB(vars.marketId).totalSupply(), vars.amount3, 10); 
 
         // logged collateral is at area under the curve of amount1+amount2 - amount3+amount4 
-        // assertApproxEqAbs(LinearCurve.areaUnderCurve(vars.amount1 + vars.amount2 + vars.amount4 - vars.amount3, 
-        //     0, marketmanager.getPool(vars.marketId).a_initial(), marketmanager.getPool(vars.marketId).b()),
-        //     marketmanager.loggedCollaterals(vars.marketId) , 100000); 
+        assertApproxEqAbs(LinearCurve.areaUnderCurve(vars.amount1 + vars.amount2 + vars.amount4 - vars.amount3, 
+            0, marketmanager.getPool(vars.marketId).a_initial(), marketmanager.getPool(vars.marketId).b()),
+            marketmanager.loggedCollaterals(vars.marketId) , 100000); 
 
         // price is ax+b for x = amount1+amount2 - amount3+amount4 
         assertApproxEqAbs( marketmanager.getPool(vars.marketId).a_initial()
@@ -334,10 +334,11 @@ contract FixedTest is CustomTestBase {
 
     // }
 
-    function testSomeLongSomeShortApprove() public{
+    function testSomeLongSomeShortApprove() public returns(testVars2 memory){
         testVars2 memory vars; 
 
         somelongsomeshort(vars, true);
+        vars.cbalbefore = Vault(vars.vault_ad).UNDERLYING().balanceOf(vars.vault_ad); 
 
         // validators invest and approve  
         doApprove(vars.marketId, vars.vault_ad); 
@@ -353,7 +354,38 @@ contract FixedTest is CustomTestBase {
 
         // how does liquidity change after approval, can people trade in zero liq 
         // assertEq(uint256(marketmanager.getPool(vars.marketId).liquidity()), 0); 
+        return vars; 
     }
+
+    // resolve market fixed vault exchange rate increment by how much when redemption price1
+    // novalidator
+    function testResolveMarketVaultExchangeRateFull() public {
+        testVars2 memory vars  = testSomeLongSomeShortApprove(); 
+        InstrumentData memory data = Data.getInstrumentData(vars.marketId); 
+
+        donateToInstrument(vars.vault_ad, address(instrument), data.expectedYield); 
+
+        vm.startPrank(deployer); 
+        controller.validatorResolve(vars.marketId); 
+        controller.beforeResolve(vars.marketId);
+        controller.resolveMarket(vars.marketId); 
+        vm.stopPrank(); 
+        ApprovalData memory test = controller.getApprovalData(vars.marketId);
+
+        // look at area 
+   
+        uint vaultshare = data.principal+ data.expectedYield 
+        - (test.approved_principal-test.managers_stake
+            +Data.getMarket(vars.marketId).bondPool.discount_cap()+ 
+            (vars.amount3+vars.amount4+vars.amount4+vars.amount1 + vars.amount2 + vars.amount4 - vars.amount3)
+            ); 
+
+        // Vault profit 
+        assertApproxEqAbs(vaultshare, Vault(vars.vault_ad).UNDERLYING().balanceOf(vars.vault_ad) - vars.cbalbefore, 1000); 
+
+    }
+
+
 
 
     // function testSomeLongSomeShortDeny() public{
