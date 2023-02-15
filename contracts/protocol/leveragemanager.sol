@@ -68,6 +68,11 @@ contract LeverageManager is ERC721Enumerable{
         return leveragePosition[marketId][trader]; 
     }
 
+
+    /**
+    @dev amountIn -> vault underlying, amountOut -> longZCB.
+     */
+    event LeveredBondIssued(uint256 indexed marketId, address indexed trader, uint256 amountIn, uint256 amountOut, uint256 leverage, bool perpetual);
     /// @notice issue longzcb to this contract, create note to for trader 
     function issuePerpBondLevered(
         uint256 _marketId, 
@@ -90,8 +95,12 @@ contract LeverageManager is ERC721Enumerable{
 
         leveragePosition[_marketId][msg.sender].debt += (_amountIn - amountPulled); 
         leveragePosition[_marketId][msg.sender].amount += (issueQTY); 
+
+        emit LeveredBondIssued(_marketId, msg.sender, _amountIn, issueQTY, _leverage, true);   
     }
 
+
+    event LeveredBondRedeemed(uint256 indexed marketId, address indexed trader, uint256 redeemAmount, bool perpetual);
     /// @notice redeem longzcb in this contract, send redeemed amount to vault
     /// and if debt fully repaid, send remaining to trader 
     /// param redeemAmount is in longZCB 
@@ -131,6 +140,8 @@ contract LeverageManager is ERC721Enumerable{
         }
 
         leveragePosition[marketId][msg.sender] = position; 
+
+        emit LeveredBondRedeemed(marketId, msg.sender, redeemAmount, true);
     }
 
     //event LeveredBondBuy(uint256 indexed marketId, address indexed trader, uint256 amountIn, uint256 amountOut, bool perpetual);
@@ -147,6 +158,9 @@ contract LeverageManager is ERC721Enumerable{
         uint256 _priceLimit,
         uint256 _leverage //in 18 dec 
         ) external _lock_ returns(uint256 amountIn, uint256 amountOut){
+
+        // should not be able to call for perpetual market
+
         require(_leverage <= getMaxLeverage(msg.sender) && _leverage >= precision, "!leverage");
         CoreMarketData memory market = marketManager.getMarket(_marketId); 
         ERC20 underlying = ERC20(address(market.bondPool.baseToken())); 
@@ -165,6 +179,8 @@ contract LeverageManager is ERC721Enumerable{
         // create note to trader 
         leveragePosition[_marketId][msg.sender].debt += (_amountIn - amountPulled); 
         leveragePosition[_marketId][msg.sender].amount += amountOut; 
+
+        emit LeveredBondIssued(_marketId, msg.sender, _amountIn, amountOut, _leverage, false);
     }
 
     mapping(uint256=>mapping(address=> bool)) redeemed; 
@@ -194,7 +210,11 @@ contract LeverageManager is ERC721Enumerable{
         position.amount = 0; 
         position.debt = 0; 
         leveragePosition[marketId][msg.sender] = position;  
+
+        emit LeveredBondRedeemed(marketId, msg.sender, position.amount, false);
     }
+
+    event LeveredBondRedeemDenied(uint256 indexed marketId, address indexed trader);
 
     function redeemDeniedLeveredBond(uint256 marketId) public returns(uint collateral_amount){
         LeveredBond memory position = leveragePosition[marketId][msg.sender]; 
@@ -210,6 +230,8 @@ contract LeverageManager is ERC721Enumerable{
         }
 
         marketManager.burnAndTransfer(marketId, address(this), position.amount, msg.sender, collateral_amount); 
+
+        emit LeveredBondRedeemDenied(marketId, msg.sender);
     }
 
     /// @notice returns the manager's maximum leverage 
