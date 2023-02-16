@@ -423,21 +423,21 @@ contract Fetcher {
         bundle.discountCap = data.bondPool.discount_cap();
         bundle.discountedReserves = data.bondPool.discountedReserves();
         
-        bundle.validatorData = buildValidatorBundle(mid, controller);
+        // bundle.validatorData = buildValidatorBundle(mid, controller);
 
     }
 
-    function buildValidatorBundle(uint256 mid, Controller controller) view internal returns (ValidatorBundle memory bundle)  {
-        bundle.avg_price = controller.getValidatorPrice(mid);
-        bundle.validators = controller.viewValidators(mid);
-        bundle.totalSales = controller.getTotalValidatorSales(mid);
-        bundle.totalStaked = controller.getTotalStaked(mid);
-        bundle.numApproved = controller.getNumApproved(mid);
-        bundle.initialStake = controller.getInitialStake(mid);
-        bundle.finalStake = controller.getFinalStake(mid);
-        bundle.numResolved = controller.getNumResolved(mid);
-        bundle.val_cap = controller.getValidatorCap(mid);
-    }
+    // function buildValidatorBundle(uint256 mid, Controller controller) view internal returns (ValidatorBundle memory bundle)  {
+    //     bundle.avg_price = controller.getValidatorPrice(mid);
+    //     bundle.validators = controller.viewValidators(mid);
+    //     bundle.totalSales = controller.getTotalValidatorSales(mid);
+    //     bundle.totalStaked = controller.getTotalStaked(mid);
+    //     bundle.numApproved = controller.getNumApproved(mid);
+    //     bundle.initialStake = controller.getInitialStake(mid);
+    //     bundle.finalStake = controller.getFinalStake(mid);
+    //     bundle.numResolved = controller.getNumResolved(mid);
+    //     bundle.val_cap = controller.getValidatorCap(mid);
+    // }
 
 // (uint256 managers_stake, uint256 exposurePercentage, uint256 seniorAPR, uint256 approvalPrice)
     // function computeInstrumentProfile(

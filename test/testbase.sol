@@ -455,7 +455,7 @@ contract CustomTestBase is Test {
         //     controller.validatorApprove(marketId);
         // }
         vm.prank(deployer); 
-        controller.testApproveMarket(marketId);
+        controller.approveMarket(marketId);
     }
 
     function doApproveFromStart(uint256 marketId, uint256 amountToBuy) public{
@@ -475,9 +475,5 @@ contract CustomTestBase is Test {
 
     function assertSameExchangeRate(uint startExchangeRate, address vault_ad) public {
         assertEq(startExchangeRate, Vault(vault_ad).previewMint(1e18)); 
-    } 
-
-
-
-   
+    }    
 }
