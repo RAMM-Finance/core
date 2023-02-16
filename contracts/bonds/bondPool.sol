@@ -96,14 +96,15 @@ contract SyntheticZCBPool{
         uint256 alpha, 
         uint256 delta) external {
         require(msg.sender == controller, "unauthorized"); 
-        b_initial = (2*P).divWadDown(P+I) - precision; 
+        b_initial = (2*P).divWadDown(P+I) >= precision
+            ? (2*P).divWadDown(P+I) - precision
+            : MIN_INIT_PRICE;         
         a_initial = (precision-b_initial).divWadDown(P+I); 
 
-        discount_cap_collateral = P.mulWadDown(sigma); 
-        // discount_cap = 0; 
-        b = b_initial; 
+        discount_cap_collateral = P.mulWadDown(0); //sigma =0 TODO
+        
         // Calculate and store maximum tokens for discounts, and get new initial price after saving for discounts
-       // (discount_cap, b) = discount_cap_collateral.amountOutGivenIn(SwapParams(0, a_initial, b_initial, true, 0));
+       (discount_cap, b) = discount_cap_collateral.amountOutGivenIn(SwapParams(0, a_initial, b_initial, true, 0));
         (, upperBound) = P.mulWadDown(alpha+delta).amountOutGivenIn(SwapParams(0, a_initial, b_initial,true, 0)); 
         curPrice = b;
         // (discount_cap, b) = LinearCurve.amountOutGivenIn(P.mulWadDown(sigma), 0, a_initial, b_initial, true);
@@ -202,6 +203,7 @@ contract SyntheticZCBPool{
     address public immutable controller; 
     uint256 public constant precision = 1e18; 
     uint256 public constant maxPrice = 1e18; 
+    uint256 public constant MIN_INIT_PRICE = 5e17; 
 }
 
 
