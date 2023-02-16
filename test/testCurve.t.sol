@@ -30,15 +30,18 @@ contract CurveTest is CustomTestBase {
     function testLinearUp(
         uint P,
         uint I, 
-        uint poolamountIn) public {
-        vm.assume(P>=I); 
+        uint poolamountIn, 
+        uint netSupplyInput) public {
+        vm.assume(I>=P/1000); 
+        vm.assume(poolamountIn>=1e14); 
 
-        constrictToRange(P, 1, 1000000000e18); 
-        constrictToRange(I, 1, 200000000e18); 
-        console.log('p', P); 
-        constrictToRange(poolamountIn,1, P); 
-
-        b_initial = (2*P).divWadDown(P+I) - precision; 
+        P = constrictToRange(P, 1e18, 1000000000e18); 
+        I = constrictToRange(I, 5e17, 200000000e18); 
+        poolamountIn = constrictToRange(poolamountIn,1e14, P); 
+   
+        b_initial = (2*P).divWadDown(P+I) >= precision
+            ? (2*P).divWadDown(P+I) - precision
+            : 5e17; 
         a_initial = (precision-b_initial).divWadDown(P+I); 
 
         (discount_cap, b) =  P.mulWadDown(sigma).amountOutGivenIn(SwapParams(0, a_initial, b_initial, true, 0));
@@ -46,16 +49,35 @@ contract CurveTest is CustomTestBase {
         (uint poolamountOut, uint resultPrice ) = poolamountIn.amountOutGivenIn(
             SwapParams(netSupply, a_initial, b, true, 0 )); 
 
-        assertApproxEqAbs(poolamountIn, b.mulWadDown(poolamountOut)+ poolamountOut.mulWadDown(resultPrice-b)/2,1000); 
+        // Correct within 
+        assertApproxEqBasis(poolamountIn, b.mulWadDown(poolamountOut)+ poolamountOut.mulWadDown(resultPrice-b)/2, 10); 
+        assertApproxEqAbs(resultPrice, poolamountOut.mulWadDown(netSupply + a_initial)+ b, 10);
+
     }
 
-    function testLinearDown() public {
-        uint P = 90e18; 
-        uint I = 11e18; 
-        uint poolamountIn = 13e18; 
-        uint netSupply = poolamountIn*2; 
+    function testLinearDown(
+        uint P,
+        uint I, 
+        uint poolamountIn, 
+        uint netSupply
+        ) public {
+        vm.assume(I>=P/1000); 
+        vm.assume(poolamountIn>=1e14); 
 
-        b_initial = (2*P).divWadDown(P+I) - precision; 
+        P = constrictToRange(P, 1e18, 1000000000e18); 
+        I = constrictToRange(I, 5e17, 200000000e18); 
+        netSupply = constrictToRange(netSupply, 1e17, P); 
+        poolamountIn = constrictToRange(poolamountIn,1e14, netSupply); 
+        console.log('P, I, netSupply, poolamountIn', P, I); 
+        console.log(netSupply, poolamountIn); 
+        // uint P = 90e18; 
+        // uint I = 11e18; 
+        // uint poolamountIn = 13e18; 
+        // uint netSupply = poolamountIn*2; 
+
+        b_initial = (2*P).divWadDown(P+I) >= precision
+            ? (2*P).divWadDown(P+I) - precision
+            : 5e17; 
         a_initial = (precision-b_initial).divWadDown(P+I); 
 
         // Calculate and store maximum tokens for discounts, and get new initial price after saving for discounts
@@ -63,9 +85,11 @@ contract CurveTest is CustomTestBase {
 
         (uint poolamountOut, uint resultPrice ) = poolamountIn.amountOutGivenIn(
             SwapParams(netSupply, a_initial, b, false, 0 )); 
+        uint priorPrice = netSupply.mulWadDown(a_initial) + b; 
 
-        assertApproxEqAbs(poolamountOut, resultPrice.mulWadDown(poolamountIn)+ poolamountIn.mulWadDown(resultPrice-b)/2, 1000); 
-
+        assertApproxEqBasis(poolamountOut, 
+            resultPrice.mulWadDown(poolamountIn)+ poolamountIn.mulWadDown(priorPrice - resultPrice)/2, 10); 
+        assertApproxEqAbs(resultPrice, (netSupply - poolamountIn).mulWadDown(a_initial)+ b, 10); 
     }
 
     function testPieceWiseLinearUp() public{

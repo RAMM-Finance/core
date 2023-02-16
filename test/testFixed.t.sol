@@ -9,6 +9,8 @@ import {ReputationNFT} from "../contracts/protocol/reputationtoken.sol";
 import {Cash} from "../contracts/utils/Cash.sol";
 import {CreditLine, MockBorrowerContract} from "../contracts/vaults/instrument.sol";
 import {LinearCurve} from "../contracts/bonds/GBC.sol"; 
+import {LinearPiecewiseCurve, SwapParams} from "../contracts/bonds/linearCurve.sol"; 
+
 import {FixedPointMath} from "../contracts/bonds/libraries.sol"; 
 import {CoveredCallOTC} from "../contracts/vaults/dov.sol";
 import {ERC20} from "solmate/tokens/ERC20.sol";
@@ -162,6 +164,9 @@ contract FixedTest is CustomTestBase {
         uint amount2; 
         uint amount3; 
         uint amount4; 
+        uint amount5; 
+        uint amount6; 
+        uint amount7; 
 
         uint amountIn;
         uint amountOut; 
@@ -170,11 +175,16 @@ contract FixedTest is CustomTestBase {
 
         uint vaultBal; 
         uint cbalbefore; 
+        uint ratebefore; 
         uint vaultBalBeforeRedeem; 
         uint sumofcollateral; 
 
         uint maxSupply; 
         bool dontAssert; 
+
+        uint longsupply; 
+        uint shortsupply; 
+
 
     }
 
@@ -196,10 +206,10 @@ contract FixedTest is CustomTestBase {
         vars.principal = Vault(vars.vault_ad).fetchInstrumentData(vars.marketId).principal; 
 
         // try a bunch of numbers 
-        vars.amount1 = vars.principal*11/100; 
-        vars.amount2 = vars.principal*7/100; 
-        vars.amount3 = vars.principal*11/100; //shorting 
-        vars.amount4 = vars.principal*12/100; 
+        // vars.amount1 = vars.principal*11/100; 
+        // vars.amount2 = vars.principal*7/100; 
+        // vars.amount3 = vars.principal*11/100; //shorting 
+        // vars.amount4 = vars.principal*12/100; 
         bytes memory data; 
 
         doApproveCol(address(marketmanager), jonna); 
@@ -244,19 +254,23 @@ contract FixedTest is CustomTestBase {
             doApproveCol(address(marketmanager), jonna); 
             vm.prank(jonna); 
             (vars.amountIn, vars.amountOut) =
-                marketmanager.buyBond(vars.marketId, -int256(vars.amount3), vars.curPrice + precision/10 , data); 
+                marketmanager.buyBond(vars.marketId, -int256(vars.amount5), vars.curPrice + precision/10 , data); 
 
             doApproveCol(address(marketmanager), sybal); 
             vm.prank(sybal); 
             (vars.amountIn, vars.amountOut) =
-                marketmanager.buyBond(vars.marketId, -int256(vars.amount4), vars.curPrice + precision/10 , data); 
+                marketmanager.buyBond(vars.marketId, -int256(vars.amount6), vars.curPrice + precision/10 , data); 
             vm.prank(sybal); 
             (vars.amountIn, vars.amountOut) =
-                marketmanager.buyBond(vars.marketId, -int256(vars.amount4), vars.curPrice + precision/10 , data); 
+                marketmanager.buyBond(vars.marketId, -int256(vars.amount7), vars.curPrice + precision/10 , data); 
 
         }
 
-        console.log('collat', marketmanager.loggedCollaterals(vars.marketId), controller.marketCondition(vars.marketId));
+        vars.longsupply = Data.getMarket(vars.marketId).longZCB.totalSupply(); 
+        vars.shortsupply = Data.getMarket(vars.marketId).shortZCB.totalSupply(); 
+        assertApproxEqAbs(vars.longsupply, vars.amount1+ vars.amount2+vars.amount4+
+            vars.amount5+vars.amount6+vars.amount7,5); 
+        assertApproxEqAbs(vars.shortsupply, vars.amount3, 5); 
     }
 
     // function doApprove(uint256 marketId, address vault) public{ //TODO: update
@@ -330,46 +344,104 @@ contract FixedTest is CustomTestBase {
     //     }
     // }
 
-    // function setRedemptionPrice() public{
 
-    // }
 
-    function testSomeLongSomeShortApprove() public returns(testVars2 memory){
+    // @notice X people are long or short and approval after, 
+    // check: can't approve if total collateral doesn't meet 
+    // check: correct amount went to instrument  
+    // check: vault exchange rate same  
+    // check: logged manager collateral correct
+    // check: controller has short collateral+ longcollateral 
+    function testSomeLongSomeShortApprove(
+        uint256 amount1, 
+        uint256 amount2, 
+        uint256 amount3, 
+        uint256 amount4, 
+        uint256 amount5, 
+        uint256 amount6,
+        uint256 amount7
+        ) public returns(testVars2 memory){
         testVars2 memory vars; 
 
+        vars.vault_ad = controller.getVaultfromId(1); //
+        vars.marketId = controller.getMarketId(jott); 
+
+        vars.principal = Vault(vars.vault_ad).fetchInstrumentData(vars.marketId).principal; 
+        console.log('principal', vars.principal); 
+        vars.amount1 = constrictToRange(amount1, 1e14, vars.principal/5);// vars.principal*11/100; 
+        vars.amount2 = constrictToRange(amount2, 1e14, vars.principal/5);// vars.principal*7/100; 
+        vars.amount3 = constrictToRange(amount3, 1e14, vars.amount1+vars.amount2);//vars.principal*11/100; //shorting 
+        vars.amount4 = constrictToRange(amount4, 1e14, vars.principal/5);//vars.principal*12/100; 
+        vars.amount5 = constrictToRange(amount5, 1e14, vars.principal/5);
+        vars.amount6 = constrictToRange(amount6, 1e14, vars.principal/5);
+        vars.amount7 = constrictToRange(amount7, 1e14, vars.principal/5);
+        console.log('amounts', vars.amount1, vars.amount2, vars.amount3); 
+        console.log( vars.amount4,vars.amount5,vars.amount6,vars.amount7); 
+        vars.maxSupply = (precision - marketmanager.getPool(vars.marketId).b_initial()).divWadDown( marketmanager.getPool(vars.marketId).a_initial() ) ; 
+
+        uint netCollateral = vars.amount1+vars.amount2-vars.amount3
+            +vars.amount4+vars.amount5+vars.amount6+vars.amount7; 
+        vm.assume(netCollateral<= vars.maxSupply/2); 
+
+        (uint a, uint b) = (Data.getMarket(vars.marketId).bondPool.a_initial(),  Data.getMarket(vars.marketId).bondPool.b_initial());
+        uint amountOut = LinearPiecewiseCurve.areaUnderCurve( netCollateral, 0, a, b); 
+        vm.assume(amountOut>=vars.principal.mulWadDown(alpha)); 
+
         somelongsomeshort(vars, true);
+
+        vars.cbalbefore = Vault(vars.vault_ad).UNDERLYING().balanceOf(vars.vault_ad); 
+        vars.ratebefore = Vault(vars.vault_ad).previewMint(1e18); 
+
         vars.cbalbefore = Vault(vars.vault_ad).UNDERLYING().balanceOf(vars.vault_ad); 
 
-        // validators invest and approve  
+
+
+        // logged collateral equals area under curve 
+        assertApproxEqBasis(marketmanager.loggedCollaterals(vars.marketId), amountOut, 1); 
+          
+        if(!controller.marketCondition(vars.marketId)) revert("marketCondition") ; 
         doApprove(vars.marketId, vars.vault_ad); 
 
         ApprovalData memory test = controller.getApprovalData(vars.marketId);
-        console.log("APPROVAL DATA: ", test.approved_principal);
-        console.log("APPROVAL DATA: ", test.approved_yield);
-        console.log("APPROVAL DATA: ", test.managers_stake);
-        // did correct amount go to vault? the short collateral should stay in pool 
-        assertApproxEqAbs(vars.s_amountIn, marketmanager.shortTrades(vars.marketId, chris), 10); 
-        // assertApproxEqAbs(marketmanager.getShortZCB(vars.marketId).balanceOf(chris), 
-        //     marketmanager.getPool(vars.marketId).cBal(), 10); 
 
-        // how does liquidity change after approval, can people trade in zero liq 
-        // assertEq(uint256(marketmanager.getPool(vars.marketId).liquidity()), 0); 
+        assertApproxEqAbs(vars.cbalbefore - Vault(vars.vault_ad).UNDERLYING().balanceOf(vars.vault_ad), 
+        test.approved_principal - test.managers_stake,100 ); 
+        assertEq(vars.ratebefore,Vault(vars.vault_ad).previewMint(1e18) ); 
+
+
+
         return vars; 
     }
 
+    // @notice fixed instrument resolve market pay all, rate increment by how much 
     // resolve market fixed vault exchange rate increment by how much when redemption price1
     // novalidator
-    function testResolveMarketVaultExchangeRateFull() public {
-        testVars2 memory vars  = testSomeLongSomeShortApprove(); 
+    // check: vault profit share is correct
+    // check: everyone can redeem 
+    function testResolveMarketVaultExchangeRateFull(
+        uint256 amount1, 
+        uint256 amount2, 
+        uint256 amount3, 
+        uint256 amount4, 
+        uint256 amount5, 
+        uint256 amount6,
+        uint256 amount7
+        ) public {
+        uint controllerBalBefore = collateral.balanceOf(address(controller)); 
+
+        testVars2 memory vars  = testSomeLongSomeShortApprove(
+            amount1, amount2, amount3, amount4, amount5, amount6, amount7
+            ); 
         InstrumentData memory data = Data.getInstrumentData(vars.marketId); 
 
-        donateToInstrument(vars.vault_ad, address(instrument), data.expectedYield); 
+        donateToInstrument(vars.vault_ad, address(instrument), data.expectedYield); //TODO expected yield
 
         vm.startPrank(deployer); 
         controller.validatorResolve(vars.marketId); 
         controller.beforeResolve(vars.marketId);
         controller.resolveMarket(vars.marketId); 
         vm.stopPrank(); 
+
         ApprovalData memory test = controller.getApprovalData(vars.marketId);
 
         // look at area 
@@ -377,13 +449,23 @@ contract FixedTest is CustomTestBase {
         uint vaultshare = data.principal+ data.expectedYield 
         - (test.approved_principal-test.managers_stake
             +Data.getMarket(vars.marketId).bondPool.discount_cap()+ 
-            (vars.amount3+vars.amount4+vars.amount4+vars.amount1 + vars.amount2 + vars.amount4 - vars.amount3)
+            (vars.amount1 + vars.amount2 + vars.amount4 +vars.amount5+vars.amount6+vars.amount7- vars.amount3)
             ); 
 
         // Vault profit 
         assertApproxEqAbs(vaultshare, Vault(vars.vault_ad).UNDERLYING().balanceOf(vars.vault_ad) - vars.cbalbefore, 1000); 
 
+        // Everyone redeem
+        // uint longsupply = Data.getMarket(vars.marketId).longZCB.totalSupply(); 
+        // uint shortsupply = Data.getMarket(vars.marketId).shortZCB.totalSupply(); 
+        uint redemptionPrice = marketmanager.redemption_prices(vars.marketId); 
+        assert(redemptionPrice==1e18); 
+        assertApproxEqAbs(collateral.balanceOf(address(controller)) - controllerBalBefore, 
+            vars.longsupply.mulWadDown(redemptionPrice) + vars.shortsupply.mulWadDown(1e18-redemptionPrice)
+            , 100); 
     }
+
+
 
 
 

@@ -28,11 +28,14 @@ library LinearPiecewiseCurve{
         uint256 amount, 
         SwapParams memory vars
         ) internal pure returns(uint256 amountDelta, uint256 resultPrice){
-        uint256 x = ((vars.a.mulWadDown(vars.s) + vars.b) ** 2)/PRECISION; 
-        uint256 y = 2*( vars.a.mulWadDown(amount)); 
-        uint256 x_y_sqrt = ((x+y)*PRECISION).sqrt();
-        uint256 z = (vars.a.mulWadDown(vars.s) + vars.b); 
-        amountDelta = (x_y_sqrt-z).divWadDown(vars.a);
+        uint256 curPrice = vars.a.mulWadDown(vars.s) + vars.b; 
+        amountDelta = amount > 0 ? (
+            (
+                (curPrice.mulWadDown(curPrice) + 2*(vars.a.mulWadDown(amount))) * PRECISION
+               
+            ).sqrt() - curPrice
+        ).divWadDown(vars.a) : 0; 
+
         resultPrice = vars.a.mulWadDown(amountDelta + vars.s) + vars.b; 
     }
 
@@ -47,8 +50,7 @@ library LinearPiecewiseCurve{
         resultPrice = a.mulWadDown(s-amount) + b; 
     }
 
-    /// @dev tokens returned = [((a*s + b)^2 + 2*a*p)^(1/2) - (a*s + b)] / a
-    /// @param amount: amount of base in
+    /// @param amount: amount of base in if up, trade in if down 
     /// returns amountDelta wanted token returned 
     function amountOutGivenIn( 
         uint256 amount,
@@ -59,21 +61,11 @@ library LinearPiecewiseCurve{
         returns(uint256 amountDelta, uint256 resultPrice) {
         
         if(vars.pieceWisePrice ==0){
-            if (vars.up){
-                //TODO overflow on small amount 
-                uint256 x = ((vars.a.mulWadDown(vars.s) + vars.b) ** 2)/PRECISION; 
-                uint256 y = 2*( vars.a.mulWadDown(amount)); 
-                uint256 x_y_sqrt = ((x+y)*PRECISION).sqrt();
-                uint256 z = (vars.a.mulWadDown(vars.s) + vars.b); 
-                amountDelta = (x_y_sqrt-z).divWadDown(vars.a);
-                resultPrice = vars.a.mulWadDown(amountDelta + vars.s) + vars.b; 
-            } else{
-                uint256 z = vars.b + vars.a.mulWadDown(vars.s) - vars.a.mulWadDown(amount)/2;  
-                amountDelta = amount.mulWadDown(z); 
-                resultPrice = vars.a.mulWadDown(vars.s-amount) + vars.b; 
-            }
+            if (vars.up) (amountDelta, resultPrice) = outGivenArea(amount, vars); 
+            else (amountDelta, resultPrice) = outGivenSupply(amount, vars.s, vars.a, vars.b); 
         } else{     
             uint256 pieceWisePoint = (vars.pieceWisePrice-vars.b).divWadDown(vars.a); 
+
             if(vars.up){
                 // get maximum area till piecewiseprice
                 // if amount is larger, then cap it to maximum area 
