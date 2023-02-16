@@ -493,11 +493,12 @@ event MarketDenied(uint256 indexed marketId);
     ) external returns(uint256 issueQTY){
     LocarVars memory vars; 
     require(msg.sender == address(this) || msg.sender == leverageManager_ad, "invalid entry"); 
+    // msg.sender == caller?
     _canIssue(trader, int256(_amountIn), _marketId, getTraderBudget(_marketId, trader));  
 
     vars.vault = controller.getVault(_marketId); 
     vars.underlying = ERC20(address(markets[_marketId].bondPool.baseToken())); 
-    vars.instrument = address(vars.vault.Instruments(_marketId)); 
+    vars.instrument = address(vars.vault.Instruments(_marketId));
 
     // Get price a_lock_nd sell longZCB with this price
     // (vars.psu, vars.pju, vars.levFactor ) = vars.vault.poolZCBValue(_marketId);
