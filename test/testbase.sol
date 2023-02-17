@@ -267,7 +267,43 @@ contract CustomTestBase is Test {
             words[i] = uint256(keccak256(abi.encodePacked(i)));
         }
         controller.fulfillRandomWords(1, words);
+    }
 
+    function generatePerpInstrumentData(
+        uint256 saleAmount, 
+        uint256 initPrice,
+        uint256 promisedReturn, 
+        uint256 inceptionPrice, 
+        uint256 leverageFactor, 
+
+        address instrument_address 
+
+        ) public returns(InstrumentData memory, PoolData memory) {
+        InstrumentData memory data; 
+        PoolData memory poolData; 
+
+        poolData.saleAmount = saleAmount; 
+        poolData.initPrice = initPrice; 
+        poolData.promisedReturn = promisedReturn; 
+        poolData.inceptionTime = block.timestamp; 
+        poolData.inceptionPrice = inceptionPrice; 
+        poolData.leverageFactor = leverageFactor; 
+
+        data.isPool = true; 
+        data.trusted = false; 
+        data.balance = 0;
+        data.faceValue = 0;
+        data.marketId = 0; 
+        data.principal = 0;
+        data.expectedYield = 0;
+        data.duration = 0;
+        data.description = "test";
+        data.instrument_address = address(nftPool);
+        data.instrument_type = InstrumentType.LendingPool;
+        data.maturityDate = 0; 
+        data.poolData = poolData; 
+
+        return (data, poolData); 
     }
 
     // function initiateLendingPool(address vault_ad) public {
@@ -481,6 +517,14 @@ contract CustomTestBase is Test {
         if (min == 0 && max == type(uint256).max) return x;  // The entire uint256 space is effectively x.
 
         return (x % ((max - min) + 1)) + min;  // Given the above exit conditions, `(max - min) + 1 <= type(uint256).max`.
+    }
+
+    // ALL input will be mod 2**32, to limit fuzzing space 
+    function fuzzput(
+        uint32 x, 
+        uint256 base //some number like 1e16 or 0.001
+        ) internal pure returns(uint256){
+        return uint256(x) * base; 
     }
 
    

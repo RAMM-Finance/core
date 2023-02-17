@@ -235,8 +235,10 @@ contract LeverageModuleTest is CustomTestBase {
         uint cbalnow2; 
 
         uint issueAmount; 
+        uint rateBefore; 
     }
 
+    /// @notice leverage pool mint 
     function testPoolLevMint() public returns(testVars1 memory){
         testVars1 memory vars; 
 
@@ -247,13 +249,14 @@ contract LeverageModuleTest is CustomTestBase {
         uint leverageFactor = 3*precision; 
         uint amountToBuy = Vault(vars.vault_ad).fetchInstrumentData(vars.marketId).poolData.saleAmount*3/2; 
 
-        doApproveFromStart(vars.marketId,  amountToBuy); 
 
+        doApproveFromStart(vars.marketId,  amountToBuy); 
         doApproveCol(address(marketmanager), jonna); 
         doApproveCol(vars.vault_ad, jonna); 
 
         vm.prank(jonna); 
         Vault(vars.vault_ad).deposit(amountToBuy*10, jonna); 
+        vars.rateBefore = Vault(vars.vault_ad).previewMint(1e18); 
 
         uint start = marketmanager.getMarket(vars.marketId).longZCB.balanceOf(address(leverageManager));
         vm.prank(jonna); 
@@ -264,6 +267,7 @@ contract LeverageModuleTest is CustomTestBase {
             leverageFactor
         ); 
         uint mid = marketmanager.getMarket(vars.marketId).longZCB.balanceOf(address(leverageManager));
+        assertEq(vars.rateBefore, Vault(vars.vault_ad).previewMint(1e18)); 
 
         LeverageManager.LeveredBond memory bond = leverageManager.getPosition( vars.marketId,  jonna);
 
@@ -282,6 +286,7 @@ contract LeverageModuleTest is CustomTestBase {
             vars.issueAmount, 
             leverageFactor
         ); 
+        assertEq(vars.rateBefore, Vault(vars.vault_ad).previewMint(1e18)); 
         assertApproxEqAbs(leverageManager.getPosition( vars.marketId,  jonna).debt, 2*(vars.issueAmount.divWadDown(leverageFactor)).mulWadDown(leverageFactor-precision),10 ); 
         assertApproxEqAbs(marketmanager.getMarket(vars.marketId).longZCB.balanceOf(address(leverageManager)) - start, 
             leverageManager.getPosition( vars.marketId,  jonna).amount, 10); 
@@ -382,6 +387,7 @@ contract LeverageModuleTest is CustomTestBase {
         assertEq(bond.debt, 0); 
         assertEq(marketmanager.getMarket(vars.marketId).longZCB.balanceOf(address(leverageManager)), 0); 
     }
+
 
 
 

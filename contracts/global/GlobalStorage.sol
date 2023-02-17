@@ -1,35 +1,33 @@
 pragma solidity ^0.8.16;
 import "./types.sol"; 
 import {PerpTranchePricer} from "../libraries/pricerLib.sol"; 
-import {Instrument} from "../vaults/instrument.sol"; 
+import {CollateralPricer} from "../libraries/lendingOracleLib.sol"; 
 
+import {Instrument} from "../vaults/instrument.sol"; 
+import {FixedPointMathLib} from "solmate/utils/FixedPointMathLib.sol";
+
+import "forge-std/console.sol";
 
 contract StorageHandler{
-	using PerpTranchePricer for PricingInfo; 
+	using PerpTranchePricer for PricingInfo;
+	using CollateralPricer for PoolPricingParam; 
+    using FixedPointMathLib for uint256;
 
 	uint256 constant BASE_UNIT = 1e18; 
-
-	mapping(uint256=> PricingInfo) public PricingInfos; 
-	mapping(uint256=> InstrumentData) public InstrumentDatas; 
-	// mapping(uint256=>CoreMarketData) public MarketDatas; 
-  	CoreMarketData[] public markets;
-
 
     modifier onlyProtocol() {
         
         _;
     }
 
-
-  constructor() 
-  {
+  	constructor() 
+  		{
     // controller = Controller(_controllerAddress);
     // push empty market
-    markets.push(makeEmptyMarketData());
+    	markets.push(makeEmptyMarketData());
 
     // owner = msg.sender; 
-  }
-
+  	}
 
 
 	/// @notice called at market creation 
@@ -46,7 +44,8 @@ contract StorageHandler{
 	}
 
 
-    //--- Pricing ---// 
+    //--- Perp Pricing ---// 
+	mapping(uint256=> PricingInfo) public PricingInfos; 
 
 	function getPricingInfo(uint256 marketId) public view returns(PricingInfo memory){
 		return PricingInfos[marketId]; 
@@ -60,6 +59,7 @@ contract StorageHandler{
 		PricingInfos[marketId].setRF(isConstant); 
 	}
 
+	/// @notice updates whenever uRate changes 
 	function refreshPricing(uint256 marketId, uint256 uRate) public onlyProtocol{
 		PricingInfos[marketId].storeNewPSU(uRate); 
 	}
@@ -76,6 +76,15 @@ contract StorageHandler{
 
 
 	//--- Instrument ---//
+	uint256 public lastTradedRate; 
+	uint256 public lastTradedTime; 
+	uint256 public constant TIME_WINDOW = 10e18; // for rate oracle 
+	mapping(uint256=> PoolPricingParam) PoolPricingParams; 
+
+	mapping(uint256=> ExchangeRateData) storedRates; //marketId-> last exchange rate
+
+	mapping(uint256=> InstrumentData) public InstrumentDatas; 
+
 	function getInstrumentData(uint256 marketId) public returns(InstrumentData memory){
 		return InstrumentDatas[marketId]; 
 	}
@@ -84,10 +93,51 @@ contract StorageHandler{
 		InstrumentDatas[marketId] = data; 
 	}
 
+	/// @notice store instrument exchange rate to get delayed rates 
+	/// called whenever instrument exchange rate changes
+	function storeExchangeRateOracle(uint256 marketId, uint256 newRate) public onlyProtocol returns(uint256){
+		ExchangeRateData storage rateData = storedRates[marketId];
+
+		rateData.lastOracleRate = rateData.initialized? queryExchangeRateOracle(marketId) : newRate; 
+		rateData.lastRate = newRate; 
+		rateData.lastTime = block.timestamp; 
+		rateData.initialized = true; 
+
+		return rateData.lastOracleRate; 
+	}
+
+	function queryExchangeRateOracle(uint256 marketId) public view returns(uint256){
+		ExchangeRateData memory rateData = storedRates[marketId];
+		uint256 timeDiff = (block.timestamp -rateData.lastTime) * BASE_UNIT; 
+		uint256 timeDivWindow = timeDiff.divWadDown(TIME_WINDOW); 
+
+		// Liear interpolation of last rate and last oracle rate
+		rateData.lastOracleRate = TIME_WINDOW >= timeDiff
+			? rateData.lastRate.mulWadDown(min(timeDivWindow, BASE_UNIT)) 
+				+ rateData.lastOracleRate.mulWadDown((TIME_WINDOW - timeDiff).divWadDown(TIME_WINDOW))
+			: rateData.lastRate;
+
+		return rateData.lastOracleRate; 
+	}
+
+	function setPoolPricingParams(uint256 marketId, PoolPricingParam memory params) public onlyProtocol{
+		PoolPricingParams[marketId] = params; 
+	}
+
+	/// @notice applicable to lending pool instruments only. Needs to be called
+	/// whenever utilization rate is about to get updates. i.e while borrowing/
+	function refreshAndGetNewLTV(uint256 marketId, uint256 newURate) public onlyProtocol returns(uint256){
+		return PoolPricingParams[marketId].storeNewLTV(newURate); 
+	}
+
+
+
 
 
 
 	//--- Market ---//
+  	CoreMarketData[] public markets;
+
 	function storeNewMarket(CoreMarketData memory data) public onlyProtocol  returns(uint256 marketId){
 		// MarketDatas[marketId] = data; 
 		marketId = markets.length; 
@@ -118,50 +168,13 @@ contract StorageHandler{
 
 
 
+
+    function min(uint256 a, uint256 b) internal pure returns (uint256) {
+        return a <= b ? a : b;
+    }
+
+
+
 }
 
 
-
-	// function queryTrancheAssetOracle(uint256 marketId, uint256 supply) public view returns(uint256){
-	// 	uint256 juniorSupply = markets[marketId].longZCB.totalSupply(); 
-	// 	uint256 seniorSupply = juniorSupply.mulWadDown()
-	// 	Instrument(Instrument[marketId].instrument_address).assetOracle(supply); 
-	// }
-
-// library GlobalStorage{
-
-//    /// @dev Offset for the initial slot in lib storage, gives us this number of storage slots
-//     /// available in StorageLayoutV1 and all subsequent storage layouts that inherit from it.
-//     uint256 private constant STORAGE_SLOT_BASE = 1000000;
-
-
-//     /// @dev Storage IDs for storage buckets. Each id maps to an internal storage
-//     /// slot used for a particular mapping
-//     ///     WARNING: APPEND ONLY
-//     enum StorageId {
-//            Unused,
-
-//         _PricingInfo 
-//     }
-
-
-// 	function PricingInfos() public returns(mapping(uint256=> PricingInfo) storage store) {
-//         uint256 slot = _getStorageSlot(StorageId._PricingInfo);
-//         assembly { store.slot := slot }
-//     }
-
-
-//     /// @dev Get the storage slot given a storage ID.
-//     /// @param storageId An entry in `StorageId`
-//     /// @return slot The storage slot.
-//     function _getStorageSlot(StorageId storageId)
-//         private
-//         pure
-//         returns (uint256 slot)
-//     {
-//         // This should never overflow with a reasonable `STORAGE_SLOT_EXP`
-//         // because Solidity will do a range check on `storageId` during the cast.
-//         return uint256(storageId) + STORAGE_SLOT_BASE;
-//     }
-
-// }

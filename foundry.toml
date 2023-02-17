@@ -2,4 +2,5 @@
 src = 'contracts'
 out = 'out'
 libs = ['lib']
+FOUNDRY_FUZZ_RUNS = 512
 # See more config options https://github.com/foundry-rs/foundry/tree/master/config

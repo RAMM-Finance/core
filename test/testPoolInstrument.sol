@@ -428,28 +428,179 @@ contract PoolInstrumentTest is CustomTestBase {
 
     }
 
-    // Redeem test 
-    function testVaultExchangeRateSameAfterRedemption() public{}
-    function testprofitSplit() public{}//profit split between vault and 
-    function testEveryoneRedeem() public{}
-    function testBorrowAndRepay() public{}
+    // // Redeem test 
+    // function testVaultExchangeRateSameAfterRedemption() public{}
+    // function testprofitSplit() public{}//profit split between vault and 
+    // function testEveryoneRedeem() public{}
+    // function testBorrowAndRepay() public{}
 
-    function testPricingWithOracle() public{}
-    function testLendingPool() public{}
-    function testMultipleEqualAmountTimeRedemption()public{}
+    // function testPricingWithOracle() public{}
+    // function testLendingPool() public{}
+    // function testMultipleEqualAmountTimeRedemption()public{}
 
-    // vault deposit goes back to same? 
-    function testSupplyWithdraw() public{
+    // // vault deposit goes back to same? 
+    // function testSupplyWithdraw() public{
 
+    // }
+
+    // function testInstrumentBalance() public{}
+
+    // function testVaultProfit() public{}//exchangerate should go up with instrument profit 
+
+    // function testPricingIsSupplyAgnostic() public{}
+
+    /// @notice tests asset oracle 
+    /// checks: is last queried when no change in time
+    /// checks: is current when dif in time > timewindow 
+    /// checks: is between last and current if less than timewindow 
+    function testAssetOracle(
+        uint32 rate1, 
+        uint32 rate2, 
+        uint32 rate3, 
+        uint32 rate4, 
+        uint32 warp1, 
+        uint32 warp2
+        ) public {
+        testVars1 memory vars; 
+
+        vars.marketId = controller.getMarketId(toku); 
+        vars.vault_ad = controller.getVaultfromId(vars.marketId); 
+        uint256 timewindow = Data.TIME_WINDOW(); 
+
+        uint256 rate1 = constrictToRange(fuzzput(rate1, 1e15), 3e17, 20e17); 
+        uint256 rate2 = constrictToRange(fuzzput(rate2, 1e15), 3e17, 20e17); 
+        uint256 rate3 = constrictToRange(fuzzput(rate3, 1e15), 3e17, 20e17); 
+        uint256 rate4 = constrictToRange(fuzzput(rate4, 1e15), 3e17, 20e17); 
+
+        uint256 warp1 = constrictToRange(fuzzput(warp1, 1),1, timewindow/1e18-1);//timewindow/1e18/2;
+        uint256 warp2 = constrictToRange(fuzzput(warp2, 1),timewindow/1e18, timewindow*5/1e18);//timewindow*2/1e18;  
+
+        console.log('params', rate1, rate2, rate3); 
+        console.log('params2', rate4, warp1, warp2); 
+        assert(rate1>=3e17 ); 
+        assert(warp1>0); 
+
+        Data.storeExchangeRateOracle(vars.marketId, rate1); 
+        uint oracleRate = Data.queryExchangeRateOracle(vars.marketId); 
+        console.log('oracle rate', oracleRate, rate1); 
+        assertEq(oracleRate, rate1); 
+
+        Data.storeExchangeRateOracle(vars.marketId,rate2 ); 
+
+        // some time pass
+        vm.warp(block.timestamp+warp1); 
+        oracleRate = Data.queryExchangeRateOracle(vars.marketId);
+        console.log('oracle rate', oracleRate, rate2); 
+
+        if(rate2> rate1) assert(rate2 > oracleRate); 
+        else if(rate2< rate1) assert(rate2 < oracleRate); 
+        
+        vm.warp(block.timestamp + warp2); 
+
+        oracleRate = Data.queryExchangeRateOracle(vars.marketId); 
+        assertEq(rate2, oracleRate); 
+        console.log('oracle rate', oracleRate, rate2); 
+
+        Data.storeExchangeRateOracle(vars.marketId,rate3 ); 
+        vm.warp(block.timestamp + warp2); 
+        oracleRate = Data.queryExchangeRateOracle(vars.marketId); 
+        assertEq(rate3, oracleRate); 
+        console.log('oracle rate', oracleRate, rate3); 
+
+        Data.storeExchangeRateOracle(vars.marketId,rate4 ); 
+        vm.warp(block.timestamp + warp1); 
+        oracleRate = Data.queryExchangeRateOracle(vars.marketId); 
+        if(rate4> rate3) assert(rate4 > oracleRate); 
+        else if(rate3>rate4) assert(oracleRate > rate4) ;
+        console.log('oracle rate', oracleRate, rate4); 
     }
 
-    function testInstrumentBalance() public{}
-
-    function testVaultProfit() public{}//exchangerate should go up with instrument profit 
-
-    function testPricingIsSupplyAgnostic() public{}
 
 
+        // uint newURate = 5e17; 
+        // uint newURate2 = 95e16; 
+        // uint time1 = 100; 
+        // uint time2 = 50; 
+
+        // uint incrementRate = 1e16; 
+        // uint urateUpper = 9e17; 
+        // uint urateLower = 5e17;
+        // uint prevAccrueTime = block.timestamp ; 
+        // uint prevURate = 0; 
+        // uint maxBorrowable = 1e18; 
+
+    /// @notice tests whether max borrow amount changes when manager
+    /// check: whether loan to value is incrementing/decrementing correctly
+    /// check: 
+    function testMaxBorrowChange(
+        uint newURate, 
+        uint newURate2, 
+        uint time1, 
+        uint time2, 
+
+        uint incrementRate, 
+        uint urateUpper,
+        uint urateLower,
+        uint prevAccrueTime,
+        uint prevURate, 
+        uint maxBorrowable
+
+        ) public{
+        testVars1 memory vars; 
+        vars.marketId = controller.getMarketId(toku); 
+        console.log('wtf', newURate, newURate2, time1); 
+
+        vm.assume(urateLower<=9e17);
+        vm.assume(urateUpper >= urateLower + 1e17); 
+        vm.assume(newURate>=3e17); 
+        // vm.assume(time1<= 100); 
+        // vm.assume(time2<= 100); 
+
+        uint newURate = constrictToRange(newURate, 3e17, 1e18); 
+        uint newURate2 = constrictToRange(newURate2, 3e17, 1e18); 
+        uint time1 = constrictToRange(time1, 0, 100); 
+        uint time2 = constrictToRange(time2, 0, 100); 
+
+        uint incrementRate = constrictToRange(incrementRate, 1e8, 1e16);  
+        uint urateUpper = constrictToRange(urateUpper, 7e17,95e16); 
+        uint urateLower = constrictToRange(urateLower, 3e17, 6e17);
+        uint prevAccrueTime = block.timestamp ; 
+        uint prevURate = 0; 
+        uint maxBorrowable = constrictToRange(maxBorrowable, 0, 100000e18); 
+
+        console.log('params', newURate, newURate2, time1); 
+        console.log('params2', time2, incrementRate, urateUpper); 
+        console.log('params3', urateLower, prevAccrueTime, prevURate); 
+        console.log('param4', maxBorrowable); 
+        assert(newURate>=3e17); 
+        Data.setPoolPricingParams(vars.marketId, PoolPricingParam(
+            incrementRate, urateUpper, urateLower, prevAccrueTime, prevURate, maxBorrowable
+            )
+        ); 
+
+        // refresh with initial urate, since no time pass maxborrowable should not change
+        // When I am refreshing, I am using the previous refreshed urate accrued over the timesteps
+        uint ltv = Data.refreshAndGetNewLTV(vars.marketId, newURate); 
+        assertEq(maxBorrowable, ltv); 
+
+        // refresh with some time pass
+        vm.warp(block.timestamp + time1); 
+        ltv = Data.refreshAndGetNewLTV(vars.marketId, newURate2); 
+        if(newURate < urateLower) assertApproxEqAbs(ltv, maxBorrowable.mulWadDown((1e18+incrementRate).rpow(time1, 1e18)), 50); 
+        else if(newURate > urateUpper) assertApproxEqAbs(ltv, 
+            maxBorrowable.mulWadDown((1e18-incrementRate).rpow(time1, 1e18)), 50); 
+        else assertApproxEqAbs(ltv, maxBorrowable, 10); 
+        maxBorrowable = ltv; 
+
+        vm.warp(block.timestamp + time2); 
+        ltv = Data.refreshAndGetNewLTV(vars.marketId, newURate2);
+        if(newURate2< urateLower) 
+            assertApproxEqAbs(ltv, maxBorrowable.mulWadDown((1e18+incrementRate).rpow(time2, 1e18)), 50);
+        else if(newURate2 > urateUpper) assertApproxEqAbs(ltv, 
+            maxBorrowable.mulWadDown((1e18-incrementRate).rpow(time2, 1e18)), 50); 
+        else assertApproxEqAbs(ltv, maxBorrowable, 10); 
+
+    }
 
 }
 

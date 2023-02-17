@@ -2,18 +2,6 @@ pragma solidity ^0.8.16;
 
 import {SyntheticZCBPool} from "../bonds/bondPool.sol"; 
 import {ERC20} from "solmate/tokens/ERC20.sol";
-struct PricingInfo{
-	uint256 psu; 
-
-	uint256 prevAccrueTime; 
-	uint256 prevIntervalRp; //per second compounding promised return, function of urate 
-
-	// Constants for a given market 
-	uint256 URATE_MULTIPLIER; 
-	uint256 ID; 
-
-	bool constantRF; 
-}
 
 
 struct MarketData {
@@ -38,6 +26,7 @@ struct InstrumentData {
 	uint256 balance; // in underlying, IMPORTANT to get this number right as it modifies key states 
 	uint256 faceValue; // in underlying
 	uint256 marketId;
+	
 	uint256 principal; //this is total available allowance in underlying
 	uint256 expectedYield; // total interest paid over duration in underlying
 	uint256 duration;
@@ -58,6 +47,37 @@ struct PoolData{
 	uint256 leverageFactor; // leverageFactor * manager collateral = capital from vault to instrument
 	uint256 managementFee; // sum of discounts for high reputation managers/validators
 }
+
+struct PoolPricingParam{
+	uint256 incrementRate; 
+	uint256 urateUpper; 
+	uint256 urateLower;
+	uint256 prevAccrueTime; 
+	uint256 prevURate; 
+
+	uint256 maxBorrowable; 
+}	
+
+struct ExchangeRateData{
+	uint256 lastRate; 
+	uint256 lastTime; 
+	uint256 lastOracleRate;
+	bool initialized;  
+}
+
+struct PricingInfo{
+	uint256 psu; 
+
+	uint256 prevAccrueTime; 
+	uint256 prevIntervalRp; //per second compounding promised return, function of urate 
+
+	// Constants for a given market 
+	uint256 URATE_MULTIPLIER; 
+	uint256 ID; 
+
+	bool constantRF; 
+}
+
 
 struct CoreMarketData {
 	SyntheticZCBPool bondPool; 
