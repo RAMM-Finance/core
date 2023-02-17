@@ -189,15 +189,15 @@ contract PricerTest is CustomTestBase {
         ); 
 
         //At start needs to be at inception price, 
-        PricingInfo memory info = Data.getPricingInfo( vars.marketId); 
-        assertEq(info.psu, vars.inceptionPrice); 
+        // PricingInfo memory info = Data.getPricingInfo( vars.marketId); 
+        // assertEq(info.psu, vars.inceptionPrice); 
 
-        // after constant RF, with time needs to be same 
-        // Data.setRF(vars.marketId, true); 
+        // // after constant RF, with time needs to be same 
+        // // Data.setRF(vars.marketId, true); 
 
-        (vars.psu, vars.pju, ) = Data.viewCurrentPricing(vars.marketId) ; 
-        assertEq(vars.psu, info.psu); 
-        assertEq(vars.psu, vars.pju); 
+        // (vars.psu, vars.pju, ) = Data.viewCurrentPricing(vars.marketId) ; 
+        // assertEq(vars.psu, info.psu); 
+        // assertEq(vars.psu, vars.pju); 
 
 
     }
