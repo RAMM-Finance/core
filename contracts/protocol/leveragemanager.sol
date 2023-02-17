@@ -81,6 +81,8 @@ contract LeverageManager is ERC721Enumerable{
         ) external returns(uint256 issueQTY){
         require(_leverage <= getMaxLeverage(msg.sender) && _leverage >= precision, "!leverage");
 
+        // need to require that !duringAssessment. 
+        
         CoreMarketData memory market = marketManager.getMarket(_marketId); 
         ERC20 underlying = ERC20(address(market.bondPool.baseToken())); 
 
@@ -100,7 +102,7 @@ contract LeverageManager is ERC721Enumerable{
     }
 
 
-    event LeveredBondRedeemed(uint256 indexed marketId, address indexed trader, uint256 redeemAmount, bool perpetual);
+    event LeveredBondRedeemed(uint256 indexed marketId, address indexed trader, uint256 redeemAmount, uint256 postRepayLeftOver, bool perpetual);
     /// @notice redeem longzcb in this contract, send redeemed amount to vault
     /// and if debt fully repaid, send remaining to trader 
     /// param redeemAmount is in longZCB 
@@ -109,7 +111,7 @@ contract LeverageManager is ERC721Enumerable{
         uint256 redeemAmount
         ) external  returns(
             uint256 collateral_redeem_amount, 
-            uint256 postRepayLeftOver, 
+            uint256 postRepayLeftOver, // underlying left that goes to trader.
             uint256 paidDebt){
         LocalVars memory vars; 
         vars.vault = controller.getVault(marketId); 
@@ -141,7 +143,7 @@ contract LeverageManager is ERC721Enumerable{
 
         leveragePosition[marketId][msg.sender] = position; 
 
-        emit LeveredBondRedeemed(marketId, msg.sender, redeemAmount, true);
+        emit LeveredBondRedeemed(marketId, msg.sender, redeemAmount, postRepayLeftOver, true);
     }
 
     //event LeveredBondBuy(uint256 indexed marketId, address indexed trader, uint256 amountIn, uint256 amountOut, bool perpetual);
@@ -211,7 +213,7 @@ contract LeverageManager is ERC721Enumerable{
         position.debt = 0; 
         leveragePosition[marketId][msg.sender] = position;  
 
-        emit LeveredBondRedeemed(marketId, msg.sender, position.amount, false);
+        emit LeveredBondRedeemed(marketId, msg.sender, position.amount, 0, false);
     }
 
     event LeveredBondRedeemDenied(uint256 indexed marketId, address indexed trader);

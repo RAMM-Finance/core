@@ -50,9 +50,7 @@ contract Controller {
     address creator_address;
 
     // IInterep interep;
-    // TrustedMarketFactoryV3 marketFactory;
     MarketManager public marketManager;
-    // ReputationNFT repNFT;
     VaultFactory public vaultFactory;
     SyntheticZCBPoolFactory public poolFactory;
     ReputationManager public reputationManager;
@@ -103,7 +101,7 @@ contract Controller {
      */
     function initialize(
         bytes calldata _setup
-    ) public {
+    ) external {
         require(address(msg.sender) == address(creator_address));
         (
             address _marketManager,
@@ -185,9 +183,7 @@ contract Controller {
     // }
 
     // function storeNewPrices(uint256 marketId, uint256 multiplier, uint256 initPrice) public {
-
     //     Data.setNewPricingInfo( marketId,  initPrice,  multiplier); 
-
     //     // data.PriceInfos(marketId).setNewPrices(initPrice, multiplier, marketId); 
     // }
 
@@ -596,11 +592,11 @@ contract Controller {
     }
 
     /// Approve without validators 
-    function testApproveMarket(uint256 marketId) external {
-        require(msg.sender == creator_address, "!owner");
-        require(marketCondition(marketId), "market condition not met");
-        approveMarket(marketId);
-    }
+    // function testApproveMarket(uint256 marketId) external {
+    //     require(msg.sender == creator_address, "!owner");
+    //     require(marketCondition(marketId), "market condition not met");
+    //     approveMarket(marketId); 
+    // }
 
     event MarketApproved(uint256 indexed marketId, ApprovalData data);
 
@@ -734,7 +730,7 @@ contract Controller {
     }// need to repay to vault everytime some is returned
 
     function dustToVault(uint256 marketId, uint256 amount) external onlyValidator(marketId){
-        Vault vault = getVault(marketId); 
+        Vault vault = getVault(marketId);
         vault.UNDERLYING().transfer(address(vault), amount); 
     }
 
@@ -748,61 +744,58 @@ contract Controller {
         emit RedeemTransfer(marketId, amount, to);
     }
 
+    // function getValidatorPrice(uint256 marketId) public view returns (uint256) {
+    //     return validatorManager.getValidatorPrice(marketId);
+    //     //return validator_data[marketId].avg_price;
+    // }
 
+    // function getValidatorCap(uint256 marketId) public view returns (uint256) {
+    //     return validatorManager.getValidatorCap(marketId);
+    //     //return validator_data[marketId].val_cap;
+    // }
 
+    // function viewValidators(uint256 marketId)
+    //     public
+    //     view
+    //     returns (address[] memory)
+    // {
+    //     return validatorManager.viewValidators(marketId);
+    //     //return validator_data[marketId].validators;
+    // }
 
-    function getValidatorPrice(uint256 marketId) public view returns (uint256) {
-        return validatorManager.getValidatorPrice(marketId);
-        //return validator_data[marketId].avg_price;
-    }
+    // function getNumApproved(uint256 marketId) public view returns (uint256) {
+    //     return validatorManager.getNumApproved(marketId);
+    //     //return validator_data[marketId].numApproved;
+    // }
 
-    function getValidatorCap(uint256 marketId) public view returns (uint256) {
-        return validatorManager.getValidatorCap(marketId);
-        //return validator_data[marketId].val_cap;
-    }
+    // function getNumResolved(uint256 marketId) public view returns (uint256) {
+    //     return validatorManager.getNumResolved(marketId);
+    //     //return validator_data[marketId].numResolved;
+    // }
 
-    function viewValidators(uint256 marketId)
-        public
-        view
-        returns (address[] memory)
-    {
-        return validatorManager.viewValidators(marketId);
-        //return validator_data[marketId].validators;
-    }
+    // function getTotalStaked(uint256 marketId) public view returns (uint256) {
+    //     return validatorManager.getTotalStaked(marketId);
+    //     //return validator_data[marketId].totalStaked;
+    // }
 
-    function getNumApproved(uint256 marketId) public view returns (uint256) {
-        return validatorManager.getNumApproved(marketId);
-        //return validator_data[marketId].numApproved;
-    }
+    // function getTotalValidatorSales(uint256 marketId)
+    //     public
+    //     view
+    //     returns (uint256)
+    // {
+    //     return validatorManager.getTotalValidatorSales(marketId);
+    //     //return validator_data[marketId].totalSales;
+    // }
 
-    function getNumResolved(uint256 marketId) public view returns (uint256) {
-        return validatorManager.getNumResolved(marketId);
-        //return validator_data[marketId].numResolved;
-    }
+    // function getInitialStake(uint256 marketId) public view returns (uint256) {
+    //     return validatorManager.getInitialStake(marketId);
+    //     //return validator_data[marketId].initialStake;
+    // }
 
-    function getTotalStaked(uint256 marketId) public view returns (uint256) {
-        return validatorManager.getTotalStaked(marketId);
-        //return validator_data[marketId].totalStaked;
-    }
-
-    function getTotalValidatorSales(uint256 marketId)
-        public
-        view
-        returns (uint256)
-    {
-        return validatorManager.getTotalValidatorSales(marketId);
-        //return validator_data[marketId].totalSales;
-    }
-
-    function getInitialStake(uint256 marketId) public view returns (uint256) {
-        return validatorManager.getInitialStake(marketId);
-        //return validator_data[marketId].initialStake;
-    }
-
-    function getFinalStake(uint256 marketId) public view returns (uint256) {
-        return validatorManager.getFinalStake(marketId);
-        //return validator_data[marketId].finalStake;
-    }
+    // function getFinalStake(uint256 marketId) public view returns (uint256) {
+    //     return validatorManager.getFinalStake(marketId);
+    //     //return validator_data[marketId].finalStake;
+    // }
 
 
     /**

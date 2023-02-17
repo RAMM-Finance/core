@@ -476,7 +476,7 @@ contract CustomTestBase is Test {
         //     controller.validatorApprove(marketId);
         // }
         vm.prank(deployer); 
-        controller.testApproveMarket(marketId);
+        controller.approveMarket(marketId);
     }
 
     function doApproveFromStart(uint256 marketId, uint256 amountToBuy) public{
