@@ -17,7 +17,7 @@ import {ReputationManager} from "../contracts/protocol/reputationmanager.sol";
 import {CustomTestBase} from "./testbase.sol"; 
 import "../contracts/global/types.sol"; 
 
-contract FixedTest is CustomTestBase {
+contract ApprovalTest is CustomTestBase {
     using FixedPointMath for uint256; 
     using stdStorage for StdStorage; 
 
@@ -64,68 +64,6 @@ contract FixedTest is CustomTestBase {
     }
 
     /// @notice checks whether correct amount is supplied when perp is approved
-
-    // struct testVars1{
-    //     uint256 marketId;
-    //     address vault_ad; 
-    //     uint amountToBuy; 
-    //     uint curPrice; 
-
-    //     uint amountIn;
-    //     uint amountOut; 
-
-    //     uint valamountIn; 
-    //     uint cbalnow; 
-    //     uint cbalnow2; 
-
-    //     uint pju; 
-    //     uint psu;
-
-
-    //     uint saleAmount;
-    //     uint initPrice;
-    //     uint promisedReturn;
-    //     uint inceptionPrice;
-    //     uint leverageFactor;
-
-    // }
-
-    function createLendingPoolAndPricer(
-        uint256 multiplier, 
-
-        uint32 saleAmount, 
-        uint32 initPrice,
-        uint32 promisedReturn, 
-        uint32 inceptionPrice, 
-        uint32 leverageFactor
-
-        ) public returns(testVars1 memory){
-        testVars1 memory vars; 
-
-        vars.saleAmount = constrictToRange(fuzzput(saleAmount, 1e17), 10e18, 10000000e18); 
-        vars.initPrice = constrictToRange(fuzzput(initPrice, 1e17), 1e17, 95e16); 
-        vars.promisedReturn = constrictToRange(fuzzput(promisedReturn, 10), 1, 30000000000); 
-        vars.inceptionPrice = constrictToRange(fuzzput(inceptionPrice, 1e17), 1e17, 95e16); 
-        vars.leverageFactor = constrictToRange(fuzzput(leverageFactor, 1e17), 1e18, 5e18); 
-        vm.assume(vars.initPrice < vars.inceptionPrice); 
-
-        console.log('Params', vars.saleAmount, vars.initPrice, vars.promisedReturn); 
-        console.log('Parmas2', vars.inceptionPrice, vars.leverageFactor); 
-
-        deployExampleLendingPool(
-            controller.getVaultfromId(1)
-        ); 
-
-        vars.vault_ad = controller.getVaultfromId(1); 
-
-        vars.marketId = setupPricer(
-             0, false, 
-            vars.saleAmount, vars.initPrice, vars.promisedReturn, vars.inceptionPrice, vars.leverageFactor, 
-            address(poolInstrument)
-        ); 
-
-        return vars; 
-    }
     function testPerpApprovalVaultSupply(
         uint256 multiplier, 
 

@@ -93,12 +93,9 @@ library PerpTranchePricer{
 	    require(perp.inceptionPrice > 0, "0 price"); 
 
 	    vars.seniorSupply = juniorSupply.mulWadDown(perp.leverageFactor); 
-	    console.log('here?', vars.seniorSupply);
 	    vars.totalAssetsHeldScaled = Instrument(instrument).assetOracle(juniorSupply + vars.seniorSupply)
 	    	 .mulWadDown(perp.inceptionPrice); 
-	   	console.log('wtf', Instrument(instrument).assetOracle(juniorSupply + vars.seniorSupply),
-	   		vars.totalAssetsHeldScaled); 
-
+	    console.log('seniorsupply', vars.seniorSupply); 
 	    if (vars.seniorSupply == 0) return (_self.psu, _self.psu, levFactor); 	    	
 
 		if(_self.constantRF){

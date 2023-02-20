@@ -157,42 +157,7 @@ contract PricerTest is CustomTestBase {
         assertEq(vars.psu, vars.pju); 
 
     }
-    function createLendingPoolAndPricer(
-        uint256 multiplier, 
 
-        uint32 saleAmount, 
-        uint32 initPrice,
-        uint32 promisedReturn, 
-        uint32 inceptionPrice, 
-        uint32 leverageFactor
-
-        ) public returns(testVars1 memory){
-        testVars1 memory vars; 
-
-        vars.saleAmount = constrictToRange(fuzzput(saleAmount, 1e17), 10e18, 10000000e18); 
-        vars.initPrice = constrictToRange(fuzzput(initPrice, 1e17), 1e17, 95e16); 
-        vars.promisedReturn = constrictToRange(fuzzput(promisedReturn, 10), 1, 30000000000); 
-        vars.inceptionPrice = constrictToRange(fuzzput(inceptionPrice, 1e17), 1e17, 95e16); 
-        vars.leverageFactor = constrictToRange(fuzzput(leverageFactor, 1e17), 1e18, 5e18); 
-        vm.assume(vars.initPrice < vars.inceptionPrice); 
-
-        console.log('Params', vars.saleAmount, vars.initPrice, vars.promisedReturn); 
-        console.log('Parmas2', vars.inceptionPrice, vars.leverageFactor); 
-
-        deployExampleLendingPool(
-            controller.getVaultfromId(1)
-        ); 
-
-        vars.vault_ad = controller.getVaultfromId(1); 
-
-        vars.marketId = setupPricer(
-             0, false, 
-            vars.saleAmount, vars.initPrice, vars.promisedReturn, vars.inceptionPrice, vars.leverageFactor, 
-            address(poolInstrument)
-        ); 
-
-        return vars; 
-    }
     /// @notice test constant promised returns pricing
     /// when approve, pricing should remain same 
     /// when issue, pricing should stay same 

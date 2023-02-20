@@ -539,7 +539,7 @@ contract MarketManager {
         uint256 _amountIn,
         address _caller,
         address trader
-    ) external returns (uint256 issueQTY) {
+        ) external returns (uint256 issueQTY) {
         LocarVars memory vars;
         require(
             msg.sender == address(this) || msg.sender == leverageManager_ad,
@@ -571,18 +571,21 @@ contract MarketManager {
         markets[_marketId].bondPool.trustedDiscountedMint(_caller, issueQTY);
         vars.seniorAmount = issueQTY.mulWadDown(vars.levFactor).mulWadDown(vars.psu);  
 
-        // Check if pju is high enough, x/small pju will blow up senior amount 
-        require(vars.pju >= Constants.THRESHOLD_PJU, "Low Junior Price"); 
+        // Check if pju/psu is high enough, x/small pju will blow up senior amount 
+        require(vars.pju.divWadDown(vars.psu) >= Constants.THRESHOLD_PJU, "Low Junior Price"); 
 
         // Check if vault has enough liquidity + buffer 
         console.log('senioramount', vars.seniorAmount, vars.vault.UNDERLYING().balanceOf(address(vars.vault)), 
           vars.vault.utilizationRateAfter(vars.seniorAmount) ); 
-        console.log('vaultad', address(vars.vault)); 
-        // require(
-        //   vars.vault.utilizationRateAfter(vars.seniorAmount) 
-        //   >= Constants.MAX_VAULT_URATE, 
-        //   "Not enough vault liquidity"
-        // ); 
+        console.log('util before after',vars.vault.utilizationRateAfter(0), 
+            vars.vault.utilizationRateAfter(vars.seniorAmount)); 
+        console.log('pju issue', vars.pju, vars.psu); 
+
+        require(
+          vars.vault.utilizationRateAfter(vars.seniorAmount) 
+          <= Constants.MAX_VAULT_URATE, 
+          "Not enough vault liquidity"
+        ); 
 
         // Need to transfer funds automatically to the instrument, seniorAmount is longZCB * levFactor * psu
         vars.vault.depositIntoInstrument(_marketId,vars.seniorAmount,true);
@@ -609,10 +612,7 @@ contract MarketManager {
         issueQTY = this.issueBond(_marketId, _amountIn, msg.sender, msg.sender);
         //TODO Need totalAssets and exchange rate to remain same assertion
         //TODO vault always has to have more shares, all shares minted goes to vault
-        /** 
-    total apr from deposit = (totalAssets of the pool - psu * senior supply)/junior supply
-    */
-        // reputationManager.recordPull(msg.sender, _marketId, issueQTY, _amountIn, getTraderBudget( _marketId, msg.sender), true);
+  
     }
 
     function redeemPerpLongZCB(
@@ -650,12 +650,6 @@ contract MarketManager {
             seniorAmount
         );
 
-        // This means that the sender is a manager
-        if (queuedRepUpdates[trader] > 0) {
-            unchecked {
-                queuedRepUpdates[trader] -= 1;
-            }
-        }
         market.bondPool.trustedBurn(caller, redeemAmount, true);
 
         reputationManager.recordPush(

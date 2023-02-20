@@ -173,6 +173,48 @@ contract CustomTestBase is Test {
         nft2 = new TestNFT("NFT2", "NFT2");
     }
 
+    function deploySetUps() public{
+
+        controller = new Controller(deployer, address(0)); // zero addr for interep
+        vaultFactory = new VaultFactory(address(controller));
+        collateral = new Cash("n","n",18);
+        collateral2 = new Cash("nn", "nn", 18); 
+        bytes32  data;
+        marketmanager = new MarketManager(
+            deployer,
+            address(controller), 
+            address(0),data, uint64(0)
+        );
+        ZCBFactory zcbfactory = new ZCBFactory(); 
+        poolFactory = new SyntheticZCBPoolFactory(address(controller), address(zcbfactory)); 
+        reputationManager = new ReputationManager(address(controller), address(marketmanager));
+        
+        leverageManager = new LeverageManager(address(controller), address(marketmanager), address(reputationManager));
+        Data = new StorageHandler(); 
+        controllerSetup(); 
+
+    }
+    function controllerSetup() public{
+        vm.startPrank(deployer);
+        validatorManager = new ValidatorManager(address(controller), address(marketmanager),address(reputationManager) );     
+        leverageManager = new LeverageManager(address(controller), address(marketmanager),address(reputationManager) );
+        orderManager = new OrderManager(address(controller));
+        Data = new StorageHandler(); 
+        bytes memory stuff = abi.encode(
+        address(marketmanager), 
+        address(reputationManager), 
+        address(validatorManager), 
+        address(leverageManager), 
+        address(orderManager),
+        address(vaultFactory),
+        address(poolFactory),
+        address(Data)
+        ); 
+
+        controller.initialize(stuff);
+        vm.stopPrank();
+    }
+
     function initiateCreditMarket() public {
         InstrumentData memory data;
 
@@ -336,42 +378,42 @@ contract CustomTestBase is Test {
            
     }
 
-    // function createLendingPoolAndPricer(
-    //     uint256 multiplier, 
+    function createLendingPoolAndPricer(
+        uint256 multiplier, 
 
-    //     uint32 saleAmount, 
-    //     uint32 initPrice,
-    //     uint32 promisedReturn, 
-    //     uint32 inceptionPrice, 
-    //     uint32 leverageFactor
+        uint32 saleAmount, 
+        uint32 initPrice,
+        uint32 promisedReturn, 
+        uint32 inceptionPrice, 
+        uint32 leverageFactor
 
-    //     ) public returns(testVars1 memory){
-    //     testVars1 memory vars; 
+        ) public returns(testVars1 memory){
+        testVars1 memory vars; 
 
-    //     vars.saleAmount = constrictToRange(fuzzput(saleAmount, 1e17), 10e18, 10000000e18); 
-    //     vars.initPrice = constrictToRange(fuzzput(initPrice, 1e17), 1e17, 95e16); 
-    //     vars.promisedReturn = constrictToRange(fuzzput(promisedReturn, 10), 1, 30000000000); 
-    //     vars.inceptionPrice = constrictToRange(fuzzput(inceptionPrice, 1e17), 1e17, 95e16); 
-    //     vars.leverageFactor = constrictToRange(fuzzput(leverageFactor, 1e17), 1e18, 5e18); 
-    //     vm.assume(vars.initPrice < vars.inceptionPrice); 
+        vars.saleAmount = constrictToRange(fuzzput(saleAmount, 1e17), 10e18, 10000000e18); 
+        vars.initPrice = constrictToRange(fuzzput(initPrice, 1e17), 1e17, 95e16); 
+        vars.promisedReturn = constrictToRange(fuzzput(promisedReturn, 10), 1, 30000000000); 
+        vars.inceptionPrice = constrictToRange(fuzzput(inceptionPrice, 1e17), 1e17, 95e16); 
+        vars.leverageFactor = constrictToRange(fuzzput(leverageFactor, 1e17), 1e18, 5e18); 
+        vm.assume(vars.initPrice < vars.inceptionPrice); 
 
-    //     console.log('Params', vars.saleAmount, vars.initPrice, vars.promisedReturn); 
-    //     console.log('Parmas2', vars.inceptionPrice, vars.leverageFactor); 
+        console.log('Params', vars.saleAmount, vars.initPrice, vars.promisedReturn); 
+        console.log('Parmas2', vars.inceptionPrice, vars.leverageFactor); 
 
-    //     deployExampleLendingPool(
-    //         controller.getVaultfromId(1)
-    //     ); 
+        deployExampleLendingPool(
+            controller.getVaultfromId(1)
+        ); 
 
-    //     vars.vault_ad = controller.getVaultfromId(1); 
+        vars.vault_ad = controller.getVaultfromId(1); 
 
-    //     vars.marketId = setupPricer(
-    //          0, false, 
-    //         vars.saleAmount, vars.initPrice, vars.promisedReturn, vars.inceptionPrice, vars.leverageFactor, 
-    //         address(poolInstrument)
-    //     ); 
+        vars.marketId = setupPricer(
+             0, false, 
+            vars.saleAmount, vars.initPrice, vars.promisedReturn, vars.inceptionPrice, vars.leverageFactor, 
+            address(poolInstrument)
+        ); 
 
-    //     return vars; 
-    // }
+        return vars; 
+    }
 
     function deployExampleLendingPool(
         address vault_ad
@@ -398,8 +440,6 @@ contract CustomTestBase is Test {
             address(linearRateCalculator),
             linearRateData
         ); 
-
-
     }
 
     function deployPoolInstrument(
@@ -428,38 +468,6 @@ contract CustomTestBase is Test {
             address(poolInstrument)
         );
         poolInstrument.setAuctioneer(address(auctioneer));
-    }
-
-    function controllerSetup() public{
-        vm.startPrank(deployer);
-        validatorManager = new ValidatorManager(address(controller), address(marketmanager),address(reputationManager) );     
-        leverageManager = new LeverageManager(address(controller), address(marketmanager),address(reputationManager) );
-        orderManager = new OrderManager(address(controller));
-        Data = new StorageHandler(); 
-        bytes memory stuff = abi.encode(
-        address(marketmanager), 
-        address(reputationManager), 
-        address(validatorManager), 
-        address(leverageManager), 
-        address(orderManager),
-        address(vaultFactory),
-        address(poolFactory),
-        address(Data)
-        ); 
-
-        controller.initialize(stuff);
-        // controller.setMarketManager(address(marketmanager));
-        // controller.setVaultFactory(address(vaultFactory));
-        // controller.setPoolFactory(address(poolFactory)); 
-        // controller.setReputationManager(address(reputationManager));
- 
-        // controller.setValidatorManager(address(validatorManager)); 
-
-        // controller.setLeverageManager(address(leverageManager));
-        // controller.setOrderManager(address(orderManager)); 
-        // controller.setDataStore(address(Data)) ;
-
-        vm.stopPrank();
     }
 
     function closeMarket(uint256 marketId) public {
@@ -573,7 +581,8 @@ contract CustomTestBase is Test {
         uint amountOut; 
         uint amountIn2; 
         uint amountOut2; 
-        
+        uint amountToIssue; 
+
         uint valamountIn; 
         uint cbalnow; 
         uint cbalnow2; 
