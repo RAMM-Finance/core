@@ -365,7 +365,7 @@ contract MarketManager {
         // if (!controller.isVerified(trader))
         //   revert("!verified");
 
-        if (budget <= uint256(amount)) revert("budget");
+        if (budget <= uint256(amount)) revert("budget");//TODO do addition 
 
         if (controller.getTraderScore(trader) == 0) revert("!rep");
     }
@@ -545,6 +545,7 @@ contract MarketManager {
             msg.sender == address(this) || msg.sender == leverageManager_ad,
             "invalid entry"
         );
+
         // msg.sender == caller?
         _canIssue(
             trader,
@@ -561,28 +562,36 @@ contract MarketManager {
 
         // Get price a_lock_nd sell longZCB with this price
         // (vars.psu, vars.pju, vars.levFactor ) = vars.vault.poolZCBValue(_marketId);
-        (vars.psu, vars.pju, vars.levFactor) = Data.viewCurrentPricing(
-            _marketId
-        );
+        (vars.psu, vars.pju, vars.levFactor) = Data.viewCurrentPricing(_marketId);
         vars.underlying.transferFrom(_caller, address(this), _amountIn);
         vars.underlying.approve(vars.instrument, _amountIn);
         ERC4626(vars.instrument).deposit(_amountIn, address(vars.vault));
 
         issueQTY = _amountIn.divWadUp(vars.pju); //TODO rounding errs
         markets[_marketId].bondPool.trustedDiscountedMint(_caller, issueQTY);
+        vars.seniorAmount = issueQTY.mulWadDown(vars.levFactor).mulWadDown(vars.psu);  
+
+        // Check if pju is high enough, x/small pju will blow up senior amount 
+        require(vars.pju >= Constants.THRESHOLD_PJU, "Low Junior Price"); 
+
+        // Check if vault has enough liquidity + buffer 
+        console.log('senioramount', vars.seniorAmount, vars.vault.UNDERLYING().balanceOf(address(vars.vault)), 
+          vars.vault.utilizationRateAfter(vars.seniorAmount) ); 
+        console.log('vaultad', address(vars.vault)); 
+        // require(
+        //   vars.vault.utilizationRateAfter(vars.seniorAmount) 
+        //   >= Constants.MAX_VAULT_URATE, 
+        //   "Not enough vault liquidity"
+        // ); 
 
         // Need to transfer funds automatically to the instrument, seniorAmount is longZCB * levFactor * psu
-        vars.vault.depositIntoInstrument(
-            _marketId,
-            issueQTY.mulWadDown(vars.levFactor).mulWadDown(vars.psu),
-            true
-        );
+        vars.vault.depositIntoInstrument(_marketId,vars.seniorAmount,true);
 
         reputationManager.recordPull(
             trader,
             _marketId,
             issueQTY,
-            _amountIn,
+            _amountIn, 
             getTraderBudget(_marketId, trader),
             true
         );
@@ -691,6 +700,8 @@ contract MarketManager {
         uint256 pju;
         uint256 psu;
         uint256 levFactor;
+        uint256 seniorAmount; 
+
         Vault vault;
         ERC20 underlying;
         address instrument;

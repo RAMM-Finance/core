@@ -250,6 +250,7 @@ contract Vault is ERC4626{
 
       } else{
         instrument_data[Instruments[marketId]].poolData.inceptionTime = block.timestamp; 
+        console.log('from vault', data.approved_principal - data.managers_stake); 
         depositIntoInstrument(marketId, data.approved_principal - data.managers_stake, true);
       }
       emit InstrumentTrusted(marketId, address(Instruments[marketId]), data.approved_principal, data.approved_yield, instrument_data[fetchInstrument(marketId)].maturityDate);
@@ -283,11 +284,14 @@ contract Vault is ERC4626{
     }
 
     function utilizationRate() public view returns(uint256){
-
         if (totalInstrumentHoldings==0) return 0;  
         return totalInstrumentHoldings.divWadDown(totalAssets()); 
-
     }
+
+    function utilizationRateAfter(uint256 amount) public view returns(uint256){
+      return (totalInstrumentHoldings + amount).divWadDown(totalAssets()); 
+    } 
+
     function totalFloat() public view returns (uint256) {
         return UNDERLYING.balanceOf(address(this));
     }

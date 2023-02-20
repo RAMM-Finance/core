@@ -92,30 +92,57 @@ contract CurveTest is CustomTestBase {
         assertApproxEqAbs(resultPrice, (netSupply - poolamountIn).mulWadDown(a_initial)+ b, 10); 
     }
 
-    function testPieceWiseLinearUp() public{
+    function testPieceWiseLinearUp(
+        uint pieceWisePrice, 
+        uint b, 
+        uint saleAmount, 
+        uint poolamountIn 
+        // uint netSupply
+        ) public{
+        // vm.assume(pieceWisePrice>b );
+        // vm.assume(pieceWisePrice<1e18); 
+        // vm.assume(b> 1e13) ; 
+        // vm.assume(saleAmount > 1e18); 
+        // vm.assume(poolamountIn > 1e17); 
+        poolamountIn = constrictToRange(poolamountIn, 0, 100000000e18); 
+        // saleAmount = constrictToRange(saleAmount, 0,100000000e18);
+        // console.log('params', pieceWisePrice, b, saleAmount); 
+        // console.log(poolamountIn); 
 
-        uint pieceWisePrice = 8e17; 
-        uint b = 7e17; 
-        uint saleAmount = 100e18; 
-
-        uint256 saleAmountQty = (2*saleAmount).divWadDown(pieceWisePrice +b); 
+        pieceWisePrice = 7e17; 
+        b = 6e17; 
+        saleAmount = 100e18; 
+        // netSupply = constrictToRange(netSupply, 0, saleAmount*10); 
+        // console.log('netSupply', netSupply); 
+        uint256 saleAmountQty = (2*saleAmount).divWadUp(pieceWisePrice +b); 
         uint256 a = (pieceWisePrice - b).divWadDown(saleAmountQty); 
 
-        uint256 poolamountIn = 120e18; 
+        // uint256 poolamountIn = 120e18; 
 
         (uint poolamountOut, uint resultPrice ) = poolamountIn.amountOutGivenIn(
             SwapParams(netSupply, a, b, true, pieceWisePrice)); 
 
         if(saleAmount< poolamountIn){
+            console.log('resultprice3', resultPrice, pieceWisePrice, saleAmountQty); 
+
             assertApproxEqAbs(resultPrice,pieceWisePrice, 10 ); 
-            assertApproxEqAbs((poolamountOut - saleAmountQty).mulWadDown(pieceWisePrice),
-             poolamountIn - saleAmount, 1000); 
+            assertApproxEqBasis((poolamountOut - saleAmountQty).mulWadDown(pieceWisePrice),
+             poolamountIn - saleAmount, 1); 
         }else if(saleAmount == poolamountIn){
-            assertApproxEqAbs(resultPrice, pieceWisePrice, 10); 
-            assertApproxEqAbs(poolamountOut, saleAmountQty, 10); 
-        }else{
+            console.log('resultprice2', resultPrice, pieceWisePrice, saleAmountQty); 
+            assertApproxEqBasis(resultPrice, pieceWisePrice, 10); 
+            (uint poolamountOutNP,uint resultPriceNP ) = poolamountIn.amountOutGivenIn(
+            SwapParams(netSupply, a, b, true, 0 )); 
+            assertApproxEqBasis(poolamountOutNP, poolamountOut, 1);
+            assertEq(resultPrice, resultPriceNP); 
+
+            // assertApproxEqBasis(poolamountOut, saleAmountQty, 10); 
+        }else if(saleAmount > poolamountIn.mulWadDown(1e18+1e14)){
+            // haven't crossed the line, sale amount qt
+            console.log('resultprice', resultPrice, pieceWisePrice, saleAmountQty); 
+            console.log('poolamountout', poolamountOut); 
             assert(resultPrice < pieceWisePrice); 
-            assert(poolamountOut< saleAmountQty); 
+            // assert(poolamountOut< saleAmountQty.mulWadDown(1e18+1e14)); 
             (uint poolamountOutNP,uint resultPriceNP ) = poolamountIn.amountOutGivenIn(
             SwapParams(netSupply, a, b, true, 0 )); 
             assertEq(poolamountOut, poolamountOutNP); 

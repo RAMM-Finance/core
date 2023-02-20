@@ -3,6 +3,13 @@ pragma solidity ^0.8.16;
 import {SyntheticZCBPool} from "../bonds/bondPool.sol"; 
 import {ERC20} from "solmate/tokens/ERC20.sol";
 
+library Constants{
+	uint256 public constant THRESHOLD_PJU = 5e17; // can't buy if below 0.5 
+	uint256 public constant MAX_VAULT_URATE = 9e17; 
+
+}
+
+
 
 struct MarketData {
     address instrument_address;

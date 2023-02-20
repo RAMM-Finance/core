@@ -124,22 +124,22 @@ contract OrderTest is CustomTestBase {
     }
    
 
-    struct testVars1{
-        uint256 marketId;
-        address vault_ad; 
-        uint amountToBuy; 
-        uint curPrice; 
+    // struct testVars1{
+    //     uint256 marketId;
+    //     address vault_ad; 
+    //     uint amountToBuy; 
+    //     uint curPrice; 
 
-        uint amountIn;
-        uint amountOut; 
+    //     uint amountIn;
+    //     uint amountOut; 
 
-        uint valamountIn; 
-        uint cbalnow; 
-        uint cbalnow2; 
+    //     uint valamountIn; 
+    //     uint cbalnow; 
+    //     uint cbalnow2; 
 
-        uint issueAmount; 
-        uint orderId; 
-    }
+    //     uint issueAmount; 
+    //     uint orderId; 
+    // }
 
     function submitOrder(
         testVars1 memory vars,
@@ -212,8 +212,7 @@ contract OrderTest is CustomTestBase {
 
 
 
-    //function testMintWithLeverageNotLiq()
-    //function testProfit
+
 
     
 

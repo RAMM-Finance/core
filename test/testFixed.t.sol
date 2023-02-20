@@ -95,18 +95,18 @@ contract FixedTest is CustomTestBase {
 
     // }
 
-    struct testVars1{
-        uint256 marketId;
-        address vault_ad; 
-        uint amountToBuy; 
-        uint curPrice; 
+    // struct testVars1{
+    //     uint256 marketId;
+    //     address vault_ad; 
+    //     uint amountToBuy; 
+    //     uint curPrice; 
 
-        uint amountIn;
-        uint amountOut; 
+    //     uint amountIn;
+    //     uint amountOut; 
 
-        uint valamountIn; 
-        uint cbalnow; 
-    }
+    //     uint valamountIn; 
+    //     uint cbalnow; 
+    // }
 
     function testOneLongNoShortApproval() public{
         console.log('?'); 

@@ -109,26 +109,26 @@ contract ReputationSystemTests is CustomTestBase {
         reputationManager.incrementScore(jeong, 100);
     }
 
-    struct testVars1{
-        uint256 marketId;
-        address vault_ad; 
-        uint amountToBuy; 
-        uint curPrice; 
+    // struct testVars1{
+    //     uint256 marketId;
+    //     address vault_ad; 
+    //     uint amountToBuy; 
+    //     uint curPrice; 
 
-        uint amountIn;
-        uint amountOut; 
-        uint amountIn2; 
-        uint amountOut2; 
+    //     uint amountIn;
+    //     uint amountOut; 
+    //     uint amountIn2; 
+    //     uint amountOut2; 
 
-        uint valamountIn; 
-        uint cbalnow; 
-        uint cbalnow2; 
+    //     uint valamountIn; 
+    //     uint cbalnow; 
+    //     uint cbalnow2; 
 
-        uint pju; 
-        uint psu; 
-        uint pju2; 
-        uint psu2; 
-    }
+    //     uint pju; 
+    //     uint psu; 
+    //     uint pju2; 
+    //     uint psu2; 
+    // }
 
 
     function testRecordPull() public returns(testVars1 memory){
