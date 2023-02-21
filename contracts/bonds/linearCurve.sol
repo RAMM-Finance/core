@@ -27,8 +27,12 @@ library LinearPiecewiseCurve{
     function outGivenArea(
         uint256 amount, 
         SwapParams memory vars
-        ) internal pure returns(uint256 amountDelta, uint256 resultPrice){
+        ) internal view returns(uint256 amountDelta, uint256 resultPrice){
+        console.log('varsb', vars.b, amount, vars.a); 
+        if(vars.a==0) return (amount.divWadDown(vars.b), vars.b);  
+
         uint256 curPrice = vars.a.mulWadDown(vars.s) + vars.b; 
+
         amountDelta = amount > 0 ? (
             (
                 (curPrice.mulWadDown(curPrice) + 2*(vars.a.mulWadDown(amount))) * PRECISION
@@ -64,9 +68,17 @@ library LinearPiecewiseCurve{
             if (vars.up) (amountDelta, resultPrice) = outGivenArea(amount, vars); 
             else (amountDelta, resultPrice) = outGivenSupply(amount, vars.s, vars.a, vars.b); 
         } else{     
-            uint256 pieceWisePoint = (vars.pieceWisePrice-vars.b).divWadDown(vars.a); 
+
+            uint256 pieceWisePoint; 
 
             if(vars.up){
+                console.log('wtf', amount, vars.b); 
+                    console.log('where', amount.divWadDown(vars.b)); 
+
+                if(vars.a==0) return (amount.divWadDown(vars.b), vars.b);  
+                console.log('here', (vars.pieceWisePrice-vars.b), vars.a); 
+
+                pieceWisePoint = (vars.pieceWisePrice-vars.b).divWadDown(vars.a); 
                 // get maximum area till piecewiseprice
                 // if amount is larger, then cap it to maximum area 
                 // amount-maximum area will be used as remainder 
@@ -78,6 +90,8 @@ library LinearPiecewiseCurve{
                         ? outGivenArea(amount, vars)
                         : (pieceWisePoint - vars.s + (amount - maximumArea).divWadDown(vars.pieceWisePrice), vars.pieceWisePrice);
                 } else{
+
+                    pieceWisePoint = (vars.pieceWisePrice-vars.b).divWadDown(vars.a); 
                     amountDelta = amount.divWadDown(vars.pieceWisePrice); 
                     resultPrice = vars.pieceWisePrice; 
                 }

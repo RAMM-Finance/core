@@ -1124,7 +1124,7 @@ contract PoolInstrument is
         virtual
         override
         returns (uint256)
-    {
+    {   
         return totalAsset.toShares(assets, false);
     }
 
@@ -1176,10 +1176,20 @@ contract PoolInstrument is
         returns (uint256)
     {
         // Default balance oracle
+        console.log('totalasset', uint256(totalAsset.amount), uint256(totalAsset.shares)); 
         console.log('totalSupply', totalSupply, previewMint(1e18)); 
         return totalSupply.mulWadDown(previewMint(1e18));
         //TODO custom oracle
     }
+
+    /// @notice to modify totalassets very privileged function 
+    function modifyTotalAsset(bool add, uint256 amount) external 
+    //onlyManager 
+    {
+        if(add) totalAsset.amount += uint128(amount); 
+        else totalAsset.amount -= uint128(amount); 
+    }
+
 }
 
 /**

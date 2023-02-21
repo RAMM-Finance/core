@@ -173,6 +173,48 @@ contract CustomTestBase is Test {
         nft2 = new TestNFT("NFT2", "NFT2");
     }
 
+    function deploySetUps() public{
+
+        controller = new Controller(deployer, address(0)); // zero addr for interep
+        vaultFactory = new VaultFactory(address(controller));
+        collateral = new Cash("n","n",18);
+        collateral2 = new Cash("nn", "nn", 18); 
+        bytes32  data;
+        marketmanager = new MarketManager(
+            deployer,
+            address(controller), 
+            address(0),data, uint64(0)
+        );
+        ZCBFactory zcbfactory = new ZCBFactory(); 
+        poolFactory = new SyntheticZCBPoolFactory(address(controller), address(zcbfactory)); 
+        reputationManager = new ReputationManager(address(controller), address(marketmanager));
+        
+        leverageManager = new LeverageManager(address(controller), address(marketmanager), address(reputationManager));
+        Data = new StorageHandler(); 
+        controllerSetup(); 
+
+    }
+    function controllerSetup() public{
+        vm.startPrank(deployer);
+        validatorManager = new ValidatorManager(address(controller), address(marketmanager),address(reputationManager) );     
+        leverageManager = new LeverageManager(address(controller), address(marketmanager),address(reputationManager) );
+        orderManager = new OrderManager(address(controller));
+        Data = new StorageHandler(); 
+        bytes memory stuff = abi.encode(
+        address(marketmanager), 
+        address(reputationManager), 
+        address(validatorManager), 
+        address(leverageManager), 
+        address(orderManager),
+        address(vaultFactory),
+        address(poolFactory),
+        address(Data)
+        ); 
+
+        controller.initialize(stuff);
+        vm.stopPrank();
+    }
+
     function initiateCreditMarket() public {
         InstrumentData memory data;
 
@@ -298,7 +340,7 @@ contract CustomTestBase is Test {
         data.expectedYield = 0;
         data.duration = 0;
         data.description = "test";
-        data.instrument_address = address(nftPool);
+        data.instrument_address = instrument_address;
         data.instrument_type = InstrumentType.LendingPool;
         data.maturityDate = 0; 
         data.poolData = poolData; 
@@ -306,66 +348,99 @@ contract CustomTestBase is Test {
         return (data, poolData); 
     }
 
-    // function initiateLendingPool(address vault_ad) public {
-    //     uint256 _minInterest = 0;
-    //     uint256 _vertexInterest = 8319516187; // 30% APR
-    //     uint256 _maxInterest = 12857214404; // 50% APR
-    //     uint256 _vertexUtilization = UTIL_PREC * 4/5; // 80% utilization
+   function setupPricer(
+        uint256 multiplier, 
+        bool constantRF, 
 
-    //     bytes linearRateData = abi.encode(_minInterest,_vertexInterest, _maxInterest, _vertexUtilization);
+        uint256 saleAmount, 
+        uint256 initPrice,
+        uint256 promisedReturn, 
+        uint256 inceptionPrice, 
+        uint256 leverageFactor, 
 
-    //     linearRateCalculator = (new LinearInterestRate());
+        address instrument_address
+        ) public returns(uint256){
 
-    //     PoolInstrument.CollateralLabel[] memory _clabels = clabels;
-    //     PoolInstrument.Config[] memory _configs = configs;
-    //     deployPoolInstrument(
-    //         _clabels,
-    //         _configs,
-    //         vault_ad,
-    //         0,
-    //         deployer,
-    //         address(linearRateCalculator),
-    //         linearRateData
-    //     );
+        CoreMarketData memory mdata; 
+        mdata.longZCB = ERC20(address(collateral)); 
+        mdata.isPool = true; 
+        (InstrumentData memory idata, ) = generatePerpInstrumentData(
+         saleAmount, 
+         initPrice,
+         promisedReturn, 
+         inceptionPrice, 
+         leverageFactor, 
+         instrument_address 
+        ); 
 
-    //     auctioneer = new Auctioneer(
-    //         address(poolInstrument)
-    //     );
-    //     poolInstrument.setAuctioneer(address(auctioneer));
+        uint256 marketId = controller.initiateMarket(toku, idata, 1); 
+        return marketId; 
+           
+    }
 
-    //     InstrumentData memory data; 
-    //     PoolData memory poolData; 
+    function createLendingPoolAndPricer(
+        uint256 multiplier, 
 
-    //     poolData.saleAmount = principal/4; 
-    //     poolData.initPrice = 7e17; 
-    //     poolData.promisedReturn = 3000000000; 
-    //     poolData.inceptionTime = block.timestamp; 
-    //     poolData.inceptionPrice = 8e17; 
-    //     poolData.leverageFactor = 5e18; 
+        uint32 saleAmount, 
+        uint32 initPrice,
+        uint32 promisedReturn, 
+        uint32 inceptionPrice, 
+        uint32 leverageFactor
 
-    //     data.isPool = true; 
-    //     data.trusted = false; 
-    //     data.balance = 0;
-    //     data.faceValue = 0;
-    //     data.marketId = 0; 
-    //     data.principal = 0;
-    //     data.expectedYield = 0;
-    //     data.duration = 0;
-    //     data.description = "test";
-    //     data.instrument_address = address(poolInstrument);
-    //     data.instrument_type = InstrumentType.LendingPool;
-    //     data.maturityDate = 0; 
-    //     data.poolData = poolData; 
+        ) public returns(testVars1 memory){
+        testVars1 memory vars; 
 
-    //     controller.initiateMarket(toku, data, 1); 
+        vars.saleAmount = constrictToRange(fuzzput(saleAmount, 1e17), 10e18, 10000000e18); 
+        vars.initPrice = constrictToRange(fuzzput(initPrice, 1e17), 1e17, 95e16); 
+        vars.promisedReturn = constrictToRange(fuzzput(promisedReturn, 10), 1, 30000000000); 
+        vars.inceptionPrice = constrictToRange(fuzzput(inceptionPrice, 1e17), 1e17, 95e16); 
+        vars.leverageFactor = constrictToRange(fuzzput(leverageFactor, 1e17), 1e18, 5e18); 
+        vm.assume(vars.initPrice < vars.inceptionPrice); 
 
-    //     uint256[] memory words = new uint256[](N);
-    //     for (uint256 i=0; i< words.length; i++) {
-    //         words[i] = uint256(keccak256(abi.encodePacked(i)));
-    //     }
-    //     controller.fulfillRandomWords(1, words);
+        console.log('Params', vars.saleAmount, vars.initPrice, vars.promisedReturn); 
+        console.log('Parmas2', vars.inceptionPrice, vars.leverageFactor); 
 
-    // }
+        deployExampleLendingPool(
+            controller.getVaultfromId(1)
+        ); 
+
+        vars.vault_ad = controller.getVaultfromId(1); 
+
+        vars.marketId = setupPricer(
+             0, false, 
+            vars.saleAmount, vars.initPrice, vars.promisedReturn, vars.inceptionPrice, vars.leverageFactor, 
+            address(poolInstrument)
+        ); 
+
+        return vars; 
+    }
+
+    function deployExampleLendingPool(
+        address vault_ad
+        ) public{
+        PoolInstrument.CollateralLabel[] memory clabels;
+        PoolInstrument.Config[] memory configs;
+
+        LinearInterestRate linearRateCalculator = (new LinearInterestRate());
+        uint256 _minInterest = 0;
+        uint256 _vertexInterest = 8319516187; // 30% APR
+        uint256 _maxInterest = 12857214404; // 50% APR
+        uint256  UTIL_PREC = 1e5;
+        uint256 _vertexUtilization = UTIL_PREC * 4/5; // 80% utilization
+
+        bytes memory linearRateData;
+        linearRateData = abi.encode(_minInterest,_vertexInterest, _maxInterest, _vertexUtilization);
+
+        deployPoolInstrument(
+            clabels,
+            configs,
+            vault_ad,
+            0,
+            deployer,
+            address(linearRateCalculator),
+            linearRateData
+        ); 
+    }
 
     function deployPoolInstrument(
         PoolInstrument.CollateralLabel[] memory clabels,
@@ -393,38 +468,6 @@ contract CustomTestBase is Test {
             address(poolInstrument)
         );
         poolInstrument.setAuctioneer(address(auctioneer));
-    }
-
-    function controllerSetup() public{
-        vm.startPrank(deployer);
-        validatorManager = new ValidatorManager(address(controller), address(marketmanager),address(reputationManager) );     
-        leverageManager = new LeverageManager(address(controller), address(marketmanager),address(reputationManager) );
-        orderManager = new OrderManager(address(controller));
-        Data = new StorageHandler(); 
-        bytes memory stuff = abi.encode(
-        address(marketmanager), 
-        address(reputationManager), 
-        address(validatorManager), 
-        address(leverageManager), 
-        address(orderManager),
-        address(vaultFactory),
-        address(poolFactory),
-        address(Data)
-        ); 
-
-        controller.initialize(stuff);
-        // controller.setMarketManager(address(marketmanager));
-        // controller.setVaultFactory(address(vaultFactory));
-        // controller.setPoolFactory(address(poolFactory)); 
-        // controller.setReputationManager(address(reputationManager));
- 
-        // controller.setValidatorManager(address(validatorManager)); 
-
-        // controller.setLeverageManager(address(leverageManager));
-        // controller.setOrderManager(address(orderManager)); 
-        // controller.setDataStore(address(Data)) ;
-
-        vm.stopPrank();
     }
 
     function closeMarket(uint256 marketId) public {
@@ -486,7 +529,7 @@ contract CustomTestBase is Test {
         bytes memory data; 
         doApproveCol(address(marketmanager), jonna); 
 
-        doInvest(vault_ad, gatdang, precision * 100000);
+        // doInvest(vault_ad, gatdang, precision * 100000);
         vm.prank(jonna); 
         
         marketmanager.buyBond(marketId, int256(amountToBuy), precision , data); 
@@ -526,6 +569,44 @@ contract CustomTestBase is Test {
         ) internal pure returns(uint256){
         return uint256(x) * base; 
     }
+
+
+    struct testVars1{
+        uint256 marketId;
+        address vault_ad; 
+        uint amountToBuy; 
+        uint curPrice; 
+
+        uint amountIn;
+        uint amountOut; 
+        uint amountIn2; 
+        uint amountOut2; 
+        uint amountToIssue; 
+
+        uint valamountIn; 
+        uint cbalnow; 
+        uint cbalnow2; 
+
+        uint pju; 
+        uint psu;
+        uint pju2; 
+        uint psu2; 
+
+        uint saleAmount;
+        uint initPrice;
+        uint promisedReturn;
+        uint inceptionPrice;
+        uint leverageFactor;
+
+        uint issueAmount; 
+        uint orderId; 
+
+        uint rateBefore; 
+        uint256 balbefore;
+        uint256 ratebefore; 
+    }
+
+
 
    
 }

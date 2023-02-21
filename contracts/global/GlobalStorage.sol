@@ -73,6 +73,15 @@ contract StorageHandler{
 		));  
 	}
 
+	function checkIsSolventConstantRF(uint256 marketId) public view returns(bool){
+		InstrumentData memory data = InstrumentDatas[marketId]; 
+		uint256 psu = PerpTranchePricer.constantRF_PSU(
+			data.poolData.inceptionPrice, 
+			data.poolData.promisedReturn, 
+			data.poolData.inceptionTime); 
+		return PerpTranchePricer.isSolvent(data.instrument_address, psu, markets[marketId].longZCB.totalSupply(), 
+			data.poolData); 
+	}
 
 
 	//--- Instrument ---//
@@ -85,8 +94,12 @@ contract StorageHandler{
 
 	mapping(uint256=> InstrumentData) public InstrumentDatas; 
 
-	function getInstrumentData(uint256 marketId) public returns(InstrumentData memory){
+	function getInstrumentData(uint256 marketId) public view returns(InstrumentData memory){
 		return InstrumentDatas[marketId]; 
+	}
+
+	function getInstrumentAddress(uint256 marketId) public view returns(address){
+		return InstrumentDatas[marketId].instrument_address; 
 	}
 
 	function storeNewProposal(uint256 marketId, InstrumentData memory data) public onlyProtocol{
@@ -148,6 +161,10 @@ contract StorageHandler{
 
 	function getMarket(uint256 marketId) public view returns(CoreMarketData memory data){
 		return markets[marketId]; 
+	}
+
+	function getMarketLength() public view returns(uint256){
+		return markets.length; 
 	}
 
 	function makeEmptyMarketData() internal pure returns (CoreMarketData memory) {

@@ -48,6 +48,26 @@ library PerpTranchePricer{
 		return multiplier > 0? uRate.mulWadDown(multiplier) : uRate.mulWadDown(BASE_MULTIPLIER); 
 	}
 
+	/// @notice can all seniors redeem for given psu 
+	function isSolvent(
+		address instrument, 
+		uint256 psu, 
+		uint256 juniorSupply, 
+		PoolData memory perp) public view returns(bool){
+		return(
+			Instrument(instrument).assetOracle(juniorSupply + juniorSupply.mulWadDown(perp.leverageFactor))
+	    	 .mulWadDown(perp.inceptionPrice)
+	   		>= psu.mulWadDown(juniorSupply.mulWadDown(perp.leverageFactor)) 
+	   	); 
+	}
+
+	function constantRF_PSU(
+		uint256 inceptionPrice, 
+		uint256 promisedReturn, 
+		uint256 inceptionTime) public view returns(uint256){
+		return inceptionPrice.mulWadDown((BASE_UNIT+ promisedReturn).rpow(block.timestamp - inceptionTime, BASE_UNIT));
+	}
+
 	function refreshViewCurrentPricing(
 		PricingInfo storage _self, 
 		address instrument, 
@@ -75,14 +95,13 @@ library PerpTranchePricer{
 	    vars.seniorSupply = juniorSupply.mulWadDown(perp.leverageFactor); 
 	    vars.totalAssetsHeldScaled = Instrument(instrument).assetOracle(juniorSupply + vars.seniorSupply)
 	    	 .mulWadDown(perp.inceptionPrice); 
-
-	    if (vars.seniorSupply == 0) return (_self.psu, _self.psu, levFactor); 
-	    	
+	    console.log('seniorsupply', vars.seniorSupply); 
+	    if (vars.seniorSupply == 0) return (_self.psu, _self.psu, levFactor); 	    	
 
 		if(_self.constantRF){
-
 			psu = perp.inceptionPrice.mulWadDown((BASE_UNIT+ perp.promisedReturn)
     		 .rpow(block.timestamp - perp.inceptionTime, BASE_UNIT));
+			console.log('psuhere', psu, perp.promisedReturn, block.timestamp); 
 		} else {
 			psu = _self.psu; 
 		}
@@ -92,7 +111,7 @@ library PerpTranchePricer{
 	    	psu = vars.totalAssetsHeldScaled.divWadDown(vars.seniorSupply); 
 	    	vars.belowThreshold = true; 
 	    }
-
+	    console.log('psuhere', psu, block.timestamp); 
 	    // should be 0 otherwise 
 	    if(!vars.belowThreshold) pju = (vars.totalAssetsHeldScaled 
 	      - psu.mulWadDown(vars.seniorSupply)).divWadDown(juniorSupply); 

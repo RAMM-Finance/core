@@ -310,7 +310,7 @@ contract Controller {
         address recipient,
         InstrumentData memory instrumentData,
         uint256 vaultId
-    ) external {
+    ) external returns(uint256){
         require(recipient != address(0), "address0R");
         require(instrumentData.instrument_address != address(0), "address0I");
         require(address(vaults[vaultId]) != address(0), "address0V");
@@ -339,7 +339,7 @@ contract Controller {
         CoreMarketData memory marketData; 
         if (instrumentData.isPool) {
           require(instrumentData.poolData.initPrice<= 1e18 
-            && instrumentData.poolData.initPrice< instrumentData.poolData.inceptionPrice, "PRICE ERR"); 
+            && instrumentData.poolData.initPrice< instrumentData.poolData.inceptionPrice, "inceptionPrice<=initPrice"); 
           require(instrumentData.poolData.promisedReturn>0, "RETURN ERR"); 
           instrumentData.poolData.inceptionTime = block.timestamp;
 
@@ -426,6 +426,7 @@ contract Controller {
         emit MarketInitiated(marketId, address(vaults[vaultId]), recipient, address(pool), longZCB, shortZCB, instrumentData);
 
         ad_to_id[recipient] = marketId; //only for testing purposes, one utilizer should be able to create multiple markets
+        return marketId; 
     }
 
     /// @notice Resolve function 1
@@ -566,16 +567,17 @@ contract Controller {
 
         // TODO add vault balances as well 
         if (isPool) {
-            return (marketManager.loggedCollaterals(marketId) >=
-                getVault(marketId)
-                    .fetchInstrumentData(marketId)
-                    .poolData
-                    .saleAmount);
-            console.log('marketcondition', marketManager.loggedCollaterals(marketId), 
+              console.log('marketcondition', marketManager.loggedCollaterals(marketId), 
                getVault(marketId)
                     .fetchInstrumentData(marketId)
                     .poolData
                     .saleAmount); 
+
+            return (marketManager.loggedCollaterals(marketId) >=
+                    Data.getInstrumentData(marketId)
+                    .poolData
+                    .saleAmount);
+  
         } else {
             uint256 principal = getVault(marketId)
                 .fetchInstrumentData(marketId)

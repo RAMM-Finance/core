@@ -65,25 +65,25 @@ contract PoolInstrumentTest is CustomTestBase {
     }
    
 
-    struct testVars1{
-        uint256 marketId;
-        address vault_ad; 
-        uint amountToBuy; 
-        uint curPrice; 
+    // struct testVars1{
+    //     uint256 marketId;
+    //     address vault_ad; 
+    //     uint amountToBuy; 
+    //     uint curPrice; 
 
-        uint amountIn;
-        uint amountOut; 
+    //     uint amountIn;
+    //     uint amountOut; 
 
-        uint valamountIn; 
-        uint cbalnow; 
-        uint cbalnow2; 
+    //     uint valamountIn; 
+    //     uint cbalnow; 
+    //     uint cbalnow2; 
 
-        uint pju; 
-        uint psu;
-        uint256 balbefore;
-        uint256 ratebefore; 
+    //     uint pju; 
+    //     uint psu;
+    //     uint256 balbefore;
+    //     uint256 ratebefore; 
 
-    }
+    // }
 
     function testOneLongNoShortApproval() public{
         testVars1 memory vars; 

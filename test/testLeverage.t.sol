@@ -221,22 +221,7 @@ contract LeverageModuleTest is CustomTestBase {
     // }
    
 
-    struct testVars1{
-        uint256 marketId;
-        address vault_ad; 
-        uint amountToBuy; 
-        uint curPrice; 
 
-        uint amountIn;
-        uint amountOut; 
-
-        uint valamountIn; 
-        uint cbalnow; 
-        uint cbalnow2; 
-
-        uint issueAmount; 
-        uint rateBefore; 
-    }
 
     /// @notice leverage pool mint 
     function testPoolLevMint() public returns(testVars1 memory){
