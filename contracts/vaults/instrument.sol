@@ -334,7 +334,9 @@ contract CreditLine is Instrument {
 
         // check if enough collateral has been added as agreed   
         if (collateral_type == CollateralType.liquidatable || collateral_type == CollateralType.nonLiquid){
-            require(ERC20(collateral).balanceOf(address(this)) >= collateral_balance, "Insufficient collateral"); 
+            if (ERC20(collateral).balanceOf(address(this)) >= collateral_balance){
+                return false;
+            } 
         }
 
         // // check if validator(s) are set 

@@ -82,7 +82,7 @@ contract LeverageManager is ERC721Enumerable{
         require(_leverage <= getMaxLeverage(msg.sender) && _leverage >= precision, "!leverage");
 
         // need to require that !duringAssessment. 
-        
+
         CoreMarketData memory market = marketManager.getMarket(_marketId); 
         ERC20 underlying = ERC20(address(market.bondPool.baseToken())); 
 
@@ -107,7 +107,7 @@ contract LeverageManager is ERC721Enumerable{
     /// and if debt fully repaid, send remaining to trader 
     /// param redeemAmount is in longZCB 
     function redeemLeveredPerpLongZCB(
-        uint256 marketId, 
+        uint256 marketId,
         uint256 redeemAmount
         ) external  returns(
             uint256 collateral_redeem_amount, 

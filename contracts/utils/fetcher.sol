@@ -156,8 +156,10 @@ contract Fetcher {
         uint256 principalRepayed;
         uint256 interestRepayed;
         uint256 totalOwed;
+        bool approvalCondition;
         CreditLine.CollateralType collateralType;
         CreditLine.LoanStatus loanStatus;
+
     }
 
     struct InstrumentBundle {
@@ -306,6 +308,7 @@ contract Fetcher {
         bundle.principalRepayed = creditline.principalRepayed();
         bundle.totalOwed = creditline.totalOwed();
         bundle.interestRepayed = creditline.interestRepayed();
+        // bundle.approvalCondition = creditline.instrumentApprovalCondition();
     }
 
     function buildCoveredCallBundle(address instrument) internal view returns (OptionsBundle memory bundle) {
