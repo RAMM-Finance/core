@@ -567,11 +567,11 @@ contract Controller {
 
         // TODO add vault balances as well 
         if (isPool) {
-              console.log('marketcondition', marketManager.loggedCollaterals(marketId), 
-               getVault(marketId)
-                    .fetchInstrumentData(marketId)
-                    .poolData
-                    .saleAmount); 
+            //   console.log('marketcondition', marketManager.loggedCollaterals(marketId), 
+            //    getVault(marketId)
+            //         .fetchInstrumentData(marketId)
+            //         .poolData
+            //         .saleAmount); 
 
             return (marketManager.loggedCollaterals(marketId) >=
                     Data.getInstrumentData(marketId)
@@ -582,10 +582,10 @@ contract Controller {
             uint256 principal = getVault(marketId)
                 .fetchInstrumentData(marketId)
                 .principal;
-                console.log('marketcondition', marketManager.loggedCollaterals(marketId), 
-                principal.mulWadDown(
-                    marketManager.getParameters(marketId).alpha
-                )); 
+                // console.log('marketcondition', marketManager.loggedCollaterals(marketId), 
+                // principal.mulWadDown(
+                //     marketManager.getParameters(marketId).alpha
+                // )); 
             return (marketManager.loggedCollaterals(marketId) >=
                 principal.mulWadDown(
                     marketManager.getParameters(marketId).alpha
