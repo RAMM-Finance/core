@@ -138,7 +138,7 @@ contract LeverageManager is ERC721Enumerable{
         // If debt is fully paid, can send unlocked funds 
         if (position.debt==0) {//100-70 = 30 send me back 30!!
             postRepayLeftOver = collateral_redeem_amount - paidDebt; 
-            vars.vault.withdrawFromPoolInstrument(marketId, postRepayLeftOver, msg.sender, 0); 
+            vars.vault.withdrawFromPoolInstrument(marketId, postRepayLeftOver, msg.sender, 0, 0); 
         }
 
         leveragePosition[marketId][msg.sender] = position; 

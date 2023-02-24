@@ -475,12 +475,12 @@ contract CustomTestBase is Test {
         controller.resolveMarket( marketId); 
     }
 
-    function donateToInstrument(address vaultad, address instrument, uint256 amount) public {
+    function donateToInstrument(address vaultad, address instrument, uint256 amount, uint256 marketId) public {
         vm.startPrank(jonna); 
         Vault(vaultad).UNDERLYING().transfer(instrument, amount); 
         vm.stopPrank(); 
         if(Vault(vaultad).isTrusted(Instrument(instrument)))
-            Vault(vaultad).harvest(instrument); 
+            Vault(vaultad).harvest(marketId); 
     }
 
 
@@ -522,7 +522,7 @@ contract CustomTestBase is Test {
         controller.approveMarket(marketId);
     }
 
-    function doApproveFromStart(uint256 marketId, uint256 amountToBuy) public{
+    function doApproveFromStart(uint256 marketId, uint256 amountToBuy) public returns(uint256){
 
         address vault_ad = controller.getVaultfromId(marketId); 
         // vars.amountToBuy = Vault(vars.vault_ad).fetchInstrumentData(vars.marketId).poolData.saleAmount*3/2; 
@@ -532,9 +532,10 @@ contract CustomTestBase is Test {
         // doInvest(vault_ad, gatdang, precision * 100000);
         vm.prank(jonna); 
         
-        marketmanager.buyBond(marketId, int256(amountToBuy), precision , data); 
+        (, uint256 amountOut) = marketmanager.buyBond(marketId, int256(amountToBuy), precision , data); 
         // let validator invest to vault and approve 
         doApprove(marketId, vault_ad);
+        return amountOut; 
     }
 
     function assertSameExchangeRate(uint startExchangeRate, address vault_ad) public {
@@ -549,10 +550,12 @@ contract CustomTestBase is Test {
         uint256 x,
         uint256 min,
         uint256 max
-    ) internal pure returns (uint256 result) {
+    ) internal view returns (uint256 result) {
+        console.log('wtfwefwqifnewqofnmweqoefimwq', max, min); 
         require(max >= min, "MAX_LESS_THAN_MIN");
         // vm.assume(x<=max); 
         // vm.assume(x>= min); 
+
         if (min == max) return min;  // A range of 0 is effectively a single value.
 
         if (x >= min && x <= max) return x;  // Use value directly from fuzz if already in range.
@@ -566,7 +569,7 @@ contract CustomTestBase is Test {
     function fuzzput(
         uint32 x, 
         uint256 base //some number like 1e16 or 0.001
-        ) internal pure returns(uint256){
+        ) internal view returns(uint256){
         return uint256(x) * base; 
     }
 
@@ -586,6 +589,7 @@ contract CustomTestBase is Test {
         uint valamountIn; 
         uint cbalnow; 
         uint cbalnow2; 
+        uint cbalnow3; 
 
         uint pju; 
         uint psu;
@@ -604,6 +608,17 @@ contract CustomTestBase is Test {
         uint rateBefore; 
         uint256 balbefore;
         uint256 ratebefore; 
+
+        uint amount1; 
+        uint amount2; 
+        uint amount3; 
+        uint amount4; 
+
+        uint totalSupply; 
+        uint budget; 
+
+        uint collateral_redeem_amount; 
+        uint seniorAmount; 
     }
 
 

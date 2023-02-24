@@ -15,6 +15,7 @@ import {MarketManager} from "../protocol/marketmanager.sol";
 import "openzeppelin-contracts/utils/math/Math.sol";
 import "forge-std/console.sol";
 
+import {StorageHandler} from "../global/GlobalStorage.sol"; 
 import "../global/types.sol"; 
 
 
@@ -99,6 +100,12 @@ contract Vault is ERC4626{
         return 0; 
     }
 
+    StorageHandler public Data;
+
+    function setDataStore(address dataStore) public onlyController {
+        Data = StorageHandler(dataStore);
+    }
+
     function getInstrumentData(Instrument _instrument) public view returns (InstrumentData memory) {
         return instrument_data[_instrument];
     }
@@ -129,14 +136,28 @@ contract Vault is ERC4626{
     event InstrumentHarvest(address indexed instrument, uint256 totalInstrumentHoldings, uint256 instrument_balance, uint256 mag, bool sign); //sign is direction of mag, + or -.
 
     /// @notice Harvest a trusted Instrument, records profit/loss 
-    function harvest(address instrument) public {
+    // TODO instrument balance of underlying could be lower(ex. borrow), account for that 
+    function harvest(uint256 marketId) public {
+      address instrument = address(fetchInstrument( marketId)); 
+
       require(instrument_data[Instrument(instrument)].trusted, "UNTRUSTED_Instrument");
       InstrumentData storage data = instrument_data[Instrument(instrument)]; 
 
+      uint256 balanceLastHarvest = data.balance; 
+      uint256 balanceThisHarvest; 
+
+      if(data.isPool){
+        (uint256 psu, , ) = Data.viewCurrentPricing(marketId); 
+
+        // Record how much does the shares this vault have translate to in underlying 
+        // 101
+        balanceThisHarvest = data.poolData.sharesOwnedByVault.mulWadDown(psu) ;
+      } else{
+        balanceThisHarvest = Instrument(instrument).balanceOfUnderlying(address(instrument)); 
+      }
+
       uint256 oldTotalInstrumentHoldings = totalInstrumentHoldings; 
-      uint256 balanceLastHarvest = data.balance;
-      uint256 balanceThisHarvest = Instrument(instrument).balanceOfUnderlying(address(instrument));
-      
+
       if (balanceLastHarvest == balanceThisHarvest) {
           return;
       }
@@ -144,6 +165,7 @@ contract Vault is ERC4626{
       data.balance = balanceThisHarvest;
 
       uint256 delta;
+      console.log('last and first',balanceLastHarvest, balanceThisHarvest  ); 
       bool net_positive = balanceThisHarvest >= balanceLastHarvest;
       delta = net_positive ? balanceThisHarvest - balanceLastHarvest : balanceLastHarvest - balanceThisHarvest;
       totalInstrumentHoldings = net_positive ? oldTotalInstrumentHoldings + delta : oldTotalInstrumentHoldings - delta;
@@ -152,26 +174,38 @@ contract Vault is ERC4626{
     }
 
     event InstrumentDeposit(uint256 indexed marketId, address indexed instrument, uint256 amount, bool isPool);
+
     /// @notice Deposit a specific amount of float into a trusted Instrument.
     /// Called when market is approved. 
     /// Also has the role of granting a credit line to a credit-based Instrument like uncol.loans 
     function depositIntoInstrument(
       uint256 marketId, 
       uint256 underlyingAmount,
-      bool isPerp) onlyTrustedInstrument(fetchInstrument(marketId)) public virtual
+      bool isPerp, 
+      uint256 addedSeniorShares
+      ) onlyTrustedInstrument(fetchInstrument(marketId)) public virtual
   //onlyManager
     {
       Instrument instrument = fetchInstrument(marketId); 
-      uint256 curBalance = UNDERLYING.balanceOf(address(this)); 
-
       totalInstrumentHoldings += underlyingAmount; 
-      instrument_data[instrument].balance += underlyingAmount;
 
-      if(!isPerp) require(UNDERLYING.transfer(address(instrument), underlyingAmount), "DEPOSIT_FAILED");
+      if(!isPerp) {
+        // If is fixed instrument, add underlying amount supplied by the vault as balance
+
+        instrument_data[instrument].balance += underlyingAmount;
+        require(UNDERLYING.transfer(address(instrument), underlyingAmount), "DEPOSIT_FAILED");
+
+      }
       else{
-        // TODO keep track of all this 
+        // Deposit to ERC4626 instrument 
+
         UNDERLYING.approve(address(instrument), underlyingAmount); 
-        require(ERC4626(address(instrument)).deposit(underlyingAmount, address(this))>0, "DEPOSIT_FAILED");
+        ERC4626(address(instrument)).deposit(underlyingAmount, address(this)); 
+        // uint shares = underlyingAmount.divWadDown(seniorUnderlyingPricing); 
+        // If is perp instrument, add shares minted by the vault 
+        // console.log('depositing shares', shares, underlyingAmount); 
+        instrument_data[instrument].poolData.sharesOwnedByVault += addedSeniorShares; 
+        instrument_data[instrument].balance += underlyingAmount; 
       }
 
       emit InstrumentDeposit(marketId, address(instrument), underlyingAmount, isPerp);
@@ -187,40 +221,79 @@ contract Vault is ERC4626{
     }
 
     event InstrumentWithdrawal(uint256 indexed marketId, address indexed instrument, uint256 amount);
+
+    function withdrawAllFromInstrument(
+      uint256 marketId
+      ) onlyController external{
+      Instrument instrument = fetchInstrument( marketId); 
+      console.log('howmuch', instrument.balanceOfUnderlying(address(instrument))); 
+      console.log('exchange rate', previewMint(1e18));
+      instrument.redeemUnderlying(UNDERLYING.balanceOf(address(instrument))); 
+      console.log('exchange rate', previewMint(1e18));
+
+    }
+
     /// @notice Withdraw a specific amount of underlying tokens from a Instrument.
     function withdrawFromInstrument(
       Instrument instrument, 
       uint256 underlyingAmount, 
       bool redeem
       ) onlyTrustedInstrument(instrument) internal virtual {
-
+      // console.log('balance/underlying',instrument_data[instrument].balance, 
+      //   totalInstrumentHoldings, 
+      //   underlyingAmount ); 
       instrument_data[instrument].balance -= underlyingAmount;
       
       totalInstrumentHoldings -= underlyingAmount;
-      console.log('redeemamount', underlyingAmount); 
+
       if (redeem) require(instrument.redeemUnderlying(underlyingAmount), "REDEEM_FAILED");
 
       emit InstrumentWithdrawal(instrument_data[instrument].marketId, address(instrument), underlyingAmount);
     }
 
+
+      //TODO instrument balance should decrease to 0 and stay solvent  
+      //TODO can everyone redeem? does vault's instument share balance change when
+      // mint-> redeem at different pjus? 
     function withdrawFromPoolInstrument(
       uint256 marketId, 
       uint256 instrumentPullAmount, 
       address pushTo, 
-      uint256 underlyingAmount
+      uint256 underlyingAmount, 
+      uint256 withdrawnSeniorShares
       ) public virtual 
     //onlyManager
     { 
       // Send to withdrawer 
       Instrument instrument = fetchInstrument( marketId); 
-      require(instrument.isLiquid(underlyingAmount + instrumentPullAmount), "!liq");
 
-      ERC4626(address(instrument)).withdraw(underlyingAmount + instrumentPullAmount, address(this), address(this)); 
+      // require(instrument.isLiquid(underlyingAmount + instrumentPullAmount), "!liq");
+      //         (uint256 psu, , ) = Data.viewCurrentPricing(marketId); 
+
+      harvest(marketId);
+      // console.log('withdrawn senior shares', underlyingAmount, psu.mulWadDown(withdrawnSeniorShares), previewMint(1e18));
+      if(instrument.isLiquid(underlyingAmount + instrumentPullAmount)){
+        console.log('wtf?', underlyingAmount + instrumentPullAmount, 
+          UNDERLYING.balanceOf(address(instrument))); 
+        ERC4626(address(instrument)).withdraw(underlyingAmount + instrumentPullAmount, 
+        address(this), address(this)); 
+      }else{
+        ERC4626(address(instrument)).withdraw(
+          UNDERLYING.balanceOf(address(instrument)), 
+          address(this), address(this)); 
+      }
+
       UNDERLYING.transfer(pushTo, instrumentPullAmount); 
 
-      //TODO instrument balance should decrease to 0 and stay solvent  
-      //TODO can everyone redeem? does vault's instument share balance change when
-      // mint-> redeem at different pjus? 
+ 
+
+      // Subtract instrument shares owned by vault 
+      // console.log('withdrawing shares',ERC4626(address(instrument)).previewWithdraw(underlyingAmount),
+      //  instrument_data[instrument].poolData.sharesOwnedByVault); 
+      instrument_data[instrument].poolData.sharesOwnedByVault -= withdrawnSeniorShares; 
+
+
+      // Finalize accounting logic 
       withdrawFromInstrument(fetchInstrument(marketId), underlyingAmount, false);
     }
 
@@ -230,7 +303,8 @@ contract Vault is ERC4626{
     function trustInstrument(
       uint256 marketId,
       ApprovalData memory data, 
-      bool isPool
+      bool isPool, 
+      uint256 addedSeniorShares //for perps, need inception price of instrument to record profit 
       ) external virtual onlyController{
       instrument_data[fetchInstrument(marketId)].trusted = true;
 
@@ -241,7 +315,7 @@ contract Vault is ERC4626{
         instrumentData.expectedYield = data.approved_yield;
         instrumentData.faceValue = data.approved_principal + data.approved_yield; 
 
-        depositIntoInstrument(marketId, data.approved_principal - data.managers_stake, false);
+        depositIntoInstrument(marketId, data.approved_principal - data.managers_stake, false, 0);
         
         // setMaturityDate(marketId);
         instrument_data[fetchInstrument(marketId)].maturityDate = instrument_data[fetchInstrument(marketId)].duration + block.timestamp;
@@ -250,8 +324,7 @@ contract Vault is ERC4626{
 
       } else{
         instrument_data[Instruments[marketId]].poolData.inceptionTime = block.timestamp; 
-        console.log('from vault', data.approved_principal - data.managers_stake); 
-        depositIntoInstrument(marketId, data.approved_principal - data.managers_stake, true);
+        depositIntoInstrument(marketId, data.approved_principal - data.managers_stake, true, addedSeniorShares);
       }
       emit InstrumentTrusted(marketId, address(Instruments[marketId]), data.approved_principal, data.approved_yield, instrument_data[fetchInstrument(marketId)].maturityDate);
     }
@@ -323,32 +396,6 @@ contract Vault is ERC4626{
         emit InstrumentRemoved(marketId, address(Instruments[marketId]));
     }
 
-    // event PoolAdded(
-    //   uint256 indexed marketId,
-    //   address indexed instrumentAddress,
-    //   bytes32 indexed name,
-    //   uint256 saleAmount, 
-    //   uint256 initPrice, // init price of longZCB in the amm 
-    //   uint256 promisedReturn, //per unit time 
-    //   uint256 inceptionTime,
-    //   uint256 inceptionPrice, // init price of longZCB after assessment 
-    //   uint256 leverageFactor, //leverageFactor * manager collateral = capital from vault to instrument
-    //   uint256 managementFee
-    // );
-
-    // event InstrumentAdded(
-    //   uint256 indexed marketId,
-    //   address indexed instrumentAddress,
-    //   bytes32 indexed name,
-    //   uint256 faceValue,
-    //   uint256 principal,
-    //   uint256 expectedYield,
-    //   uint256 duration,
-    //   uint256 maturityDate,
-    //   InstrumentType instrumentType,
-    //   bool isPool
-    // );
-
     // event ProposalAdded(InstrumentData data);
     /// @notice add instrument proposal created by the Utilizer 
     /// @dev Instrument instance should be created before this is called
@@ -402,7 +449,7 @@ contract Vault is ERC4626{
         _instrument.prepareWithdraw();
 
         // Record profit/loss used for calculation of redemption price 
-        harvest(address(_instrument));
+        harvest(marketId);
 
         _instrument.store_internal_balance(); 
         prepareResolveBlock[marketId] = ResolveVar(block.number,true) ;  
@@ -444,7 +491,6 @@ contract Vault is ERC4626{
             total_loss = atLoss? instrument_data[_instrument].principal - instrument_balance :0; 
             extra_gain = !atLoss? instrument_balance - instrument_data[_instrument].principal: 0; 
         }
-        console.log('atloss?', instrument_data[_instrument].faceValue, instrument_balance); 
 
         withdrawFromInstrument(_instrument, instrument_balance, true);
         removeInstrument(instrument_data[_instrument].marketId);

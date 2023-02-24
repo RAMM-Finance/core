@@ -29,10 +29,12 @@ library LinearPiecewiseCurve{
         SwapParams memory vars
         ) internal view returns(uint256 amountDelta, uint256 resultPrice){
         console.log('varsb', vars.b, amount, vars.a); 
-        if(vars.a==0) return (amount.divWadDown(vars.b), vars.b);  
+        if(vars.a<=1) return (amount.divWadDown(vars.b), vars.b);  
 
         uint256 curPrice = vars.a.mulWadDown(vars.s) + vars.b; 
-
+        console.log('params', ((curPrice.mulWadDown(curPrice) + 2*(vars.a.mulWadDown(amount))) * PRECISION
+               
+            ).sqrt(), curPrice); 
         amountDelta = amount > 0 ? (
             (
                 (curPrice.mulWadDown(curPrice) + 2*(vars.a.mulWadDown(amount))) * PRECISION

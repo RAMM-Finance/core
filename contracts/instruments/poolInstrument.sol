@@ -1176,8 +1176,8 @@ contract PoolInstrument is
         returns (uint256)
     {
         // Default balance oracle
-        console.log('totalasset', uint256(totalAsset.amount), uint256(totalAsset.shares)); 
-        console.log('totalSupply', totalSupply, previewMint(1e18)); 
+        // console.log('totalasset', uint256(totalAsset.amount), uint256(totalAsset.shares)); 
+        // console.log('totalSupply', totalSupply, previewMint(1e18)); 
         return totalSupply.mulWadDown(previewMint(1e18));
         //TODO custom oracle
     }
@@ -1190,6 +1190,10 @@ contract PoolInstrument is
         else totalAsset.amount -= uint128(amount); 
     }
 
+    function balanceOfUnderlying(address user) public view override returns (uint256){
+        if(user == address(this)) return   _totalAssetAvailable(totalAsset,totalBorrow);
+        else return underlying.balanceOf(user); 
+    }
 }
 
 /**

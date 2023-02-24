@@ -166,6 +166,10 @@ contract StorageHandler{
 	function getMarketLength() public view returns(uint256){
 		return markets.length; 
 	}
+	
+	function getLongZCB(uint256 marketId) public view returns(ERC20){
+		return markets[marketId].longZCB; 
+	}
 
 	function makeEmptyMarketData() internal pure returns (CoreMarketData memory) {
 		return CoreMarketData(

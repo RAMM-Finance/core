@@ -242,6 +242,9 @@ contract Controller {
             abi.encode(_onlyVerified, _r, _asset_limit, _total_asset_limit,_description),
             default_params  
         );
+        require(address(Data)!=address(0), "No Data Handler"); 
+
+        newVault.setDataStore(address(Data)); 
 
         vaults[vaultId] = newVault;
 
@@ -514,8 +517,10 @@ contract Controller {
         }
 
         // Get funds used for redemption
+        console.log('howmuchamIpulling', (total_supply - total_shorts).mulWadDown(redemption_price)); 
         getVault(marketId).trusted_transfer((total_supply - total_shorts).mulWadDown(redemption_price), 
             address(this)); 
+        console.log('balance', getVault(marketId).UNDERLYING().balanceOf(address(getVault(marketId)))); 
 
         marketManager.deactivateMarket(
             marketId,
@@ -572,7 +577,9 @@ contract Controller {
             //         .fetchInstrumentData(marketId)
             //         .poolData
             //         .saleAmount); 
-
+            console.log('approval supply and saleamountqty', 
+                Data.getMarket(marketId).longZCB.totalSupply(), 
+                Data.getMarket(marketId).bondPool.saleAmountQty()); 
             return (marketManager.loggedCollaterals(marketId) >=
                     Data.getInstrumentData(marketId)
                     .poolData
@@ -586,6 +593,9 @@ contract Controller {
                 // principal.mulWadDown(
                 //     marketManager.getParameters(marketId).alpha
                 // )); 
+                console.log('marketcondition?', marketManager.loggedCollaterals(marketId) , 
+                   principal.mulWadDown(
+                    marketManager.getParameters(marketId).alpha) ); 
             return (marketManager.loggedCollaterals(marketId) >=
                 principal.mulWadDown(
                     marketManager.getParameters(marketId).alpha
@@ -619,18 +629,25 @@ contract Controller {
         pool.flush(address(this), pool.baseBal()); 
         address instrument = address(vault.fetchInstrument(marketId)); 
         vault.UNDERLYING().approve(instrument, managerCollateral); 
+        InstrumentData memory instrumentData = Data.getInstrumentData( marketId); 
 
         if (isPool) {
             poolApproval(
                 marketId,
                 marketManager.getZCB(marketId).totalSupply(),
-                vault.fetchInstrumentData(marketId).poolData
+                managerCollateral,
+                instrumentData.poolData
             );
           require(ERC4626(instrument).deposit(managerCollateral, address(vault))>0, "DEPOSIT_FAILED");
+           vault.trustInstrument(marketId, approvalDatas[marketId], isPool, 
+            Data.getLongZCB(marketId).totalSupply().mulWadDown(instrumentData.poolData.leverageFactor));
+
         } else {
             if (vault.getInstrumentType(marketId) == 0) creditApproval(marketId, pool);
             else generalApproval(marketId);
+            approvalDatas[marketId].managers_stake = managerCollateral; 
             vault.UNDERLYING().transfer(instrument, managerCollateral); 
+            vault.trustInstrument(marketId, approvalDatas[marketId], isPool, 0);
         }
         approvalDatas[marketId].managers_stake = managerCollateral;
 
@@ -639,7 +656,7 @@ contract Controller {
 
         // Trust and deposit to the instrument contract
 
-        vault.trustInstrument(marketId, approvalDatas[marketId], isPool);
+        console.log('how much am I depositing at approval', approvalDatas[marketId].approved_principal); 
         
         emit MarketApproved(marketId, approvalDatas[marketId]);
     }
@@ -647,11 +664,12 @@ contract Controller {
     function poolApproval(
         uint256 marketId,
         uint256 juniorSupply,
+        uint256 managerCollateral,
         PoolData memory data
     ) internal {
         require(data.leverageFactor > 0, "0 LEV_FACTOR");
         approvalDatas[marketId] = ApprovalData(
-            0,
+            managerCollateral,
             juniorSupply
                 .mulWadDown(config.WAD + data.leverageFactor)
                 .mulWadDown(data.inceptionPrice),

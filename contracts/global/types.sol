@@ -7,6 +7,13 @@ library Constants{
 	uint256 public constant THRESHOLD_PJU = 5e17; // can't buy if below 0.5 
 	uint256 public constant MAX_VAULT_URATE = 10e17; 
 
+	uint256 public constant PRICING_ROUND = 1e12; //round to the nearest 0.000001
+
+
+    function min(uint256 a, uint256 b) internal pure returns (uint256) {
+        return a <= b ? a : b;
+    }
+
 }
 
 
@@ -53,6 +60,7 @@ struct PoolData{
 	uint256 inceptionPrice; // init price of longZCB after assessment 
 	uint256 leverageFactor; // leverageFactor * manager collateral = capital from vault to instrument
 	uint256 managementFee; // sum of discounts for high reputation managers/validators
+	uint256 sharesOwnedByVault; // amount of erc4626 instrument shares owned by the vault
 }
 
 struct PoolPricingParam{
