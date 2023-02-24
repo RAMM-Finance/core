@@ -611,6 +611,9 @@ contract MarketManager {
   
     }
 
+    /**
+     can only do post assessment.
+     */
     function redeemPerpLongZCB(
         uint256 marketId,
         uint256 redeemAmount,
