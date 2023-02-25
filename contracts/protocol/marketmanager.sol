@@ -564,18 +564,14 @@ contract MarketManager {
 
         issueQTY = _amountIn.divWadUp(vars.pju); //TODO rounding errs
         markets[_marketId].bondPool.trustedDiscountedMint(_caller, issueQTY);
-        vars.seniorAmount = issueQTY.mulWadDown(vars.levFactor).mulWadDown(vars.psu);  
-
+        vars.seniorAmount = issueQTY.mulWadDown(vars.levFactor).mulWadDown(vars.psu); 
+        // console.log('pju issue', vars.pju);  
+        // console.log('how same?', vars.pju.mulWadDown(issueQTY), _amountIn, issueQTY.mulWadUp(vars.pju) ); 
+        // console.log('collateral issue amount and senior amount', _amountIn, vars.seniorAmount); 
         // Check if pju/psu is high enough, x/small pju will blow up senior amount 
         require(vars.pju.divWadDown(vars.psu) >= Constants.THRESHOLD_PJU, "Low Junior Price"); 
 
         // Check if vault has enough liquidity + buffer 
-        console.log('senioramount', vars.seniorAmount, vars.vault.UNDERLYING().balanceOf(address(vars.vault)), 
-          vars.vault.utilizationRateAfter(vars.seniorAmount) ); 
-        console.log('util before after',vars.vault.utilizationRateAfter(0), 
-            vars.vault.utilizationRateAfter(vars.seniorAmount)); 
-        console.log('pju issue', vars.pju, vars.psu); 
-
         require(
           vars.vault.utilizationRateAfter(vars.seniorAmount)
           <= Constants.MAX_VAULT_URATE,
@@ -583,7 +579,7 @@ contract MarketManager {
         );
 
         // Need to transfer funds automatically to the instrument, seniorAmount is longZCB * levFactor * psu
-        vars.vault.depositIntoInstrument(_marketId,vars.seniorAmount,true);
+        vars.vault.depositIntoInstrument(_marketId,vars.seniorAmount,true, issueQTY.mulWadDown(vars.levFactor));
 
         reputationManager.recordPull(
             trader,
@@ -630,20 +626,37 @@ contract MarketManager {
 
         require(market.isPool, "!pool");
 
-        (vars.psu, vars.pju, vars.levFactor) = Data.viewCurrentPricing(
-            marketId
-        );
-        collateral_redeem_amount = vars.pju.mulWadDown(redeemAmount);
-        seniorAmount = redeemAmount.mulWadDown(vars.levFactor).mulWadDown(
-            vars.psu
-        );
+        (vars.psu, vars.pju, vars.levFactor) = Data.viewCurrentPricing(marketId);
+
+        vars.totalSupply = market.longZCB.totalSupply(); 
+        vars.saleAmountQty = market.bondPool.saleAmountQty(); 
+
+        // Need to discount the pjus for amounts below sale amount quantities
+        if( vars.totalSupply - redeemAmount <= vars.saleAmountQty){
+            uint256 belowQuantity = vars.saleAmountQty - (vars.totalSupply  - redeemAmount); 
+
+            // socialize the discounts 
+            console.log('socialize', vars.pju, market.bondPool.managementFee(), vars.saleAmountQty);
+            uint256 pjuDiscounted = vars.pju - market.bondPool.managementFee().divWadDown(vars.saleAmountQty); 
+
+            // Discount colalteral redeem amount 
+            collateral_redeem_amount = vars.totalSupply >= vars.saleAmountQty  
+                ? pjuDiscounted.mulWadDown(belowQuantity)
+                    + vars.pju.mulWadDown(vars.totalSupply - vars.saleAmountQty)
+                : pjuDiscounted.mulWadDown(belowQuantity); 
+        } else{
+            collateral_redeem_amount = vars.pju.mulWadDown(redeemAmount);
+        }
+
+        seniorAmount = redeemAmount.mulWadDown(vars.levFactor).mulWadDown(vars.psu);
 
         // Need to check if redeemAmount*levFactor can be withdrawn from the pool and do so
         vault.withdrawFromPoolInstrument(
             marketId,
             collateral_redeem_amount,
             caller,
-            seniorAmount
+            seniorAmount, 
+            redeemAmount.mulWadDown(vars.levFactor)
         );
 
         market.bondPool.trustedBurn(caller, redeemAmount, true);
@@ -697,6 +710,8 @@ contract MarketManager {
         uint256 psu;
         uint256 levFactor;
         uint256 seniorAmount; 
+        uint256 saleAmountQty; 
+        uint256 totalSupply; 
 
         Vault vault;
         ERC20 underlying;
@@ -753,6 +768,7 @@ contract MarketManager {
             _priceLimit,
             abi.encode(caller)
         );
+        console.log('howmuchdidIbuy', amountOut); 
 
         // Revert if price exceeds upper bound
         vars.upperBound = bondPool.upperBound();
@@ -1007,7 +1023,8 @@ contract MarketManager {
         vars.vault.depositIntoInstrument(
             marketId,
             juniorAmount + seniorAmount,
-            true
+            true, 
+            redeemAmount.mulWadDown(vars.levFactor)
         );
 
         market.bondPool.trustedBurn(msg.sender, redeemAmount, false);

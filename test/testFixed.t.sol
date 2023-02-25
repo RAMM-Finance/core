@@ -385,8 +385,8 @@ contract FixedTest is CustomTestBase {
 
         (uint a, uint b) = (Data.getMarket(vars.marketId).bondPool.a_initial(),  Data.getMarket(vars.marketId).bondPool.b_initial());
         uint amountOut = LinearPiecewiseCurve.areaUnderCurve( netCollateral, 0, a, b); 
-        vm.assume(amountOut>=vars.principal.mulWadDown(alpha)); 
-
+        vm.assume(amountOut>vars.principal.mulWadDown(alpha)); 
+        console.log('amountout and principal alpha', amountOut, vars.principal.mulWadDown(alpha)); 
         somelongsomeshort(vars, true);
 
         vars.cbalbefore = Vault(vars.vault_ad).UNDERLYING().balanceOf(vars.vault_ad); 
@@ -434,7 +434,7 @@ contract FixedTest is CustomTestBase {
             ); 
         InstrumentData memory data = Data.getInstrumentData(vars.marketId); 
 
-        donateToInstrument(vars.vault_ad, address(instrument), data.expectedYield); //TODO expected yield
+        donateToInstrument(vars.vault_ad, address(instrument), data.expectedYield, vars.marketId); //TODO expected yield
 
         vm.startPrank(deployer); 
         controller.validatorResolve(vars.marketId); 
@@ -445,7 +445,9 @@ contract FixedTest is CustomTestBase {
         ApprovalData memory test = controller.getApprovalData(vars.marketId);
 
         // look at area 
-   
+        console.log('??', data.principal+ data.expectedYield , test.approved_principal-test.managers_stake, 
+            Data.getMarket(vars.marketId).bondPool.discount_cap()+ 
+            (vars.amount1 + vars.amount2 + vars.amount4 +vars.amount5+vars.amount6+vars.amount7- vars.amount3)); 
         uint vaultshare = data.principal+ data.expectedYield 
         - (test.approved_principal-test.managers_stake
             +Data.getMarket(vars.marketId).bondPool.discount_cap()+ 
@@ -453,6 +455,7 @@ contract FixedTest is CustomTestBase {
             ); 
 
         // Vault profit 
+        console.log('vaultshare',Vault(vars.vault_ad).UNDERLYING().balanceOf(vars.vault_ad) , vars.cbalbefore ); 
         assertApproxEqAbs(vaultshare, Vault(vars.vault_ad).UNDERLYING().balanceOf(vars.vault_ad) - vars.cbalbefore, 1000); 
 
         // Everyone redeem

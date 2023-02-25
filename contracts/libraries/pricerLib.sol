@@ -97,16 +97,13 @@ library PerpTranchePricer{
 	    require(perp.inceptionPrice > 0, "0 price"); 
 
 	    vars.seniorSupply = juniorSupply.mulWadDown(perp.leverageFactor); 
-
-
-	    vars.totalAssetsHeldScaled = Instrument(instrument).assetOracle(juniorSupply + vars.seniorSupply).mulWadDown(perp.inceptionPrice);
-	    console.log('seniorsupply', vars.seniorSupply); 
+	    vars.totalAssetsHeldScaled = Instrument(instrument).assetOracle(juniorSupply + vars.seniorSupply)
+	    	 .mulWadDown(perp.inceptionPrice); 
 	    if (vars.seniorSupply == 0) return (_self.psu, _self.psu, levFactor); 	    	
 
 		if(_self.constantRF){
 			psu = perp.inceptionPrice.mulWadDown((BASE_UNIT+ perp.promisedReturn)
     		 .rpow(block.timestamp - perp.inceptionTime, BASE_UNIT));
-			console.log('psuhere', psu, perp.promisedReturn, block.timestamp); 
 		} else {
 			psu = _self.psu; 
 		}
@@ -116,14 +113,22 @@ library PerpTranchePricer{
 	    	psu = vars.totalAssetsHeldScaled.divWadDown(vars.seniorSupply); 
 	    	vars.belowThreshold = true; 
 	    }
-	    console.log('psuhere', psu, block.timestamp); 
 	    // should be 0 otherwise 
-	    if(!vars.belowThreshold) pju = (vars.totalAssetsHeldScaled 
-	      - psu.mulWadDown(vars.seniorSupply)).divWadDown(juniorSupply); 
+	    if(!vars.belowThreshold) pju = 
+	    	(vars.totalAssetsHeldScaled 
+	      	- psu.mulWadDown(vars.seniorSupply)).divWadDown(juniorSupply); 
+	      	 
 
 	}
 
-  
+    
+    function roundDown(uint256 rate) public view returns (uint256) {
+        return ((rate / Constants.PRICING_ROUND) * Constants.PRICING_ROUND);
+    }
+
+    function roundUp(uint256 rate) public view returns (uint256) {
+        return (((rate + Constants.PRICING_ROUND - 1) / Constants.PRICING_ROUND) * Constants.PRICING_ROUND);
+    }
 
 	struct localVars{
 

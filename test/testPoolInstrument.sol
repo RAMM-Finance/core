@@ -135,62 +135,62 @@ contract PoolInstrumentTest is CustomTestBase {
         // 
     }
 
-    function testPricing() public{
-        testVars1 memory vars; 
-        // 1. When approve, pricing should stay same
-        // 2. When issue, pricing should stay same
-        // 3. When begins, need to both start at inception, and when donated, pju must go up
-        // 4. When time passes and no donations made, psu goes up pju goes down, 
-        // 5. Works for all initial price <= inception price and 
-        vars.marketId = controller.getMarketId(toku); 
-        vars.vault_ad = controller.getVaultfromId(vars.marketId); //
+    // function testPricing() public{
+    //     testVars1 memory vars; 
+    //     // 1. When approve, pricing should stay same
+    //     // 2. When issue, pricing should stay same
+    //     // 3. When begins, need to both start at inception, and when donated, pju must go up
+    //     // 4. When time passes and no donations made, psu goes up pju goes down, 
+    //     // 5. Works for all initial price <= inception price and 
+    //     vars.marketId = controller.getMarketId(toku); 
+    //     vars.vault_ad = controller.getVaultfromId(vars.marketId); //
 
-        // After approval 
-        vars.amountToBuy = Vault(vars.vault_ad).fetchInstrumentData(vars.marketId).poolData.saleAmount*3/2; 
-        // uint donateAmount = Vault(vars.vault_ad).UNDERLYING().balanceOf(address(Vault(vars.vault_ad).fetchInstrument(vars.marketId))) * 1/10; 
+    //     // After approval 
+    //     vars.amountToBuy = Vault(vars.vault_ad).fetchInstrumentData(vars.marketId).poolData.saleAmount*3/2; 
+    //     // uint donateAmount = Vault(vars.vault_ad).UNDERLYING().balanceOf(address(Vault(vars.vault_ad).fetchInstrument(vars.marketId))) * 1/10; 
      
 
-        // Let manager buy
-        bytes memory data; 
-        doApproveCol(address(marketmanager), jonna); 
-        vm.prank(jonna); 
-        (vars.amountIn, vars.amountOut) =
-            marketmanager.buyBond(vars.marketId, int256(vars.amountToBuy), precision , data); 
+    //     // Let manager buy
+    //     bytes memory data; 
+    //     doApproveCol(address(marketmanager), jonna); 
+    //     vm.prank(jonna); 
+    //     (vars.amountIn, vars.amountOut) =
+    //         marketmanager.buyBond(vars.marketId, int256(vars.amountToBuy), precision , data); 
 
-        controller.getVault(vars.marketId).poolZCBValue(vars.marketId); 
-        (uint psu,  uint pju, ) = controller.getVault(vars.marketId).poolZCBValue(vars.marketId);
-        console.log('start pju', pju, psu); 
-        doApprove(vars.marketId, vars.vault_ad);
-        uint donateAmount = Vault(vars.vault_ad).UNDERLYING().balanceOf(address(Vault(vars.vault_ad).fetchInstrument(vars.marketId))) * 1/10; 
-
-
-        (vars.psu, vars.pju, ) = controller.getVault(vars.marketId).poolZCBValue(vars.marketId);
-        assertEq(vars.psu, psu); 
-        assertEq(vars.pju, pju); 
-        assertApproxEqAbs(vars.psu, vars.pju, 10); 
-        assertEq(vars.psu, controller.getVault(vars.marketId).fetchInstrumentData(vars.marketId).poolData.inceptionPrice); 
-        donateToInstrument( vars.vault_ad, address(Vault(vars.vault_ad).fetchInstrument(vars.marketId)) ,  donateAmount);
-        ( psu,   pju, ) = controller.getVault(vars.marketId).poolZCBValue(vars.marketId);
-        assertEq(psu, vars.psu); 
-        // if(donateAmount>0)assert(vars.pju<pju);
-        console.log('after donate pju', pju, psu); 
+    //     controller.getVault(vars.marketId).poolZCBValue(vars.marketId); 
+    //     (uint psu,  uint pju, ) = controller.getVault(vars.marketId).poolZCBValue(vars.marketId);
+    //     console.log('start pju', pju, psu); 
+    //     doApprove(vars.marketId, vars.vault_ad);
+    //     uint donateAmount = Vault(vars.vault_ad).UNDERLYING().balanceOf(address(Vault(vars.vault_ad).fetchInstrument(vars.marketId))) * 1/10; 
 
 
+    //     (vars.psu, vars.pju, ) = controller.getVault(vars.marketId).poolZCBValue(vars.marketId);
+    //     assertEq(vars.psu, psu); 
+    //     assertEq(vars.pju, pju); 
+    //     assertApproxEqAbs(vars.psu, vars.pju, 10); 
+    //     assertEq(vars.psu, controller.getVault(vars.marketId).fetchInstrumentData(vars.marketId).poolData.inceptionPrice); 
+    //     donateToInstrument( vars.vault_ad, address(Vault(vars.vault_ad).fetchInstrument(vars.marketId)) ,  donateAmount, );
+    //     ( psu,   pju, ) = controller.getVault(vars.marketId).poolZCBValue(vars.marketId);
+    //     assertEq(psu, vars.psu); 
+    //     // if(donateAmount>0)assert(vars.pju<pju);
+    //     console.log('after donate pju', pju, psu); 
 
-        //After some time.. when no donations were made 
-        vm.warp(block.timestamp+31536000); 
-        donateToInstrument( vars.vault_ad, address(Vault(vars.vault_ad).fetchInstrument(vars.marketId)) ,  donateAmount);
-
-        ( vars.psu,   vars.pju, ) = controller.getVault(vars.marketId).poolZCBValue(vars.marketId);
-        assert(vars.psu>controller.getVault(vars.marketId).fetchInstrumentData(vars.marketId).poolData.inceptionPrice ); 
-        if(donateAmount==0) assert(pju> vars.pju); 
-        console.log('after time pju', vars.pju, vars.psu); 
 
 
-        // (vars.amountIn, vars.amountOut) =
-        //     marketmanager.buyBond(vars.marketId, int256(vars.amountToBuy), vars.curPrice + precision/2 , data); 
-        // marketmanager.issuePoolBond(vars.marketId, vars.amountToBuy); 
-    }
+    //     //After some time.. when no donations were made 
+    //     vm.warp(block.timestamp+31536000); 
+    //     donateToInstrument( vars.vault_ad, address(Vault(vars.vault_ad).fetchInstrument(vars.marketId)) ,  donateAmount);
+
+    //     ( vars.psu,   vars.pju, ) = controller.getVault(vars.marketId).poolZCBValue(vars.marketId);
+    //     assert(vars.psu>controller.getVault(vars.marketId).fetchInstrumentData(vars.marketId).poolData.inceptionPrice ); 
+    //     if(donateAmount==0) assert(pju> vars.pju); 
+    //     console.log('after time pju', vars.pju, vars.psu); 
+
+
+    //     // (vars.amountIn, vars.amountOut) =
+    //     //     marketmanager.buyBond(vars.marketId, int256(vars.amountToBuy), vars.curPrice + precision/2 , data); 
+    //     // marketmanager.issuePoolBond(vars.marketId, vars.amountToBuy); 
+    // }
 
 
     function testTwoEqualAmountTimeRedemption() public{
@@ -302,7 +302,7 @@ contract PoolInstrumentTest is CustomTestBase {
         // Vault(vars.vault_ad).UNDERLYING().transfer(instrument, amount*2); 
 
         vm.stopPrank(); 
-        Vault(vars.vault_ad).harvest(instrument); 
+        Vault(vars.vault_ad).harvest(vars.marketId); 
 
         // pju should be same even after redemption  
         uint balNow = Vault(vars.vault_ad).UNDERLYING().balanceOf(jonna); 

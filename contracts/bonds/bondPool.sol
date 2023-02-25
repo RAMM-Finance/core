@@ -109,7 +109,7 @@ contract SyntheticZCBPool{
         // (discount_cap, b) = LinearCurve.amountOutGivenIn(P.mulWadDown(sigma), 0, a_initial, b_initial, true);
         // (, upperBound )= LinearCurve.amountOutGivenIn(P.mulWadDown(alpha+delta), 0, a_initial, b_initial,true); 
     }
-// 10000000000000000000, 649999999496683521, 649999999999999985, 50000000000000000
+
     /// @notice calculates initparams for pool based instruments 
     /// param endPrice is the inception Price of longZCB, or its price when there is no discount
     /// endPrice -> inceptionPrice.
@@ -120,30 +120,27 @@ contract SyntheticZCBPool{
         uint256 initPrice, 
         uint256 endPrice, 
         uint256 sigma
-        ) external returns(uint256 managementFee){
+        ) external returns(uint256){
         require(msg.sender == controller, "unauthorized"); 
-        //TODO these fails at some inputs
-        uint256 saleAmountQty = (2*saleAmount).divWadDown(initPrice +endPrice); 
-        uint256 a = a_initial = (endPrice - initPrice).divWadDown(saleAmountQty); 
-        console.log('where', a); 
-        //Set discount cap as delta from saleAmount * sigma as base, discount cap is in trade token.
+
+        uint256 a = a_initial = ((endPrice-initPrice).mulWadDown(endPrice+initPrice)).divWadDown(2*saleAmount) ; 
+        (saleAmountQty,  ) = saleAmount.amountOutGivenIn( SwapParams(0, a, initPrice,true, 0)); 
+
+        //Set discount cap as saleAmount * sigma 
         (discount_cap, ) = saleAmount.mulWadDown(sigma).amountOutGivenIn(SwapParams(0, a, initPrice,true, 0)); 
         // (discount_cap, ) = LinearCurve.amountOutGivenIn(saleAmount.mulWadDown(sigma),0, a, initPrice,true ); 
-        curPrice = b = initPrice;
-        console.log('where', b); 
+        curPrice = b = initPrice; 
 
-        console.log('where',  discount_cap.mulWadDown(endPrice) + saleAmountQty.mulWadDown(endPrice) ,
-            saleAmount.mulWadDown(sigma)  +saleAmount ); 
-
-        // managementFee = How much total discounts are validators and managers getting
-        uint256 x = discount_cap.mulWadDown(endPrice) + saleAmountQty.mulWadDown(endPrice);
-        uint256 y = saleAmount.mulWadDown(sigma)  +saleAmount ;
-
+        // How much total discounts are validators and managers getting
+        uint256 x = discount_cap.mulWadDown(endPrice) + saleAmountQty.mulWadDown(endPrice) ; 
+        uint256 y = saleAmount.mulWadDown(sigma)  +saleAmount ; 
         // For rounding errors cases
         managementFee = x>=y? x-y : 0; 
-
+        console.log('managementFee', managementFee);
 
         pieceWisePrice = endPrice; 
+
+        return managementFee; 
 
     }
 
@@ -177,7 +174,6 @@ contract SyntheticZCBPool{
         require(msg.sender == entry, "entryERR"); 
         if (long) tradeToken.burn(trader, amount); 
         else s_tradeToken.burn(trader, amount);
-        console.log('??balacnce', long, s_tradeToken.balanceOf(trader)); 
     }
 
     function flush(address flushTo, uint256 amount) external {
@@ -206,7 +202,9 @@ contract SyntheticZCBPool{
     uint256 public discount_cap_collateral; // max base from validators
     uint256 public discountedReserves; 
     uint256 public upperBound; 
-    ERC20 public baseToken; 
+    uint256 public saleAmountQty; 
+    uint256 public managementFee; 
+    ERC20 public  baseToken; 
     oERC20 public  tradeToken; 
     oERC20 public  s_tradeToken; 
 
@@ -219,7 +217,8 @@ contract SyntheticZCBPool{
 
 
 
-
+       // saleAmountQty = (2*saleAmount).divWadDown(initPrice +endPrice); 
+        // uint256 a =a_initial= (endPrice - initPrice).divWadDown(saleAmountQty); 
 
 
 

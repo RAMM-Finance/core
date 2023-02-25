@@ -79,6 +79,7 @@ abstract contract Instrument {
     /// @return An error code, or 0 if the withdrawal was successful.
     function redeemUnderlying(uint256 amount) external onlyVault returns (bool){
         //TODO if this is pool redeemig to vault, need to redeem pool shares 
+        console.log('wtf', underlying.balanceOf(address(this)), amount); 
         return underlying.transfer(address(vault), amount); 
     }
 

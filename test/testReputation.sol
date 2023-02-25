@@ -267,7 +267,7 @@ contract ReputationSystemTests is CustomTestBase {
         testVars1 memory vars = testRecordPullFixed();
 
         uint donateamount = Vault(vars.vault_ad).fetchInstrumentData(vars.marketId).expectedYield; 
-        donateToInstrument(vars.vault_ad, address(Vault(vars.vault_ad).fetchInstrument(vars.marketId)), longCollateral); 
+        donateToInstrument(vars.vault_ad, address(Vault(vars.vault_ad).fetchInstrument(vars.marketId)), longCollateral, vars.marketId); 
         doApprove(vars.marketId, vars.vault_ad);
 
    // redeem portion
