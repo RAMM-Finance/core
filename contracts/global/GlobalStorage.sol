@@ -30,7 +30,8 @@ contract StorageHandler{
   	}
 
 
-	/// @notice called at market creation 
+	/// @notice called at market creation by controller
+	/// @notice multipler -> utilization rate multiplier
 	function setNewInstrument(
 		uint256 marketId, 
 		uint256 initialPrice, 
@@ -38,6 +39,8 @@ contract StorageHandler{
 		bool constantRF, 
 		InstrumentData memory idata, 
 		CoreMarketData memory mdata) external onlyProtocol {
+
+		// psu set as inception price
 		PricingInfos[marketId].setNewPrices(initialPrice, multiplier, marketId, constantRF); 
 
 		storeNewProposal(marketId, idata); 
@@ -64,6 +67,9 @@ contract StorageHandler{
 		PricingInfos[marketId].storeNewPSU(uRate); 
 	}
 
+	/**
+		wrapper for PricingInfo.viewCurrentPricing
+	 */
 	function viewCurrentPricing(uint256 marketId) public view returns(uint256, uint256, uint256) {
 		InstrumentData memory data = InstrumentDatas[marketId]; 
 		return (PricingInfos[marketId].viewCurrentPricing(

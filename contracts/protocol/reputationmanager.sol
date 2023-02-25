@@ -58,7 +58,7 @@ contract ReputationManager {
         address trader, 
         uint256 marketId, 
         uint256 bondAmount, 
-        uint256 collateral_amount, 
+        uint256 collateral_amount,
         uint256 budget,
         bool perpetual
         ) external onlyProtocol{

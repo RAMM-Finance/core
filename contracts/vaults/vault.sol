@@ -213,8 +213,11 @@ contract Vault is ERC4626{
     { 
       // Send to withdrawer 
       Instrument instrument = fetchInstrument( marketId); 
-      require(instrument.isLiquid(underlyingAmount + instrumentPullAmount), "!liq");
+      
+      // useless statement
+      require(instrument.isLiquid(underlyingAmount + instrumentPullAmount), "!liq"); 
 
+      // can withdraw directly to pushTo
       ERC4626(address(instrument)).withdraw(underlyingAmount + instrumentPullAmount, address(this), address(this)); 
       UNDERLYING.transfer(pushTo, instrumentPullAmount); 
 
