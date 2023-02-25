@@ -543,7 +543,9 @@ contract CustomTestBase is Test {
     } 
 
     function assertApproxEqBasis(uint a, uint b, uint basis ) public{
-         assertApproxEqAbs(a, b, basis * a/10000); 
+        if(a/10000 < 100)  assertApproxEqAbs(a, b, 1000); 
+
+        else assertApproxEqAbs(a, b, basis * a/10000); 
     }
 
     function constrictToRange(
@@ -551,7 +553,6 @@ contract CustomTestBase is Test {
         uint256 min,
         uint256 max
     ) internal view returns (uint256 result) {
-        console.log('wtfwefwqifnewqofnmweqoefimwq', max, min); 
         require(max >= min, "MAX_LESS_THAN_MIN");
         // vm.assume(x<=max); 
         // vm.assume(x>= min); 

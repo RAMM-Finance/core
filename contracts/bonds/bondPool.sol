@@ -130,10 +130,14 @@ contract SyntheticZCBPool{
         curPrice = b = initPrice; 
 
         // How much total discounts are validators and managers getting
-        uint256 x = discount_cap.mulWadDown(endPrice) + saleAmountQty.mulWadDown(endPrice) ; 
-        uint256 y = saleAmount.mulWadDown(sigma)  +saleAmount ; 
-        // For rounding errors cases
-        managementFee = x>=y? x-y : 0; 
+        // uint256 x = discount_cap.mulWadDown(endPrice) + saleAmountQty.mulWadDown(endPrice) ; 
+        // uint256 y = saleAmount.mulWadDown(sigma)  +saleAmount ; 
+        // // For rounding errors cases
+        // managementFee = x>=y? x-y : 0;
+        managementFee = saleAmountQty.mulWadDown(endPrice) >= saleAmount
+            ?saleAmountQty.mulWadDown(endPrice) - saleAmount
+            :0; 
+
         console.log('managementFee', managementFee);
 
         pieceWisePrice = endPrice; 

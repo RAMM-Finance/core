@@ -637,25 +637,37 @@ contract MarketManager {
 
         vars.totalSupply = market.longZCB.totalSupply(); 
         vars.saleAmountQty = market.bondPool.saleAmountQty(); 
-
+        console.log('pju redeemperp', vars.pju);
+ 
         // Need to discount the pjus for amounts below sale amount quantities
         if( vars.totalSupply - redeemAmount <= vars.saleAmountQty){
             uint256 belowQuantity = vars.saleAmountQty - (vars.totalSupply  - redeemAmount); 
 
             // socialize the discounts 
             console.log('socialize', vars.pju, market.bondPool.managementFee(), vars.saleAmountQty);
-            uint256 pjuDiscounted = vars.pju - market.bondPool.managementFee().divWadDown(vars.saleAmountQty); 
+            uint256 managementFeeProRata = market.bondPool.managementFee().divWadDown(vars.saleAmountQty); 
+            uint256 pjuDiscounted = vars.pju >= managementFeeProRata
+                                         ? vars.pju - managementFeeProRata
+                                         : 0;  
 
             // Discount colalteral redeem amount 
             collateral_redeem_amount = vars.totalSupply >= vars.saleAmountQty  
                 ? pjuDiscounted.mulWadDown(belowQuantity)
                     + vars.pju.mulWadDown(vars.totalSupply - vars.saleAmountQty)
                 : pjuDiscounted.mulWadDown(belowQuantity); 
+
         } else{
             collateral_redeem_amount = vars.pju.mulWadDown(redeemAmount);
         }
 
         seniorAmount = redeemAmount.mulWadDown(vars.levFactor).mulWadDown(vars.psu);
+            console.log('discounted pju', collateral_redeem_amount, vars.pju.mulWadDown(redeemAmount) 
+                ); 
+                    vars.instrument = Data.getInstrumentData(marketId).instrument_address; 
+
+            console.log('total',vars.pju.mulWadDown(redeemAmount) + seniorAmount,
+                collateral_redeem_amount + seniorAmount,
+                vault.UNDERLYING().balanceOf(vars.instrument)); 
 
         // Need to check if redeemAmount*levFactor can be withdrawn from the pool and do so
         vault.withdrawFromPoolInstrument(
@@ -665,6 +677,7 @@ contract MarketManager {
             seniorAmount, 
             redeemAmount.mulWadDown(vars.levFactor)
         );
+
 
         market.bondPool.trustedBurn(caller, redeemAmount, true);
 

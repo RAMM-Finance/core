@@ -282,7 +282,7 @@ contract Vault is ERC4626{
           UNDERLYING.balanceOf(address(instrument)), 
           address(this), address(this)); 
       }
-
+      console.log('what the fucj', instrumentPullAmount, pushTo); 
       UNDERLYING.transfer(pushTo, instrumentPullAmount); 
 
  
