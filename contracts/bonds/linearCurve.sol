@@ -8,7 +8,6 @@ struct SwapParams{
   uint256 a; 
   uint256 b; 
   bool up;
-
   uint256 pieceWisePrice;   
 }
 
@@ -45,6 +44,9 @@ library LinearPiecewiseCurve{
         resultPrice = vars.a.mulWadDown(amountDelta + vars.s) + vars.b; 
     }
 
+    /**
+    @notice calculates collateral out given you reduce the supply by amount.
+     */
     function outGivenSupply(
         uint256 amount,
         uint256 s, 
@@ -69,7 +71,7 @@ library LinearPiecewiseCurve{
         if(vars.pieceWisePrice ==0){
             if (vars.up) (amountDelta, resultPrice) = outGivenArea(amount, vars); 
             else (amountDelta, resultPrice) = outGivenSupply(amount, vars.s, vars.a, vars.b); 
-        } else{     
+        } else{
 
             uint256 pieceWisePoint; 
 

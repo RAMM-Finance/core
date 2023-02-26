@@ -13,7 +13,6 @@ import {Vault} from "../vaults/vault.sol";
 import {ReputationManager} from "./reputationmanager.sol";
 import {StorageHandler} from "../global/GlobalStorage.sol";
 import {PerpTranchePricer} from "../libraries/pricerLib.sol";
-
 import "../global/types.sol";
 
 contract MarketManager {
@@ -21,13 +20,6 @@ contract MarketManager {
     using SafeTransferLib for ERC20;
     using PerpTranchePricer for PricingInfo;
 
-    // Chainlink state variables
-    // VRFCoordinatorV2Interface COORDINATOR;
-    // uint64 private immutable subscriptionId;
-    // bytes32 private keyHash;
-    // uint32 private callbackGasLimit = 100000;
-    // uint16 private requestConfirmations = 3;
-    // uint256 total_validator_bought; // should be a mapping no?
     bool private _mutex;
 
     // ReputationNFT repToken;
@@ -36,12 +28,7 @@ contract MarketManager {
     CoreMarketData[] public markets;
     address public owner;
 
-    // mapping(uint256 => uint256) requestToMarketId; // chainlink request id to marketId
-    // mapping(uint256 => ValidatorData) validator_data;
     mapping(uint256 => uint256) public redemption_prices; //redemption price for each market, set when market resolves
-    // mapping(uint256=>mapping(address=>uint256)) private assessment_prices;
-    // mapping(uint256=>mapping(address=>bool)) private assessment_trader;
-    // mapping(uint256=>mapping(address=>uint256) ) public assessment_probs;
     mapping(uint256 => MarketPhaseData) public restriction_data; // market ID => restriction data
     mapping(uint256 => MarketParameters) public parameters; //marketId-> params
     mapping(uint256 => mapping(address => bool)) private redeemed;
@@ -316,8 +303,8 @@ contract MarketManager {
         }
     }
 
-    /// @notice get trade budget = f(reputation), returns in collateral_dec
-    /// sqrt for now
+    /// @notice returns trade budget = f(reputation)
+    /// @dev budget = base_budget * sqrt(reputation), returns in wad space
     function getTraderBudget(uint256 marketId, address trader)
         public
         view
@@ -352,6 +339,7 @@ contract MarketManager {
     }
 
     /// @notice whether new longZCB can be issued
+    /// @dev checks budget and reputation.
     function _canIssue(
         address trader,
         int256 amount,
@@ -534,13 +522,18 @@ contract MarketManager {
         );
     }
 
+    /**
+     @dev only can be called by MM or LM.
+     @param _marketId market id
+     @param _amountIn amount of base token to be used to buy ZCB -> deposited into
+     */
     function issueBond(
         uint256 _marketId,
         uint256 _amountIn,
         address _caller,
         address trader
         ) external returns (uint256 issueQTY) {
-        LocarVars memory vars;
+        LocalVars memory vars;
         require(
             msg.sender == address(this) || msg.sender == leverageManager_ad,
             "invalid entry"
@@ -565,6 +558,8 @@ contract MarketManager {
         (vars.psu, vars.pju, vars.levFactor) = Data.viewCurrentPricing(_marketId);
         vars.underlying.transferFrom(_caller, address(this), _amountIn);
         vars.underlying.approve(vars.instrument, _amountIn);
+
+        // _amountIn deposited in pool
         ERC4626(vars.instrument).deposit(_amountIn, address(vars.vault));
 
         issueQTY = _amountIn.divWadUp(vars.pju); //TODO rounding errs
@@ -576,10 +571,10 @@ contract MarketManager {
 
         // Check if vault has enough liquidity + buffer 
         require(
-          vars.vault.utilizationRateAfter(vars.seniorAmount) 
-          <= Constants.MAX_VAULT_URATE, 
-          "Not enough vault liquidity"
-        ); 
+          vars.vault.utilizationRateAfter(vars.seniorAmount)
+          <= Constants.MAX_VAULT_URATE,
+          "Max Vault Utilization Rate Reached"
+        );
 
         // Need to transfer funds automatically to the instrument, seniorAmount is longZCB * levFactor * psu
         vars.vault.depositIntoInstrument(_marketId,vars.seniorAmount,true, issueQTY.mulWadDown(vars.levFactor));
@@ -609,9 +604,7 @@ contract MarketManager {
   
     }
 
-    /**
-     can only do post assessment.
-     */
+
     function redeemPerpLongZCB(
         uint256 marketId,
         uint256 redeemAmount,
@@ -627,7 +620,7 @@ contract MarketManager {
         );
         Vault vault = controller.getVault(marketId);
         CoreMarketData memory market = markets[marketId];
-        LocarVars memory vars;
+        LocalVars memory vars;
 
         require(market.isPool, "!pool");
 
@@ -706,7 +699,13 @@ contract MarketManager {
         uint256 amountOut
     );
 
-    struct LocarVars {
+
+    /// @param upperBound: bond pool price upper bound
+    /// @param budget: budget of trader in base token
+    /// @param repThreshold: omega * principal -> threshold amount of base token after which the bondPool is no longer gated to high reputation managers.
+    /// @param pju: price of longZCB for perpetuals (pool). denominated as X zcb per 1 base token.
+    /// @param psu: price of senior tranche share.
+    struct LocalVars {
         uint256 upperBound;
         uint256 budget;
         uint256 repThreshold;
@@ -725,6 +724,7 @@ contract MarketManager {
 
     /// @notice main entry point for longZCB buys (during assessment for now), only during assessment
     /// @param _amountIn is negative if specified in zcb quantity
+
     function buyBond(
         uint256 _marketId,
         int256 _amountIn,
@@ -751,14 +751,10 @@ contract MarketManager {
         address caller,
         address trader
     ) external _lock_ returns (uint256 amountIn, uint256 amountOut) {
-        require(
-            msg.sender == address(this) || msg.sender == leverageManager_ad,
-            "invalid entry"
-        );
+        require(msg.sender == address(this) || msg.sender == leverageManager_ad, "invalid entry");
 
-        LocarVars memory vars;
+        LocalVars memory vars;
         vars.phaseData = restriction_data[_marketId];
-
         require(!vars.phaseData.resolved, "not resolved");
         require(vars.phaseData.duringAssessment, "only assessment");
 
@@ -776,7 +772,7 @@ contract MarketManager {
             abi.encode(caller)
         );
 
-        // Revert if cross bound
+        // Revert if price exceeds upper bound
         vars.upperBound = bondPool.upperBound();
         if (vars.upperBound != 0 && vars.upperBound < bondPool.getCurPrice())
             revert("exceed bound");
@@ -785,6 +781,8 @@ contract MarketManager {
         _logTrades(_marketId, trader, amountIn, 0, true, true);
 
         vars.budget = getTraderBudget(_marketId, trader);
+
+        // records trade for reputation update.
         reputationManager.recordPull(
             trader,
             _marketId,
@@ -817,6 +815,7 @@ contract MarketManager {
         uint256 amountIn
     );
 
+    /// @notice buy shortZCB during assessment.
     /// @param _amountIn: amount of short trader is willing to buy
     /// @param _priceLimit: slippage tolerance on trade
     function shortBond(
@@ -839,6 +838,7 @@ contract MarketManager {
             _priceLimit,
             abi.encode(msg.sender)
         );
+
         _logTrades(_marketId, msg.sender, amountIn, amountIn, true, false);
 
         emit BondShort(_marketId, msg.sender, _amountIn, amountIn);
@@ -847,7 +847,6 @@ contract MarketManager {
     event RedeemDenied(uint256 marketId, address trader, bool isLong);
 
     /// @notice called by traders when market is denied before approval TODO
-    /// ??? if the market is denied, this function is called and everything is redeemed
     /// validator will need to call this on denial + isLong = true to redeem their collateral.
     function redeemDeniedMarket(uint256 marketId, bool isLong) external _lock_ {
         require(
@@ -865,7 +864,7 @@ contract MarketManager {
         // Get collateral at stake in shorts, which will be directly given back to traders
         if (!isLong) {
             balance = markets[marketId].shortZCB.balanceOf(msg.sender);
-            require(balance >= 0, "Empty");
+            require(balance >= 0, "!shortBalance");
 
             // TODO this means if trader's loss will be refunded if loss was realized before denied market
             collateral_amount = shortTrades[marketId][msg.sender];
@@ -878,7 +877,7 @@ contract MarketManager {
         // Get collateral at stake in longs, which will be directly given back to traders
         else {
             balance = markets[marketId].longZCB.balanceOf(msg.sender);
-            require(balance >= 0, "Empty");
+            require(balance >= 0, "!longBalance");
 
             // TODO this means if trader's loss will be refunded if loss was realized before denied market
             if (
@@ -913,6 +912,7 @@ contract MarketManager {
 
     /// @notice trader will redeem entire balance of ZCB
     /// Needs to be called at maturity, market needs to be resolved first(from controller)
+    /// @notice redeem function for fixed instrument maturity, what happens if perpetual market is resolved?
     function redeem(uint256 marketId)
         external
         _lock_
@@ -1004,7 +1004,7 @@ contract MarketManager {
             uint256 juniorAmount
         )
     {
-        LocarVars memory vars;
+        LocalVars memory vars;
 
         vars.vault = controller.getVault(marketId);
         CoreMarketData memory market = markets[marketId];
@@ -1014,12 +1014,12 @@ contract MarketManager {
         (vars.psu, vars.pju, vars.levFactor) = Data.viewCurrentPricing(
             marketId
         );
+        
         collateral_redeem_amount = (Data.zcbMaxPrice(marketId) - vars.pju)
             .mulWadDown(redeemAmount);
+        
         juniorAmount = vars.pju.mulWadDown(redeemAmount);
-        seniorAmount = redeemAmount.mulWadDown(vars.levFactor).mulWadDown(
-            vars.psu
-        );
+        seniorAmount = redeemAmount.mulWadDown(vars.levFactor).mulWadDown(vars.psu);
 
         // Deposit BACK to the instrument TODO deposit limit reached?
         vars.vault.depositIntoInstrument(

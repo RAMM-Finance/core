@@ -80,6 +80,8 @@ struct ExchangeRateData{
 	bool initialized;  
 }
 
+
+/// @param constantRF -> true if promised return is fixed, false then it is dynamic, fxn(utilization rate).
 struct PricingInfo{
 	uint256 psu; 
 

@@ -12,6 +12,9 @@ library PerpTranchePricer{
     uint256 constant BASE_UNIT = 1e18; 
 	uint256 constant BASE_MULTIPLIER = 5284965330; //10% at 60% util rate 
 
+	/**
+	 @notice setter for PricingInfo
+	 */
 	function setNewPrices(
 		PricingInfo storage _self, 
 		uint256 psu,
@@ -79,12 +82,13 @@ library PerpTranchePricer{
 		return viewCurrentPricing(_self, instrument, perp,juniorSupply ); 
 	}
 
+	/// @notice pricing function for perps
 	function viewCurrentPricing(
 		PricingInfo memory _self,
 		address instrument, 
 		PoolData memory perp, 
 		uint256 juniorSupply
-		) public view returns(uint256 psu, uint256 pju , uint256 levFactor ){
+		) public view returns (uint256 psu, uint256 pju , uint256 levFactor ){
 	    //TODO should not tick during assessment 
 	    localVars memory vars; 
 

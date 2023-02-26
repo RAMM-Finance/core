@@ -24,29 +24,28 @@ contract SyntheticZCBPool{
     }
 
     /// @notice Long up the curve, or short down the curve 
-    /// @param amountIn is base if long, trade if short
+    /// @param amountIn if isLong, amountIn > 0 means it is in base, amountIn < 0 means it is in trade
     /// @param priceLimit is slippage tolerance
     function takerOpen(
         bool isLong, 
         int256 amountIn,
         uint256 priceLimit, 
         bytes calldata data
-        ) external  returns(uint256 poolamountIn, uint256 poolamountOut )
+        ) external  returns(uint256 poolamountIn, uint256 poolamountOut)
     {
         uint256 bal = baseBal(); 
-        bool exactInput = amountIn>=0; 
+        bool exactInput = amountIn>=0;
         if(isLong){
             // amountIn is base, out is trade
-            poolamountIn = exactInput? uint256(amountIn) : uint256(-amountIn);
+            poolamountIn = exactInput ? uint256(amountIn) : uint256(-amountIn);
 
             (poolamountOut, curPrice) = !exactInput
             	? (poolamountIn.areaUnderCurve(netSupply, a_initial, b), 
             		(netSupply + poolamountIn).mulWadDown(a_initial) + b)
-            	: poolamountIn.amountOutGivenIn(
-                SwapParams(netSupply, a_initial, b, true, pieceWisePrice )); 
+            	: poolamountIn.amountOutGivenIn( SwapParams(netSupply, a_initial, b, true, pieceWisePrice )); 
 
             if(exactInput) netSupply += poolamountOut; 
-            else netSupply += poolamountIn; 
+            else netSupply += poolamountIn;
 
             if(exactInput){ 
             	iTradeCallBack(msg.sender).tradeCallBack(poolamountIn, data); 
@@ -58,7 +57,7 @@ contract SyntheticZCBPool{
             	tradeToken.mint(abi.decode(data, (address)), poolamountIn); 
        			// for return values 
         		uint256 cachedOut = poolamountOut; 
-        		poolamountOut = poolamountIn; 
+        		poolamountOut = poolamountIn;
         		poolamountIn = cachedOut; 
         	}
         } else{
@@ -113,6 +112,9 @@ contract SyntheticZCBPool{
 
     /// @notice calculates initparams for pool based instruments 
     /// param endPrice is the inception Price of longZCB, or its price when there is no discount
+    /// endPrice -> inceptionPrice.
+    /// saleAmount is in underlying.
+    /// initPrice and inceptionPrice are denominated in ZCB (X trade per 1 base)
     function calculateInitCurveParamsPool(
         uint256 saleAmount, 
         uint256 initPrice, 
@@ -200,8 +202,8 @@ contract SyntheticZCBPool{
     uint256 public a_initial;
     uint256 public b_initial; // b without discount cap 
     uint256 public b;
-    uint256 public discount_cap; 
-    uint256 public discount_cap_collateral; 
+    uint256 public discount_cap; // max trade from validators.
+    uint256 public discount_cap_collateral; // max base from validators
     uint256 public discountedReserves; 
     uint256 public upperBound; 
     uint256 public saleAmountQty; 
@@ -214,7 +216,7 @@ contract SyntheticZCBPool{
     address public immutable controller; 
     uint256 public constant precision = 1e18; 
     uint256 public constant maxPrice = 1e18; 
-    uint256 public constant MIN_INIT_PRICE = 5e17; 
+    uint256 public constant MIN_INIT_PRICE = 5e17;
 }
 
 
