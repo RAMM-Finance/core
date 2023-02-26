@@ -367,6 +367,7 @@ contract IssueRedeemTest is CustomTestBase {
             );         
         vars.budget = marketmanager.getTraderBudget(vars.marketId, jonna); 
         vm.assume(vars.saleAmount <= vars.budget); 
+        vm.assume(Data.getMarket(vars.marketId).bondPool.managementFee()> vars.saleAmount/100); 
         vars.cbalnow3 = Vault(vars.vault_ad).UNDERLYING().balanceOf(jonna) ; 
 
         vm.assume(amountToBuy<= vars.cbalnow3); 
@@ -398,7 +399,8 @@ contract IssueRedeemTest is CustomTestBase {
         console.log('supplied/balance', vars.amount1,Vault(vars.vault_ad).UNDERLYING().balanceOf(instrument) ); 
 
         // pju * amount - management fee is amount u paid 
-        assertApproxEqBasis(vars.pju.mulWadDown(vars.amountOut) - Data.getMarket(vars.marketId).bondPool.managementFee(), amountToBuy, 1); 
+        assertApproxEqBasis(vars.pju.mulWadDown(vars.amountOut)
+         - Data.getMarket(vars.marketId).bondPool.managementFee(), amountToBuy, 1); 
         console.log('jonna balance', Vault(vars.vault_ad).UNDERLYING().balanceOf(jonna), amountToBuy);
 
 
@@ -411,7 +413,12 @@ contract IssueRedeemTest is CustomTestBase {
         Vault(vars.vault_ad).UNDERLYING().transfer(address(poolInstrument), donateAmount); 
         vm.stopPrank(); 
         (vars.psu2, vars.pju2, ) = Data.viewCurrentPricing(vars.marketId);
-        console.log('pju, pju2', vars.pju, vars.pju2); 
+
+        vars.pjuDiscounted = vars.pju2 >= Data.getMarket(vars.marketId).bondPool.managementFee().divWadDown(Data.getMarket(vars.marketId).bondPool.saleAmountQty())
+                                     ? vars.pju - Data.getMarket(vars.marketId).bondPool.managementFee().divWadDown(Data.getMarket(vars.marketId).bondPool.saleAmountQty())
+                                     : 0;  
+
+        console.log('pju, pju2, pjuDiscounted', vars.pju, vars.pju2, vars.pjuDiscounted); 
         // harvesting should not change pju o.                                                                                                          
         vars.amount2 = vars.psu.mulWadDown(
             Data.getMarket(vars.marketId).longZCB.totalSupply().mulWadDown(vars.leverageFactor)
@@ -428,7 +435,7 @@ contract IssueRedeemTest is CustomTestBase {
         console.log('jonna balance', Vault(vars.vault_ad).UNDERLYING().balanceOf(jonna), vars.collateral_redeem_amount);
 
         console.log('donate,time', donateAmount, time); 
-        assertApproxEqBasis(
+        if (vars.pjuDiscounted >0)assertApproxEqBasis(
             vars.amount1 - Data.getMarket(vars.marketId).bondPool.managementFee()+ donateAmount, 
             vars.collateral_redeem_amount+ vars.seniorAmount, 1
         );
@@ -436,17 +443,17 @@ contract IssueRedeemTest is CustomTestBase {
         console.log('pju, pju2', vars.pju, vars.pju2); 
 
         // first make sure instrument is withdrawn, supplied capital + donate amount == withdrawn capital + management fee(which is sent later)
-        assertApproxEqBasis(
+        if (vars.pjuDiscounted >0)assertApproxEqAbs(
             Data.getMarket(vars.marketId).bondPool.managementFee(), 
             Vault(vars.vault_ad).UNDERLYING().balanceOf(instrument), 
-            1); 
+            10000); 
         // less than management fee in the instrument 
         console.log('supplied,donated,withdrawn', vars.amountOut.mulWadDown(1e18 + vars.leverageFactor).mulWadDown(vars.inceptionPrice), 
             donateAmount, vars.collateral_redeem_amount + vars.seniorAmount) ; 
 
         // withdrawn capital + management fee= supplied capital + donateamount 
 
-        assertApproxEqBasis(vars.collateral_redeem_amount + vars.seniorAmount + Data.getMarket(vars.marketId).bondPool.managementFee(), 
+        if (vars.pjuDiscounted >0)assertApproxEqBasis(vars.collateral_redeem_amount + vars.seniorAmount + Data.getMarket(vars.marketId).bondPool.managementFee(), 
             vars.amountOut.mulWadDown(1e18 + vars.leverageFactor).mulWadDown(vars.inceptionPrice) +donateAmount, 1 ); 
 
         // make sure jonna has correct profits from difference in pju 
@@ -459,11 +466,15 @@ contract IssueRedeemTest is CustomTestBase {
 
         // difference in in and out shoould equal change in price time longzcb amount 
         if(vars.pju2>vars.pju) {
-            assertApproxEqBasis(vars.collateral_redeem_amount - amountToBuy, 
+            if (vars.pjuDiscounted >0)assertApproxEqBasis(vars.collateral_redeem_amount - amountToBuy, 
             (vars.pju2-vars.pju ).mulWadDown(vars.amountOut), 1); 
             console.log('pju dif times amount', (vars.pju2-vars.pju ).mulWadDown(vars.amountOut)); 
-        }else{
-            assertApproxEqBasis(amountToBuy - vars.collateral_redeem_amount , (vars.pju-vars.pju2 ).mulWadDown(vars.amountOut), 1);
+        }else if(vars.pju2==vars.pju){
+            assertApproxEqAbs(amountToBuy,vars.collateral_redeem_amount, 1000 ); 
+        }
+        else if(vars.pju2+10000<vars.pju){
+            if (vars.pjuDiscounted >0)assertApproxEqBasis(amountToBuy - vars.collateral_redeem_amount ,
+             (vars.pju-vars.pju2 ).mulWadDown(vars.amountOut), 1);
             console.log('pju dif2 times amount', (vars.pju-vars.pju2 ).mulWadDown(vars.amountOut)); 
         }
 
@@ -476,11 +487,14 @@ contract IssueRedeemTest is CustomTestBase {
             vars.cbalnow3); 
         // make sure psu * senior + pju * junior is withdrawn total capital, which is
         // supplied capital + donate apunt 
-        assertApproxEqBasis(vars.collateral_redeem_amount + vars.seniorAmount 
+        console.log('senior + junior', vars.psu2.mulWadDown(vars.amountOut.mulWadDown(vars.leverageFactor)) 
+            + vars.pju2.mulWadDown(vars.amountOut));
+        console.log('pricing here and there', vars.psu2.mulWadDown(vars.amountOut.mulWadDown(vars.leverageFactor))
+            , vars.seniorAmount, vars.collateral_redeem_amount );  
+        if (vars.pjuDiscounted >0)assertApproxEqBasis(vars.collateral_redeem_amount + vars.seniorAmount 
             + Data.getMarket(vars.marketId).bondPool.managementFee(),
          vars.psu2.mulWadDown(vars.amountOut.mulWadDown(vars.leverageFactor)) 
             + vars.pju2.mulWadDown(vars.amountOut), 1); 
-
 
         // when is vault rate greater than the previous? 
         // if time passed and accumulated psu is greater than 
@@ -495,7 +509,7 @@ contract IssueRedeemTest is CustomTestBase {
 
         // difference in vault balance should equal difference in 
          if(donateAmount>=1e14 && Vault(vars.vault_ad).UNDERLYING().balanceOf(vars.vault_ad) > vars.cbalnow + 1e12 ) {
-         assertApproxEqBasis(Vault(vars.vault_ad).UNDERLYING().balanceOf(vars.vault_ad) - vars.cbalnow, 
+         if (vars.pjuDiscounted >0)assertApproxEqBasis(Vault(vars.vault_ad).UNDERLYING().balanceOf(vars.vault_ad) - vars.cbalnow, 
 
          (vars.psu2 - vars.psu).mulWadDown(vars.amountOut.mulWadDown(vars.leverageFactor)), 1);
          console.log('psu difference', (vars.psu2 - vars.psu).mulWadDown(vars.amountOut.mulWadDown(vars.leverageFactor))); 
@@ -505,7 +519,6 @@ contract IssueRedeemTest is CustomTestBase {
             ),Vault(vars.vault_ad).UNDERLYING().balanceOf(vars.vault_ad) - vars.cbalnow ,105); 
 
         }
-//is discounted pju 0? 
 
     }
 

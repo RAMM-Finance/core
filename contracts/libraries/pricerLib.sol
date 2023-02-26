@@ -110,17 +110,21 @@ library PerpTranchePricer{
 	    	vars.belowThreshold = true; 
 	    }
 	    // should be 0 otherwise 
-	    console.log('wtf',vars.totalAssetsHeldScaled, psu.mulWadDown(vars.seniorSupply) ); 
+	    console.log('wtf',vars.totalAssetsHeldScaled, psu.mulWadDown(vars.seniorSupply), 
+	    juniorSupply ); 
 	    if(!vars.belowThreshold) pju = 
 	    	(vars.totalAssetsHeldScaled 
 	      	- psu.mulWadDown(vars.seniorSupply)).divWadDown(juniorSupply); 
-	    console.log('alternative pju', 
-	    	(
-	    		(levFactor + BASE_UNIT).mulWadDown(Instrument(instrument).assetOracle(BASE_UNIT).mulWadDown(perp.inceptionPrice)
-	    			) 
-	    	- levFactor.mulWadDown(psu)
-	    	), pju
-	    	); 
+
+	     // console.log('alternative', (levFactor + BASE_UNIT).mulWadDown(Instrument(instrument).assetOracle(BASE_UNIT).mulWadDown(perp.inceptionPrice), 
+	     // 	levFactor.mulWadDown(psu));
+	    // console.log('alternative pju', 
+	    // 	(
+	    // 		(levFactor + BASE_UNIT).mulWadDown(Instrument(instrument).assetOracle(BASE_UNIT).mulWadDown(perp.inceptionPrice)
+	    // 			) 
+	    // 	- levFactor.mulWadDown(psu)
+	    // 	), pju
+	    // 	); 
 
 	}
 

@@ -620,6 +620,7 @@ contract CustomTestBase is Test {
 
         uint collateral_redeem_amount; 
         uint seniorAmount; 
+        uint pjuDiscounted; 
     }
 
 

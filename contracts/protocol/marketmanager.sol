@@ -570,9 +570,7 @@ contract MarketManager {
         issueQTY = _amountIn.divWadUp(vars.pju); //TODO rounding errs
         markets[_marketId].bondPool.trustedDiscountedMint(_caller, issueQTY);
         vars.seniorAmount = issueQTY.mulWadDown(vars.levFactor).mulWadDown(vars.psu); 
-        // console.log('pju issue', vars.pju);  
-        // console.log('how same?', vars.pju.mulWadDown(issueQTY), _amountIn, issueQTY.mulWadUp(vars.pju) ); 
-        // console.log('collateral issue amount and senior amount', _amountIn, vars.seniorAmount); 
+
         // Check if pju/psu is high enough, x/small pju will blow up senior amount 
         require(vars.pju.divWadDown(vars.psu) >= Constants.THRESHOLD_PJU, "Low Junior Price"); 
 
@@ -637,15 +635,15 @@ contract MarketManager {
 
         vars.totalSupply = market.longZCB.totalSupply(); 
         vars.saleAmountQty = market.bondPool.saleAmountQty(); 
-        console.log('pju redeemperp', vars.pju);
  
         // Need to discount the pjus for amounts below sale amount quantities
         if( vars.totalSupply - redeemAmount <= vars.saleAmountQty){
             uint256 belowQuantity = vars.saleAmountQty - (vars.totalSupply  - redeemAmount); 
 
             // socialize the discounts 
-            console.log('socialize', vars.pju, market.bondPool.managementFee(), vars.saleAmountQty);
             uint256 managementFeeProRata = market.bondPool.managementFee().divWadDown(vars.saleAmountQty); 
+
+            // If this is 0 and supposed to be negative, seniors are taking the managment fee
             uint256 pjuDiscounted = vars.pju >= managementFeeProRata
                                          ? vars.pju - managementFeeProRata
                                          : 0;  
@@ -661,13 +659,6 @@ contract MarketManager {
         }
 
         seniorAmount = redeemAmount.mulWadDown(vars.levFactor).mulWadDown(vars.psu);
-            console.log('discounted pju', collateral_redeem_amount, vars.pju.mulWadDown(redeemAmount) 
-                ); 
-                    vars.instrument = Data.getInstrumentData(marketId).instrument_address; 
-
-            console.log('total',vars.pju.mulWadDown(redeemAmount) + seniorAmount,
-                collateral_redeem_amount + seniorAmount,
-                vault.UNDERLYING().balanceOf(vars.instrument)); 
 
         // Need to check if redeemAmount*levFactor can be withdrawn from the pool and do so
         vault.withdrawFromPoolInstrument(
@@ -677,7 +668,6 @@ contract MarketManager {
             seniorAmount, 
             redeemAmount.mulWadDown(vars.levFactor)
         );
-
 
         market.bondPool.trustedBurn(caller, redeemAmount, true);
 
@@ -785,7 +775,6 @@ contract MarketManager {
             _priceLimit,
             abi.encode(caller)
         );
-        console.log('howmuchdidIbuy', amountOut); 
 
         // Revert if cross bound
         vars.upperBound = bondPool.upperBound();
