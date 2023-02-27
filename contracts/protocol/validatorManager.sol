@@ -200,12 +200,12 @@ contract ValidatorManager {
         validator_data[marketId].staked[validator] = false;
     }
 
-     function updateValidatorStake(
+    function updateValidatorStake(
         uint256 marketId,
         uint256 principal,
-        uint256 principal_loss
+        uint256 total_loss
     ) public onlyController {
-        if (principal_loss == 0) {
+        if (total_loss == 0) {
             validator_data[marketId].finalStake = validator_data[marketId]
                 .initialStake;
             return;
@@ -214,14 +214,26 @@ contract ValidatorManager {
         uint256 vaultId = controller.id_parent(marketId);
         Vault vault = controller.vaults(vaultId);
         uint256 p_shares = vault.convertToShares(principal);
-        uint256 p_loss_shares = vault.convertToShares(principal_loss);
+        uint256 p_loss_shares = vault.convertToShares(total_loss);
 
         uint256 totalStaked = validator_data[marketId].totalStaked;
-        uint256 newTotal = totalStaked /
-            2 +
-            (p_shares - p_loss_shares).divWadDown(p_shares).mulWadDown(
-                totalStaked / 2
-            );
+
+
+        /**
+         final stake = if total loss > principal loss -> 0. if total loss < principal loss -> initialStake * (principal_loss - total_loss) / principal_loss.
+         */
+        uint256 newTotal = total_loss >= principal ? 0 : (p_shares - p_loss_shares).divWadDown(p_shares).mulWadDown(totalStaked);
+        // totalStaked /
+        //     2 +
+        //     (p_shares - p_loss_shares).divWadDown(p_shares).mulWadDown(
+        //         totalStaked / 2
+        //     );
+
+        if (newTotal == 0) {
+            validator_data[marketId].finalStake = 0;
+            validator_data[marketId].totalStaked = 0;
+            return;
+        }
 
         ERC4626(controller.getVaultAd(marketId)).burn(totalStaked - newTotal);
         validator_data[marketId].totalStaked = newTotal;

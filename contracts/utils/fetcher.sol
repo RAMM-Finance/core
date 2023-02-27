@@ -9,7 +9,6 @@ import {ERC721} from "solmate/tokens/ERC721.sol";
 import {FixedPointMathLib} from "solmate/utils/FixedPointMathLib.sol";
 import {LinearCurve} from "../bonds/GBC.sol"; 
 import {PoolInstrument} from "../instruments/poolInstrument.sol";
-// import {PoolInstrument } from "../instruments/oldpoolInstrument.sol";
 
 import "forge-std/console.sol";
 import {CoveredCallOTC} from "../vaults/dov.sol";

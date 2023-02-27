@@ -55,8 +55,8 @@ contract PoolInstrumentTest is CustomTestBase {
     function setUp() public {
         linearRateData = abi.encode(_minInterest,_vertexInterest, _maxInterest, _vertexUtilization);
         setCollaterals();
-        controller = new Controller(deployer, address(0)); // zero addr for interep
-        vaultFactory = new VaultFactory(address(controller));
+        // controller = new Controller(deployer); // zero addr for interep
+        // vaultFactory = new VaultFactory(address(controller));
         bytes32  data;
 
         variableRateCalculator = (new VariableInterestRate());
@@ -100,15 +100,16 @@ contract PoolInstrumentTest is CustomTestBase {
             buf // 125%
             )
         );
-        marketmanager = new MarketManager(
-            deployer,
-            address(controller), 
-            address(0),data, uint64(0)
-        );
-        ZCBFactory zcbfactory = new ZCBFactory(); 
-        poolFactory = new SyntheticZCBPoolFactory(address(controller), address(zcbfactory)); 
-        reputationManager = new ReputationManager(address(controller), address(marketmanager));
+        // marketmanager = new MarketManager(
+        //     deployer,
+        //     address(controller), 
+        //     address(0),data, uint64(0)
+        // );
+        // ZCBFactory zcbfactory = new ZCBFactory(); 
+        // poolFactory = new SyntheticZCBPoolFactory(address(controller), address(zcbfactory)); 
+        // reputationManager = new ReputationManager(address(controller), address(marketmanager));
 
+        deploySetUps();
         controllerSetup(); 
 
         controller.createVault(
@@ -122,7 +123,6 @@ contract PoolInstrumentTest is CustomTestBase {
         ); //vaultId = 1; 
         vault_ad = controller.getVaultfromId(1); 
         setUsers();
-        controllerSetup();
     }
 
     function testAuction1() public {

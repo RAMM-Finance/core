@@ -26,20 +26,20 @@ contract FixedTest is CustomTestBase {
 
     function setUp() public {
 
-        controller = new Controller(deployer, address(0)); // zero addr for interep
-        vaultFactory = new VaultFactory(address(controller));
-        collateral = new Cash("n","n",18);
-        collateral2 = new Cash("nn", "nn", 18); 
-        bytes32  data;
-        marketmanager = new MarketManager(
-            deployer,
-            address(controller), 
-            address(0),data, uint64(0)
-        );
-        ZCBFactory zcbfactory = new ZCBFactory(); 
-        poolFactory = new SyntheticZCBPoolFactory(address(controller), address(zcbfactory));
-        reputationManager = new ReputationManager(address(controller), address(marketmanager)); 
-
+        // controller = new Controller(deployer); // zero addr for interep
+        // vaultFactory = new VaultFactory(address(controller));
+        // collateral = new Cash("n","n",18);
+        // collateral2 = new Cash("nn", "nn", 18); 
+        // bytes32  data;
+        // marketmanager = new MarketManager(
+        //     deployer,
+        //     address(controller), 
+        //     address(0),data, uint64(0)
+        // );
+        // ZCBFactory zcbfactory = new ZCBFactory(); 
+        // poolFactory = new SyntheticZCBPoolFactory(address(controller), address(zcbfactory));
+        // reputationManager = new ReputationManager(address(controller), address(marketmanager)); 
+        deploySetUps();
         controllerSetup(); 
 
 
@@ -355,7 +355,7 @@ contract FixedTest is CustomTestBase {
         uint256 amount1, 
         uint256 amount2, 
         uint256 amount3, 
-        uint256 amount4, 
+        uint256 amount4,
         uint256 amount5, 
         uint256 amount6,
         uint256 amount7
@@ -422,7 +422,7 @@ contract FixedTest is CustomTestBase {
         uint256 amount2, 
         uint256 amount3, 
         uint256 amount4, 
-        uint256 amount5, 
+        uint256 amount5,
         uint256 amount6,
         uint256 amount7
         ) public {

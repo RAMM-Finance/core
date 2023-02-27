@@ -178,7 +178,7 @@ contract CustomTestBase is Test {
 
     function deploySetUps() public{
         
-        controller = new Controller(deployer, address(0)); // zero addr for interep
+        controller = new Controller(deployer);
         vaultFactory = new VaultFactory(address(controller));
         collateral = new Cash("n","n",18);
         collateral2 = new Cash("nn", "nn", 18); 
@@ -194,15 +194,17 @@ contract CustomTestBase is Test {
         
         leverageManager = new LeverageManager(address(controller), address(marketmanager), address(reputationManager));
         Data = new StorageHandler(); 
-        controllerSetup(); 
-
-    }
-    function controllerSetup() public{
-        vm.startPrank(deployer);
         validatorManager = new ValidatorManager(address(controller), address(marketmanager),address(reputationManager) );     
         leverageManager = new LeverageManager(address(controller), address(marketmanager),address(reputationManager) );
         orderManager = new OrderManager(address(controller));
         Data = new StorageHandler(); 
+        controllerSetup(); 
+
+    }
+
+    function controllerSetup() public{
+        vm.startPrank(deployer);
+
         bytes memory stuff = abi.encode(
         address(marketmanager), 
         address(reputationManager), 
@@ -241,6 +243,10 @@ contract CustomTestBase is Test {
         controller.fulfillRandomWords(1, words);
     }
 
+    function initiateCreditline() public {
+
+    }
+
     function initiateOptionsOTCMarket() public{
         if(address(otc) == address(0))
         otc = new CoveredCallOTC(
@@ -252,6 +258,7 @@ contract CustomTestBase is Test {
             address(collateral),
             10,
             block.timestamp); 
+
         otc.setUtilizer(toku); 
         InstrumentData memory data;
         data.trusted = false; 
@@ -349,6 +356,16 @@ contract CustomTestBase is Test {
         data.poolData = poolData; 
 
         return (data, poolData); 
+    }
+
+    /**
+        wrapper for resolving market.
+     */
+    function resolveMarket(uint256 marketId) public {
+        vm.startPrank(deployer);
+        // controller.beforeResolve(marketId); 
+        controller.resolveMarket(marketId);
+        vm.stopPrank();
     }
 
    function setupPricer(

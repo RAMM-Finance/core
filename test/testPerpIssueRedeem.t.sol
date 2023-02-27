@@ -24,7 +24,8 @@ contract IssueRedeemTest is CustomTestBase {
   
     function setUp() public {
 
-        deploySetUps(); 
+        deploySetUps();
+        controllerSetup();
 
         controller.createVault(
             address(collateral),

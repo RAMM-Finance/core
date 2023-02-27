@@ -83,8 +83,7 @@ contract Controller {
     }
 
     constructor(
-        address _creator_address,
-        address _interep_address //TODO
+        address _creator_address
     ) {
         creator_address = _creator_address;
     }
@@ -129,8 +128,8 @@ contract Controller {
             );
 
         marketManager = MarketManager(_marketManager);
-        reputationManager = ReputationManager(_reputationManager);
         marketManager.setReputationManager(_reputationManager);
+        reputationManager = ReputationManager(_reputationManager);
         validatorManager = ValidatorManager(_validatorManager);
         leverageManager = LeverageManager(_leverageManager);
         marketManager.setLeverageManager(_leverageManager);
@@ -167,8 +166,8 @@ contract Controller {
     /// @param underlying: underlying asset for vault
     /// @param _onlyVerified: only verified users can mint shares
     /// @param _r: minimum reputation score to mint shares
-    /// @param _asset_limit: max number of shares for a single address
-    /// @param _total_asset_limit: max number of shares for entire vault
+    /// @param _asset_limit: max asset for a single address
+    /// @param _total_asset_limit: max asset for entire vault
     /// @param default_params: default params for markets created by vault
     function createVault(
         address underlying,
@@ -302,17 +301,17 @@ contract Controller {
         InstrumentData instrumentData
     );
 
-    /// @notice initiates market, called by frontend loan proposal or instrument form submit button.
+    /// @notice initiates market
     /// @dev Instrument should already be deployed
-    /// @param recipient: utilizer for the associated instrument
+    /// @param utilizer: utilizer for the associated instrument
     /// @param instrumentData: instrument arguments
     /// @param vaultId: vault identifier
     function initiateMarket(
-        address recipient,
+        address utilizer,
         InstrumentData memory instrumentData,
         uint256 vaultId
     ) external returns (uint256) {
-        require(recipient != address(0), "address0R");
+        require(utilizer != address(0), "address0R");
         require(instrumentData.instrument_address != address(0), "address0I");
         require(address(vaults[vaultId]) != address(0), "address0V");
 
@@ -322,7 +321,7 @@ contract Controller {
         vault_to_marketIds[vaultId].push(marketId);
         market_data[marketId] = MarketData(
             instrumentData.instrument_address,
-            recipient
+            utilizer
         );
         marketManager.setParameters(
             vault.get_vault_params(),
@@ -434,14 +433,14 @@ contract Controller {
         emit MarketInitiated(
             marketId,
             address(vaults[vaultId]),
-            recipient,
+            utilizer,
             address(pool),
             longZCB,
             shortZCB,
             instrumentData
         );
 
-        ad_to_id[recipient] = marketId; //only for testing purposes, one utilizer should be able to create multiple markets
+        ad_to_id[utilizer] = marketId; //only for testing purposes, one utilizer should be able to create multiple markets
         return marketId;
     }
 
@@ -479,7 +478,7 @@ contract Controller {
         (
             bool atLoss,
             uint256 extra_gain,
-            uint256 principal_loss,
+            uint256 total_loss, // total loss
             bool premature
         ) = getVault(marketId).resolveInstrument(marketId);
         // TODO updating if only market is pool.
@@ -487,13 +486,13 @@ contract Controller {
             marketId,
             atLoss,
             extra_gain,
-            principal_loss,
+            total_loss,
             premature
         );
         validatorManager.updateValidatorStake(
             marketId,
             approvalDatas[marketId].approved_principal,
-            principal_loss
+            total_loss
         );
 
         // Send all funds from the AMM to here, used for
@@ -503,7 +502,7 @@ contract Controller {
             marketId,
             atLoss,
             extra_gain,
-            principal_loss,
+            total_loss,
             premature
         );
     }

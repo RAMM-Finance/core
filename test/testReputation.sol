@@ -26,20 +26,21 @@ contract ReputationSystemTests is CustomTestBase {
 
    function setUp() public {
 
-        controller = new Controller(deployer, address(0)); // zero addr for interep
-        vaultFactory = new VaultFactory(address(controller));
+        // controller = new Controller(deployer); // zero addr for interep
+        // vaultFactory = new VaultFactory(address(controller));
         collateral = new Cash("n","n",18);
         collateral2 = new Cash("nn", "nn", 18); 
         bytes32  data;
-        marketmanager = new MarketManager(
-            deployer,
-            address(controller), 
-            address(0),data, uint64(0)
-        );
-        ZCBFactory zcbfactory = new ZCBFactory(); 
-        poolFactory = new SyntheticZCBPoolFactory(address(controller), address(zcbfactory)); 
-        reputationManager = new ReputationManager(address(controller), address(marketmanager));
+        // marketmanager = new MarketManager(
+        //     deployer,
+        //     address(controller), 
+        //     address(0),data, uint64(0)
+        // );
+        // ZCBFactory zcbfactory = new ZCBFactory(); 
+        // poolFactory = new SyntheticZCBPoolFactory(address(controller), address(zcbfactory)); 
+        // reputationManager = new ReputationManager(address(controller), address(marketmanager));
 
+        deploySetUps();
         controllerSetup(); 
 
 
@@ -234,15 +235,21 @@ contract ReputationSystemTests is CustomTestBase {
     }
 
     function testRecordPullFixed() public returns(testVars1 memory){
+
+        // toku is utilizer.
         initiateOptionsOTCMarket(); 
-        // buy f
+
         testVars1 memory vars; 
 
         vars.marketId = controller.getMarketId(toku); 
 
         vars.vault_ad = address(controller.getVault(vars.marketId)); //
+
+        // amountToBuy = 1/3 of principal
         vars.amountToBuy = Vault(vars.vault_ad).fetchInstrumentData(vars.marketId).principal/3; 
-        // Let manager buy
+
+
+        // jonna === manager.
         bytes memory data; 
         doApproveCol(address(marketmanager), jonna); 
         vm.prank(jonna); 
@@ -254,7 +261,7 @@ contract ReputationSystemTests is CustomTestBase {
         assertEq(log.bondAmount, vars.amountOut2); 
 
         // buy again 
-        vm.prank(jonna); 
+        vm.prank(jonna);
         (vars.amountIn, vars.amountOut) =
             marketmanager.buyBond(vars.marketId, int256(vars.amountToBuy), precision , data); 
         ReputationManager.RepLog memory log2 = reputationManager.getRepLog(jonna, vars.marketId);
@@ -270,7 +277,7 @@ contract ReputationSystemTests is CustomTestBase {
         donateToInstrument(vars.vault_ad, address(Vault(vars.vault_ad).fetchInstrument(vars.marketId)), longCollateral, vars.marketId); 
         doApprove(vars.marketId, vars.vault_ad);
 
-   // redeem portion
+
         ReputationManager.RepLog memory log = reputationManager.getRepLog(jonna, vars.marketId);
         vm.prank(jonna); 
         uint startRep = reputationManager.trader_scores(jonna); 
@@ -280,24 +287,17 @@ contract ReputationSystemTests is CustomTestBase {
         vm.warp(31536000); 
         vm.startPrank(toku); 
         CoveredCallOTC(address(Vault(vars.vault_ad).fetchInstrument(vars.marketId))).claim(); 
-        vm.stopPrank(); 
-
-
-        // vm.startPrank(toku); 
-        // CoveredCallOTC( address(Vault(vars.vault_ad).fetchInstrument(vars.marketId))).claim(); 
-        // vm.stopPrank(); 
-
-        vm.prank(deployer); 
-        controller.resolveMarket(vars.marketId); 
+        vm.stopPrank();
+        resolveMarket(vars.marketId);
 
         vm.prank(jonna); 
         marketmanager.redeem(vars.marketId); 
         ReputationManager.RepLog memory log2 = reputationManager.getRepLog(jonna, vars.marketId);
         assertEq(log.bondAmount - log2.bondAmount, log.bondAmount ); 
-        assertEq(log2.collateralAmount, 0); 
+        assertEq(log2.collateralAmount, 0);
 
-        uint midRep = reputationManager.trader_scores(jonna); 
-        console.log('start', startRep, midRep); 
+        // uint midRep = reputationManager.trader_scores(jonna); 
+
         // why is the redemption price weird? 
 
         // if(donateamount==0) {
@@ -310,18 +310,5 @@ contract ReputationSystemTests is CustomTestBase {
 
 
 
-    } 
-
-
-
-
-    // function testSelectTraders() public {
-    //     addUsers();
-    //     address[] memory vals = controller.filterTraders(40*1e18, address(0));
-    //     console.log("length: ", vals.length);
-
-    //     vals = controller.filterTraders(90*1e18, address(0));
-    //     console.log("length: ", vals.length);
-    // }
-    
+    }
 }

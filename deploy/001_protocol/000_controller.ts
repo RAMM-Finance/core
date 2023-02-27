@@ -7,7 +7,7 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     const { deployments, getNamedAccounts } = hre;
     const { deployer } = await getNamedAccounts();
     const interep = "0x0000000000000000000000000000000000000000"; //"0xb1dA5d9AC4B125F521DeF573532e9DBb6395B925";
-    const args = [deployer, interep];
+    const args = [deployer];
 
     // if (!(await deployments.getOrNull("Collateral"))) {
     //   await deployments.deploy("Collateral", {

@@ -4,7 +4,7 @@ import {Vault} from "../vaults/vault.sol";
 import {MarketManager} from "./marketmanager.sol";
 import {Controller} from "./controller.sol";
 import {oERC20} from "../utils/ownedERC20.sol"; 
-
+//import {ERC20} from "solmate/tokens/ERC20.sol";
 import "../global/types.sol"; 
 
 /// @notice Anyone can create a vault. These can be users who  
@@ -47,6 +47,7 @@ contract VaultFactory{
    @param underlying: underlying asset for vault
    @param _controller: protocol controller
    @param default_params: default params for markets created by vault
+   @param _configData: abi.encode(_onlyVerified,_r,_asset_limit,_total_asset_limit,_description)
    */
   function newVault(
     address underlying,
@@ -59,8 +60,7 @@ contract VaultFactory{
     Vault vault = new Vault(
       underlying,
        _controller,
-       owner, 
-       //Params 
+       owner,
        _configData,
        default_params
        ); 

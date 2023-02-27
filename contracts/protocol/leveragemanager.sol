@@ -6,7 +6,6 @@ import "forge-std/console.sol";
 import {Vault} from "../vaults/vault.sol";
 import {FixedPointMathLib} from "solmate/utils/FixedPointMathLib.sol";
 import {PoolInstrument} from "../instruments/poolInstrument.sol";
-// import {PoolInstrument} from "../instruments/oldpoolInstrument.sol";
 import {SafeCastLib} from "solmate/utils/SafeCastLib.sol";
 import {MarketManager} from "./marketmanager.sol";
 import {ReputationManager} from "./reputationmanager.sol";

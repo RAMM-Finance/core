@@ -35,8 +35,8 @@ contract OrderTest is CustomTestBase {
 
     function setUp() public {
 
-        controller = new Controller(deployer, address(0)); // zero addr for interep
-        vaultFactory = new VaultFactory(address(controller));
+        // controller = new Controller(deployer); // zero addr for interep
+        // vaultFactory = new VaultFactory(address(controller));
         collateral = new Cash("n","n",18);
         collateral2 = new Cash("nn", "nn", 18); 
         bytes32  data;
@@ -56,15 +56,15 @@ contract OrderTest is CustomTestBase {
             0,0,0,0
         )
         );
-        marketmanager = new MarketManager(
-            deployer,
-            address(controller), 
-            address(0),data, uint64(0)
-        );
-        ZCBFactory zcbfactory = new ZCBFactory(); 
-        poolFactory = new SyntheticZCBPoolFactory(address(controller), address(zcbfactory)); 
-        reputationManager = new ReputationManager(address(controller), address(marketmanager));
-
+        // marketmanager = new MarketManager(
+        //     deployer,
+        //     address(controller), 
+        //     address(0),data, uint64(0)
+        // );
+        // ZCBFactory zcbfactory = new ZCBFactory(); 
+        // poolFactory = new SyntheticZCBPoolFactory(address(controller), address(zcbfactory)); 
+        // reputationManager = new ReputationManager(address(controller), address(marketmanager));
+        deploySetUps();
         controllerSetup(); 
 
         controller.createVault(
