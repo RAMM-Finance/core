@@ -47,7 +47,7 @@ contract PricerTest is CustomTestBase {
         // leverageManager = new LeverageManager(address(controller), address(marketmanager), address(reputationManager));
         // Data = new StorageHandler(); 
         deploySetUps();
-        controllerSetup(); 
+        controllerSetup();
 
         controller.createVault(
             address(collateral),

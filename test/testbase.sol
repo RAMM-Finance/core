@@ -575,7 +575,7 @@ contract CustomTestBase is Test {
     ) internal view returns (uint256 result) {
         require(max >= min, "MAX_LESS_THAN_MIN");
         // vm.assume(x<=max); 
-        // vm.assume(x>= min); 
+        // vm.assume(x>= min);
 
         if (min == max) return min;  // A range of 0 is effectively a single value.
 
