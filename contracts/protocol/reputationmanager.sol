@@ -19,7 +19,8 @@ contract ReputationManager {
     address deployer;
 
     modifier onlyProtocol() {
-        require(msg.sender == controller || msg.sender == marketManager || msg.sender == deployer, "ReputationManager: !protocol");
+        //require(msg.sender == controller || msg.sender == marketManager || msg.sender == deployer, "ReputationManager: !protocol");
+        require(Controller(controller).onlyProtocol(msg.sender), "ReputationManager: !protocol");
         _;
     }
     // event pullLogged(uint256 marketId, address recipient, );

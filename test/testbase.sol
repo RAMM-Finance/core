@@ -3,7 +3,7 @@ import "forge-std/Test.sol";
 import "forge-std/console.sol";
 import "../contracts/protocol/controller.sol";
 import {MarketManager} from "../contracts/protocol/marketmanager.sol";
-import {ReputationNFT} from "../contracts/protocol/reputationtoken.sol";
+// import {ReputationNFT} from "../contracts/protocol/reputationtoken.sol";
 import {Cash} from "../contracts/utils/Cash.sol";
 import {CreditLine, MockBorrowerContract} from "../contracts/vaults/instrument.sol";
 import {LinearCurve} from "../contracts/bonds/GBC.sol"; 
@@ -120,6 +120,8 @@ contract CustomTestBase is Test {
         toku = address(0xbabe8);
         vm.label(toku, "toku"); 
 
+
+        vm.startPrank(deployer);
         reputationManager.incrementScore(jonna, precision);
         reputationManager.incrementScore(jott, precision);
         reputationManager.incrementScore(gatdang, precision);
@@ -128,6 +130,7 @@ contract CustomTestBase is Test {
         reputationManager.incrementScore(miku, precision);
         reputationManager.incrementScore(goku, precision);
         reputationManager.incrementScore(toku, precision);
+        vm.stopPrank();
 
         vm.prank(jonna); 
         collateral.faucet(10000000*precision);
@@ -174,7 +177,7 @@ contract CustomTestBase is Test {
     }
 
     function deploySetUps() public{
-
+        
         controller = new Controller(deployer, address(0)); // zero addr for interep
         vaultFactory = new VaultFactory(address(controller));
         collateral = new Cash("n","n",18);

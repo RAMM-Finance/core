@@ -26,6 +26,7 @@ contract SyntheticZCBPool{
     /// @notice Long up the curve, or short down the curve 
     /// @param amountIn if isLong, amountIn > 0 means it is in base, amountIn < 0 means it is in trade
     /// @param priceLimit is slippage tolerance
+    /// @param data is abi.encode(address) -> address receives the long or short zcb
     function takerOpen(
         bool isLong, 
         int256 amountIn,

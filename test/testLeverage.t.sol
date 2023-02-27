@@ -4,7 +4,7 @@ import "forge-std/Test.sol";
 import "forge-std/console.sol";
 import "../contracts/protocol/controller.sol";
 import {MarketManager} from "../contracts/protocol/marketmanager.sol";
-import {ReputationNFT} from "../contracts/protocol/reputationtoken.sol";
+// import {ReputationNFT} from "../contracts/protocol/reputationtoken.sol";
 import {Cash} from "../contracts/utils/Cash.sol";
 import {CreditLine, MockBorrowerContract} from "../contracts/vaults/instrument.sol";
 import {LinearCurve} from "../contracts/bonds/GBC.sol"; 

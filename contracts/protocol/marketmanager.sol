@@ -1,6 +1,6 @@
 pragma solidity ^0.8.16;
 
-import "./reputationtoken.sol";
+// import "./reputationtoken.sol";
 import {Controller} from "./controller.sol";
 import "forge-std/console.sol";
 import {SafeTransferLib} from "solmate/utils/SafeTransferLib.sol";
@@ -604,11 +604,10 @@ contract MarketManager {
   
     }
 
-
     function redeemPerpLongZCB(
         uint256 marketId,
         uint256 redeemAmount,
-        address caller,
+        address caller, // msg.sender
         address trader
     )
         external
@@ -1052,7 +1051,7 @@ contract MarketManager {
         controller.redeem_transfer(sendAmount, sendWho, marketId);
     }
 
-    /// @notice marketmanager is the only approved contract
+    /// @notice leverageManager is the only approved contract
     function transferTraderCap(
         address token,
         address trader,
