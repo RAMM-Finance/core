@@ -676,7 +676,8 @@ contract CustomTestBase is Test {
 
         if (min == 0 && max == type(uint256).max) return x;  // The entire uint256 space is effectively x.
 
-        return (x % ((max - min) + 1)) + min;  // Given the above exit conditions, `(max - min) + 1 <= type(uint256).max`.
+        result = (x % ((max - min) + 1)) + min;  // Given the above exit conditions, `(max - min) + 1 <= type(uint256).max`.
+        require(result>=min && result <= max, "MAX_LESS_THAN_MIN_AF"); 
     }
 
     // ALL input will be mod 2**32, to limit fuzzing space 
@@ -721,6 +722,7 @@ contract CustomTestBase is Test {
 
         uint rateBefore; 
         uint256 balbefore;
+        uint balBefore; 
         uint256 ratebefore; 
 
         uint amount1; 

@@ -820,13 +820,13 @@ contract Controller {
     }
 
     /// @notice called by LM, transfers amount underlying to vault.
-    function pushLeverage(uint256 marketId, uint256 amount)
+    function pushLeverage(uint256 marketId, uint256 amount, uint256 debt)
         external
         onlyManager
     {
         Vault vault = getVault(marketId);
         vault.UNDERLYING().transfer(address(vault), amount);
-        vault.modifyInstrumentHoldings(false, amount);
+        vault.modifyInstrumentHoldings(false, debt);
     }
 
     function returnLeverageCapital(uint256 marketId, uint256 amount)

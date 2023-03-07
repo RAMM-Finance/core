@@ -313,7 +313,7 @@ contract LeverageManager is ERC721Enumerable {
         );
 
         // transfer position.debt from controller to vault.
-        controller.pushLeverage(marketId, position.debt);
+        controller.pushLeverage(marketId, Constants.min(collateral_back, uint256(position.debt)),uint256(position.debt));
 
         position.amount = 0;
         position.debt = 0;
@@ -366,7 +366,7 @@ contract LeverageManager is ERC721Enumerable {
     /// @notice returns the manager's maximum leverage
     function getMaxLeverage(address manager) public view returns (uint256) {
         //TODO experiment
-        return 5e18; //min((controller.getTraderScore(manager) * 1e18).sqrt(), 5e18);
+        return 10e18; //min((controller.getTraderScore(manager) * 1e18).sqrt(), 5e18);
     }
 
     /// @notice called by pool when buying, transfers funds from trader to pool
