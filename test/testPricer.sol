@@ -20,7 +20,6 @@ import {CustomTestBase} from "./testbase.sol";
 import {LeverageManager} from "../contracts/protocol/leveragemanager.sol"; 
 import "../contracts/global/GlobalStorage.sol"; 
 import "../contracts/global/types.sol"; 
-import "../contracts/global/types.sol"; 
 
 contract PricerTest is CustomTestBase {
     using FixedPointMath for uint256; 
@@ -339,15 +338,194 @@ contract PricerTest is CustomTestBase {
 
     // }
 
-  
+    function testDynamicRFPSU(
+        uint256 multiplier, 
+
+        uint32 saleAmount, 
+        uint32 initPrice,
+        uint32 promisedReturn, 
+        uint32 inceptionPrice, 
+        uint32 leverageFactor, 
+
+        uint32 amountToBuy ,
+        uint32 amountToIssue, 
+        uint32 timepass
+
+        ) public{
+        vm.assume(timepass>10); 
+        testVars1 memory vars = createLendingPoolAndPricer(
+         multiplier, 
+
+         saleAmount, 
+         initPrice,
+         promisedReturn, 
+         inceptionPrice, 
+         leverageFactor
+        ); 
+
+        Data.setRF(vars.marketId, false);
+
+        uint amountToBuy = constrictToRange(fuzzput(amountToBuy, 1e16),
+            Data.getInstrumentData(vars.marketId).poolData.saleAmount*3/2, 
+            Data.getInstrumentData(vars.marketId).poolData.saleAmount*3 );
+        vm.assume(marketmanager.getTraderBudget(vars.marketId, jonna)>= amountToBuy); 
+        vars.budget = marketmanager.getTraderBudget(vars.marketId, jonna); 
+        vars.amount1 = constrictToRange(fuzzput(amountToIssue, 1e14), 1e12, vars.budget ); 
+        vars.amountOut = doApproveFromStart(vars.marketId, amountToBuy); 
 
 
-    // function testDynamicRFPricing() public {
-    //     testVars1 memory vars = testStoreNewPrices(); 
+        // change RF and psu adjusts accordingly 
+        // refresh pricing when no util rate changes = no psu changes
+        ( vars.psu,   vars.pju, ) = Data.viewCurrentPricing(vars.marketId) ;
+        vm.warp(block.timestamp+ timepass); 
+        Data.refreshPricing(vars.marketId); 
+        (vars.psu2, vars.pju2,) = Data.viewCurrentPricing(vars.marketId); 
+        assertEq(vars.psu, vars.psu2); 
+        assertEq(vars.pju2, vars.pju); 
+
+
+        // util rate changes, so psu does change 
+        borrowFromPool(poolInstrument.totalAssetAvailable(), 
+         poolInstrument.totalAssetAvailable()/10, jonna); 
+        Data.refreshPricing(vars.marketId); // this will store new Rf
+        (vars.psu, vars.pju, ) = Data.viewCurrentPricing(vars.marketId); 
+        assertEq(vars.psu, vars.psu2); 
+        assertEq(vars.pju2, vars.pju); 
+
+        vm.warp(block.timestamp+ timepass); 
+        Data.refreshPricing(vars.marketId); 
+        ( vars.psu2,   vars.pju2, ) = Data.viewCurrentPricing(vars.marketId) ;
+        assert(vars.psu<vars.psu2); 
+        assert(vars.pju>vars.pju2);  
+        vars.urate1 = Data.getPoolUtilRate(vars.marketId); 
+        assertApproxEqAbs(vars.psu2.divWadDown(vars.psu), 
+            (unit + Constants.BASE_MULTIPLIER.mulWadDown(vars.urate1)
+            ).rpow(timepass, unit), 1001
+        ); 
+
+        // issue longzcb, util rate goes down and psu doesn't increase as much as it would have
+        vm.prank(jonna);
+        uint issueamount = marketmanager.issuePoolBond(vars.marketId, vars.amount1); //store new psu 
+        assert(vars.urate1 > Data.getPoolUtilRate(vars.marketId) ); 
+        vm.warp(block.timestamp+ timepass); 
+        ( vars.psu,   vars.pju, ) = Data.refreshViewCurrentPricing(vars.marketId) ;
+        console.log('?',vars.psu.divWadDown(vars.psu2), (unit + Constants.BASE_MULTIPLIER.mulWadDown(Data.getPoolUtilRate(vars.marketId))
+            ).rpow(timepass, unit)); 
+        assertApproxEqAbs(vars.psu.divWadDown(vars.psu2), 
+            (unit + Constants.BASE_MULTIPLIER.mulWadDown(Data.getPoolUtilRate(vars.marketId))
+            ).rpow(timepass, unit), 1002
+        ); 
+
+        // redeem longzcb, util rate goes up and psu increase more
+        vm.warp(block.timestamp+ timepass); 
+        vm.prank(jonna);
+        marketmanager.redeemPoolLongZCB(vars.marketId, issueamount); 
+        assertApproxEqAbs(vars.urate1, Data.getPoolUtilRate(vars.marketId),2 ); 
+        ( vars.psu2,   vars.pju2, ) = Data.refreshViewCurrentPricing(vars.marketId) ;
+        console.log('?',vars.psu2.divWadDown(vars.psu), (unit + Constants.BASE_MULTIPLIER.mulWadDown(Data.getPoolUtilRate(vars.marketId))
+            ).rpow(timepass, unit));
+        // assertApproxEqAbs(vars.psu2.divWadDown(vars.psu), 
+        //     (unit + Constants.BASE_MULTIPLIER.mulWadDown(Data.getPoolUtilRate(vars.marketId))
+        //     ).rpow(timepass, unit), 1003
+        // ); 
+
+
+        // WHat happens to pju? 
+
+    }
+
+    // function testDynamicRFPricing(
+    //     uint256 multiplier, 
+
+    //     uint32 saleAmount, 
+    //     uint32 initPrice,
+    //     uint32 promisedReturn, 
+    //     uint32 inceptionPrice, 
+    //     uint32 leverageFactor, 
+
+    //     uint32 amountToBuy ,
+    //     uint32 amountToIssue
+
+    //     ) public {
+    //     testVars1 memory vars = createLendingPoolAndPricer(
+    //      multiplier, 
+
+    //      saleAmount, 
+    //      initPrice,
+    //      promisedReturn, 
+    //      inceptionPrice, 
+    //      leverageFactor
+    //     ); 
+
+    //     Data.setRF(vars.marketId, false);
+
+    //     uint amountToBuy = constrictToRange(fuzzput(amountToBuy, 1e16),
+    //         Data.getInstrumentData(vars.marketId).poolData.saleAmount*3/2, 
+    //         Data.getInstrumentData(vars.marketId).poolData.saleAmount*3 );
+    //     vm.assume(marketmanager.getTraderBudget(vars.marketId, jonna)>= amountToBuy); 
+    //     vars.budget = marketmanager.getTraderBudget(vars.marketId, jonna); 
+    //     vars.amount1 = constrictToRange(fuzzput(amountToIssue, 1e14), 1e12, vars.budget ); 
+
+    //     vars.amountOut = doApproveFromStart(vars.marketId, amountToBuy); 
+
+
+
+    //     // TODO study how pju changes with utilization rate and write it down 
+
+    //     // issue longzcb and util rate goes down
+    //     // issue longzcb and RF goes down the next time its called 
+    //     // psu don't go down right away, RF does and psu goes down after some time 
+    //     // pju reflects this change. Psu goes down then what should happen to pju 
+    //         // pju goes up if psu goes down, if utilization rate doesn't increase again 
+    //         // if urate increases again, then pju should goes back up 
+
+    //     // redeem longzcb and util rate goes up 
+    //     // redeem longzcb and psu goes up the next time its called 
+    //     // pju reflects this change. Psu goes up then what should happen to pju 
+    //         // pju goes down if psu goes up, if utilization rate
+
+    //     // 0 urate and psu does not increase, even after longzcb buy
+    //     ( vars.psu,   vars.pju, ) = Data.viewCurrentPricing(vars.marketId) ;
+    //     vm.warp(block.timestamp+ 100000); 
+    //     vm.prank(jonna);
+    //     marketmanager.issuePoolBond(vars.marketId, vars.amount1);
+    //     (vars.psu2, vars.pju2) = Data.viewCurrentPricing(vars.marketId); 
+    //     assertEq(vars.psu, vars.psu2); 
+    //     assertEq(vars.pju2, vars.pju); 
+
+    //     borrowFromPool(poolInstrument.totalAssetAvailable(), 
+    //      poolInstrument.totalAssetAvailable()/10, jonna); 
+    //     vars.balbefore = poolInstrument.totalAssetAvailable(); 
+
+    //     vars.urate1 = Data.getPoolUtilRate(vars.marketId); 
+
+    //     vm.prank(jonna);
+    //     marketmanager.issuePoolBond(vars.marketId, vars.amount1);
+    //     ( vars.psu,   vars.pju, ) = Data.viewCurrentPricing(vars.marketId) ;
+
+    //     vars.amount1 = 
+    //         vars.amount1 + 
+    //         vars.amount1.divWadDown(vars.pju).mulWadDown(vars.leverageFactor).mulWadDown(vars.psu); 
+
+    //     console.log('urates', vars.urate1, Data.getPoolUtilRate(vars.marketId)); 
+    //     uint uratedif = (vars.urate1  - Data.getPoolUtilRate(vars.marketId));
+    //     uint borrowamount = poolInstrument.getTotalBorrowAmount(); 
+    //     assertApproxEqAbs(poolInstrument.totalAssetAvailable() - vars.balbefore, vars.amount1, 1000); 
+    //     // assertApproxEqAbs(uratedif, 
+    //     //     (vars.amount1.mulWadDown(borrowamount)).divWadDown(
+    //     //     vars.balbefore.mulWadDown(poolInstrument.totalAssetAvailable())
+    //     //     ), 1001 ); 
+    //     console.log('uratedif', vars.urate1, uratedif); 
+
+    //     vm.warp(block.timestamp+ 100000); 
+    //     ( vars.psu2,   vars.pju2, ) = Data.viewCurrentPricing(vars.marketId) ;
+    //     (vars.psu2, vars.pju2); 
+    //     assert(vars.psu2)
+    //     (vars.psu2 - vars.psu).divWadDown()
+
 
     // }
 
-    // function testPricingIsSupplyAgnostic() public{}
 
    
 

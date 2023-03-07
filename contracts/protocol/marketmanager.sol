@@ -496,23 +496,6 @@ contract MarketManager {
         );
     }
 
-    /// @notice general limitorder claim + liquidity provision funnels used post-assessment,
-    /// which will be recorded if necessary
-    /// param type: 1 if open long, 2 if close long, 3 if open short, 4 if close short
-    /// type 5: partially claim , TODO do all possible trading functions
-    function claimFunnel(
-        uint256 marketId,
-        uint16 point,
-        uint256 funnel
-    ) external returns (uint256 claimedAmount) {
-        SyntheticZCBPool bondPool = markets[marketId].bondPool;
-
-        // if (funnel == 1) claimedAmount = bondPool.makerClaimOpen(point,true, msg.sender);
-        // else if (funnel == 2) claimedAmount = bondPool.makerClaimClose(point,true, msg.sender);
-        // else if (funnel == 3) claimedAmount = bondPool.makerClaimOpen(point,false, msg.sender);
-        // else if (funnel == 4) claimedAmount = bondPool.makerClaimClose(point,false, msg.sender);
-    }
-
     /// @notice called by pool when buying, transfers funds from trader to pool
     function tradeCallBack(uint256 amount, bytes calldata data) external {
         SyntheticZCBPool(msg.sender).baseToken().transferFrom(
@@ -522,11 +505,9 @@ contract MarketManager {
         );
     }
 
-    /**
-     @dev only can be called by MM or LM.
-     @param _marketId market id
-     @param _amountIn amount of base token to be used to buy ZCB -> deposited into
-     */
+    /// @dev only can be called by MM or LM.
+    /// @param _marketId market id
+    /// @param _amountIn amount of base token to be used to buy ZCB -> deposited into
     function issueBond(
         uint256 _marketId,
         uint256 _amountIn,
@@ -555,7 +536,7 @@ contract MarketManager {
 
         // Get price a_lock_nd sell longZCB with this price
         // (vars.psu, vars.pju, vars.levFactor ) = vars.vault.poolZCBValue(_marketId);
-        (vars.psu, vars.pju, vars.levFactor) = Data.viewCurrentPricing(_marketId);
+        (vars.psu, vars.pju, vars.levFactor) = Data.refreshViewCurrentPricing(_marketId);
         vars.underlying.transferFrom(_caller, address(this), _amountIn);
         vars.underlying.approve(vars.instrument, _amountIn);
 
@@ -587,6 +568,9 @@ contract MarketManager {
             getTraderBudget(_marketId, trader),
             true
         );
+
+        // update psu if is lendingpool
+        Data.refreshPricing(_marketId); 
     }
 
     /// @notice after assessment, let managers buy newly issued longZCB if the instrument is pool based
@@ -623,7 +607,7 @@ contract MarketManager {
 
         require(market.isPool, "!pool");
 
-        (vars.psu, vars.pju, vars.levFactor) = Data.viewCurrentPricing(marketId);
+        (vars.psu, vars.pju, vars.levFactor) = Data.refreshViewCurrentPricing(marketId);
 
         vars.totalSupply = market.longZCB.totalSupply(); 
         vars.saleAmountQty = market.bondPool.saleAmountQty(); 
@@ -670,6 +654,10 @@ contract MarketManager {
             false,
             redeemAmount
         );
+
+
+        // update psu if is lendingpool
+        Data.refreshPricing(marketId); 
 
         // TODO assert pju stays same
         // TODO assert need totalAssets and exchange rate to remain same

@@ -734,11 +734,6 @@ contract Controller {
 
         // Trust and deposit to the instrument contract
 
-        console.log(
-            "how much am I depositing at approval",
-            approvalDatas[marketId].approved_principal
-        );
-
         emit MarketApproved(marketId, approvalDatas[marketId]);
     }
 

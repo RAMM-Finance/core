@@ -9,6 +9,7 @@ library Constants{
 
 	uint256 public constant PRICING_ROUND = 1e12; //round to the nearest 0.000001
 
+	uint256 public constant BASE_MULTIPLIER = 5284965330; //10% at 60% util rate 
 
     function min(uint256 a, uint256 b) internal pure returns (uint256) {
         return a <= b ? a : b;

@@ -28,8 +28,6 @@ import {Auctioneer} from "../contracts/instruments/auctioneer.sol";
 contract PoolInstrumentTest is CustomTestBase {
     using FixedPointMath for uint256;
 
-    PoolInstrument.Config[] configs;
-    PoolInstrument.CollateralLabel[] clabels;
 
     uint256 totalCollateral;
     uint256 maxAmount = unit/2 + unit/10;

@@ -29,7 +29,7 @@ contract LeverageModuleTest is CustomTestBase {
 
     uint256 wad = 1e18;
 
-    PoolInstrument.CollateralLabel[] clabels;
+    // PoolInstrument.CollateralLabel[] clabels;
     PoolInstrument.Config[] collaterals;
 
     function setUp() public {

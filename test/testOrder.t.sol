@@ -30,7 +30,7 @@ contract OrderTest is CustomTestBase {
 
     uint256 wad = 1e18;
 
-    PoolInstrument.CollateralLabel[] clabels;
+    // PoolInstrument.CollateralLabel[] _clabels;
     PoolInstrument.Config[] collaterals;
 
     function setUp() public {
