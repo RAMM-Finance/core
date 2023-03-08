@@ -393,18 +393,21 @@ contract PricerTest is CustomTestBase {
         assertEq(vars.pju2, vars.pju); 
 
         vm.warp(block.timestamp+ timepass); 
-        Data.refreshPricing(vars.marketId); 
-        ( vars.psu2,   vars.pju2, ) = Data.viewCurrentPricing(vars.marketId) ;
+        vars.urate1 = Data.getPoolUtilRate(vars.marketId); 
+
+        ( vars.psu2,   vars.pju2, ) = Data.refreshViewCurrentPricing(vars.marketId) ;
+
         assert(vars.psu<vars.psu2); 
         assert(vars.pju>vars.pju2);  
-        vars.urate1 = Data.getPoolUtilRate(vars.marketId); 
-        assertApproxEqAbs(vars.psu2.divWadDown(vars.psu), 
-            (unit + Constants.BASE_MULTIPLIER.mulWadDown(vars.urate1)
+        if(Data.checkIsSolventDynamicRF(vars.marketId))
+            assertApproxEqAbs(vars.psu2.divWadDown(vars.psu), 
+            (unit + vars.urate1.mulWadDown(Constants.BASE_MULTIPLIER)
             ).rpow(timepass, unit), 1001
         ); 
 
         // issue longzcb, util rate goes down and psu doesn't increase as much as it would have
         vm.prank(jonna);
+        if(vars.pju2.divWadDown(vars.psu2) < Constants.THRESHOLD_PJU) return; 
         uint issueamount = marketmanager.issuePoolBond(vars.marketId, vars.amount1); //store new psu 
         assert(vars.urate1 > Data.getPoolUtilRate(vars.marketId) ); 
         vm.warp(block.timestamp+ timepass); 

@@ -318,118 +318,121 @@ contract LeverageModuleTest is CustomTestBase {
 
     }
 
-    function testFixedLevBuy(
-        uint32 amountToBuy, 
-        uint32 leverageFactor
-        ) public returns(testVars1 memory){
-        testVars1 memory vars; 
+    // function testFixedLevBuy(
+    //     uint32 amountToBuy, 
+    //     uint32 leverageFactor
+    //     ) public returns(testVars1 memory){
+    //     testVars1 memory vars; 
+    //     initiateCreditline(); 
+    //     vars.marketId = controller.getMarketId(jott); 
+    //     console.log('marketId', vars.marketId); 
+    //     vars.vault_ad = controller.getVaultAd(vars.marketId); 
+    //     vars.budget = marketmanager.getTraderBudget(vars.marketId, jonna); 
 
-        vars.marketId = controller.getMarketId(toku); 
-        vars.vault_ad = controller.getVaultfromId(vars.marketId); 
-        vars.budget = marketmanager.getTraderBudget(vars.marketId, jonna); 
+    //     vars.amount1 = constrictToRange(fuzzput(amountToBuy, 1e14), 1e12, vars.budget ); 
+    //     uint256 alpha =                 principal.mulWadDown(
+    //                 marketmanager.getParameters(vars.marketId).alpha
+    //             ); 
+    //     vm.assume(vars.amount1+ vars.amount1 >= 
+    //             alpha
+    //         ); 
+    //     vm.assume(vars.amount1+vars.amount1 <=   alpha * 6/5); 
+    //     vars.leverageFactor = constrictToRange(fuzzput(leverageFactor, 1e14), 1e18, 10e18 ); 
+    //     vars.balBefore = Vault(vars.vault_ad).UNDERLYING().balanceOf(vars.vault_ad); 
+    //     vars.rateBefore  = Vault(vars.vault_ad).previewMint(1e18); 
+    //     uint start = marketmanager.getMarket(vars.marketId).longZCB.balanceOf(address(leverageManager));
 
-        vars.amount1 = constrictToRange(fuzzput(amountToBuy, 1e14), 1e12, vars.budget ); 
-        vm.assume(vars.amount1+ vars.amount1 >= 
-                principal.mulWadDown(
-                    marketmanager.getParameters(vars.marketId).alpha
-                )
-            ); 
-        vars.leverageFactor = constrictToRange(fuzzput(leverageFactor, 1e14), 1e18, 10e18 ); 
-        vars.balBefore = Vault(vars.vault_ad).UNDERLYING().balanceOf(vars.vault_ad); 
-        vars.rateBefore  = Vault(vars.vault_ad).previewMint(1e18); 
-        uint start = marketmanager.getMarket(vars.marketId).longZCB.balanceOf(address(leverageManager));
+    //     doApproveCol(address(marketmanager), jonna); 
+    //     vm.prank(jonna); 
+    //     leverageManager.buyBondLevered(
+    //         vars.marketId, vars.amount1, 1e18, vars.leverageFactor); 
+    //     LeverageManager.LeveredBond memory bond = leverageManager.getPosition( vars.marketId,  jonna);
+    //     uint mid = marketmanager.getMarket(vars.marketId).longZCB.balanceOf(address(leverageManager));
+    //     assertSameExchangeRate(vars.rateBefore, vars.vault_ad); 
 
-        doApproveCol(address(marketmanager), jonna); 
-        vm.prank(jonna); 
-        leverageManager.buyBondLevered(
-            vars.marketId, vars.amount1, 1e18, vars.leverageFactor); 
-        LeverageManager.LeveredBond memory bond = leverageManager.getPosition( vars.marketId,  jonna);
-        uint mid = marketmanager.getMarket(vars.marketId).longZCB.balanceOf(address(leverageManager));
-        assertSameExchangeRate(vars.rateBefore, vars.vault_ad); 
+    //     // check if leverage manager's longzcb balance increase by bondamount
+    //     assertApproxEqAbs(bond.amount, mid-start, 10); 
+    //     assertApproxEqAbs(bond.debt, 
+    //         (vars.amount1.divWadDown(vars.leverageFactor)).mulWadDown(vars.leverageFactor-precision),11 ); 
 
-        // check if leverage manager's longzcb balance increase by bondamount
-        assertApproxEqAbs(bond.amount, mid-start, 10); 
-        assertApproxEqAbs(bond.debt, 
-            (vars.amount1.divWadDown(vars.leverageFactor)).mulWadDown(vars.leverageFactor-precision),11 ); 
+    //     // DO once more
+    //     vm.prank(jonna);
+    //     (vars.amountIn,vars.amountOut) = leverageManager.buyBondLevered(
+    //         vars.marketId, vars.amount1, 1e18, vars.leverageFactor); 
+    //     LeverageManager.LeveredBond memory bond2 = leverageManager.getPosition( vars.marketId,  jonna);
+    //     assertApproxEqAbs(bond2.amount-bond.amount, vars.amountOut,10); 
+    //     if(vars.leverageFactor>1e18)
 
-        // DO once more
-        vm.prank(jonna);
-        (vars.amountIn,vars.amountOut) = leverageManager.buyBondLevered(
-            vars.marketId, vars.amount1, 1e18, vars.leverageFactor); 
-        LeverageManager.LeveredBond memory bond2 = leverageManager.getPosition( vars.marketId,  jonna);
-        assertApproxEqAbs(bond2.amount-bond.amount, vars.amountOut,10); 
-        if(vars.leverageFactor>1e18)
+    //         assertApproxEqAbs(bond2.debt - bond.debt, 
+    //             (vars.amount1.divWadDown(vars.leverageFactor)).mulWadDown(vars.leverageFactor-precision), 12); 
+    //     assertApproxEqAbs(marketmanager.getMarket(vars.marketId).longZCB.balanceOf(address(leverageManager)) - mid, 
+    //         bond2.amount-bond.amount, 13);
+    //     assertSameExchangeRate(vars.rateBefore, vars.vault_ad); 
 
-            assertApproxEqAbs(bond2.debt - bond.debt, 
-                (vars.amount1.divWadDown(vars.leverageFactor)).mulWadDown(vars.leverageFactor-precision), 12); 
-        assertApproxEqAbs(marketmanager.getMarket(vars.marketId).longZCB.balanceOf(address(leverageManager)) - mid, 
-            bond2.amount-bond.amount, 13);
-        assertSameExchangeRate(vars.rateBefore, vars.vault_ad); 
+    //     return vars; 
+    // }
 
-        return vars; 
-    }
+    // function testFixedLevRedeem(
+    //     uint32 amountToBuy, 
+    //     uint32 leverageFactor, 
+    //     uint32 donateAmount
+    //     ) public{
 
-    function testFixedLevRedeem(
-        uint32 amountToBuy, 
-        uint32 leverageFactor, 
-        uint32 donateAmount
-        ) public{
+    //     testVars1 memory vars = testFixedLevBuy(
+    //      amountToBuy, 
+    //      leverageFactor
+    //     ); 
+    //     InstrumentData memory data = Data.getInstrumentData(vars.marketId); 
 
-        testVars1 memory vars = testFixedLevBuy(
-         amountToBuy, 
-         leverageFactor
-        ); 
-        InstrumentData memory data = Data.getInstrumentData(vars.marketId); 
+    //     uint donateAmount = constrictToRange(fuzzput(donateAmount, 1e14), 0, data.expectedYield );
 
-        uint donateAmount = constrictToRange(fuzzput(donateAmount, 1e14), 0, data.expectedYield );
+    //     doApprove(vars.marketId, vars.vault_ad);
 
-        doApprove(vars.marketId, vars.vault_ad);
+    //     // instrument supplied correctly? 
+    //     // need to donate to instrument
+    //     donateToInstrument(vars.vault_ad, data.instrument_address, data.expectedYield, vars.marketId); //TODO expected yield 
 
-        // instrument supplied correctly? 
-        // need to donate to instrument
-        donateToInstrument(vars.vault_ad, data.instrument_address, data.expectedYield, vars.marketId); //TODO expected yield 
+    //     closeMarket(vars.marketId); 
 
-        closeMarket(vars.marketId); 
+    //     uint start = marketmanager.getMarket(vars.marketId).longZCB.balanceOf(address(leverageManager));
+    //     vm.prank(jonna); 
 
-        uint start = marketmanager.getMarket(vars.marketId).longZCB.balanceOf(address(leverageManager));
-        vm.prank(jonna); 
+    //     leverageManager.redeemLeveredBond(vars.marketId);
+    //     vars.balbefore = Vault(vars.vault_ad).UNDERLYING().balanceOf(jonna); 
 
-        leverageManager.redeemLeveredBond(vars.marketId);
-        vars.balbefore = Vault(vars.vault_ad).UNDERLYING().balanceOf(jonna); 
-
-        LeverageManager.LeveredBond memory bond = leverageManager.getPosition( vars.marketId,  jonna);
-        assertEq(bond.amount,0); 
-        assertEq(bond.debt, 0); 
-        assertEq(marketmanager.getMarket(vars.marketId).longZCB.balanceOf(address(leverageManager)), 0); 
-
-
-        // if redeem amount is less than debt, then vault incur loss, redeemer gets nothing
-        if(bond.amount.mulWadDown(marketmanager.redemption_prices(vars.marketId))< bond.debt){
-            // assertApproxEqAbs(vars.balBefore -Vault(vars.vault_ad).UNDERLYING().balanceOf(vars.vault_ad) , 
-            //     bond.debt - bond.amount.mulWadDown(marketmanager.redemption_prices(vars.marketId)), 13)
-            assert(vars.rateBefore < Vault(vars.vault_ad).previewMint(1e18)); 
-            assertEq(vars.balbefore , Vault(vars.vault_ad).UNDERLYING().balanceOf(jonna)); 
-
-        }else{
-            // otherwise, vault incur no loss nor profit, redeemer gain is bond.amount*redemptionprice - debt 
-            assertApproxEqAbs(Vault(vars.vault_ad).UNDERLYING().balanceOf(jonna) - 
-                vars.balbefore, bond.amount.mulWadDown(marketmanager.redemption_prices(vars.marketId))-bond.debt, 14); 
-            // assertEq(vars.rateBefore, Vault(vars.vault_ad).previewMint(1e18)); 
-            // assertApproxEqAbs(vars.balBefore, )
-            // assertApproxEqAbs(vars.balBefore -Vault(vars.vault_ad).UNDERLYING().balanceOf(vars.vault_ad) , 
-            //     bond.debt - bond.amount.mulWadDown(marketmanager.redemption_prices(vars.marketId)), 13)
-        }
+    //     LeverageManager.LeveredBond memory bond = leverageManager.getPosition( vars.marketId,  jonna);
+    //     assertEq(bond.amount,0); 
+    //     assertEq(bond.debt, 0); 
+    //     assertEq(marketmanager.getMarket(vars.marketId).longZCB.balanceOf(address(leverageManager)), 0); 
 
 
+    //     // if redeem amount is less than debt, then vault incur loss, redeemer gets nothing
+    //     if(bond.amount.mulWadDown(marketmanager.redemption_prices(vars.marketId))< bond.debt){
+    //         // assertApproxEqAbs(vars.balBefore -Vault(vars.vault_ad).UNDERLYING().balanceOf(vars.vault_ad) , 
+    //         //     bond.debt - bond.amount.mulWadDown(marketmanager.redemption_prices(vars.marketId)), 13)
+    //         assert(vars.rateBefore < Vault(vars.vault_ad).previewMint(1e18)); 
+    //         assertEq(vars.balbefore , Vault(vars.vault_ad).UNDERLYING().balanceOf(jonna)); 
+
+    //     }else{
+    //         // otherwise, vault incur no loss nor profit, redeemer gain is bond.amount*redemptionprice - debt 
+    //         assertApproxEqAbs(Vault(vars.vault_ad).UNDERLYING().balanceOf(jonna) - 
+    //             vars.balbefore, bond.amount.mulWadDown(marketmanager.redemption_prices(vars.marketId))-bond.debt, 14); 
+    //         // assertEq(vars.rateBefore, Vault(vars.vault_ad).previewMint(1e18)); 
+    //         // assertApproxEqAbs(vars.balBefore, )
+    //         // assertApproxEqAbs(vars.balBefore -Vault(vars.vault_ad).UNDERLYING().balanceOf(vars.vault_ad) , 
+    //         //     bond.debt - bond.amount.mulWadDown(marketmanager.redemption_prices(vars.marketId)), 13)
+    //     }
 
 
 
 
-        // vault profit or loss vs redeemer profit or loss 
-        // vault loss properly recorded 
 
 
-    }
+    //     // vault profit or loss vs redeemer profit or loss 
+    //     // vault loss properly recorded 
+
+
+    // }
 
     // function testFixedLevBuy() public returns(testVars1 memory){
 

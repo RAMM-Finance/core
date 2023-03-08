@@ -455,10 +455,10 @@ contract Controller {
         (bool duringMarketAssessment, , , bool alive, , ) = marketManager
             .restriction_data(marketId);
         require(!duringMarketAssessment && alive, "market conditions not met");
-        require(
-            resolveCondition(marketId),
-            "not enough validators have voted to resolve"
-        );
+        // require(
+        //     resolveCondition(marketId),
+        //     "not enough validators have voted to resolve"
+        // );
         vaults[id_parent[marketId]].beforeResolve(marketId);
     }
 
@@ -728,6 +728,7 @@ contract Controller {
             vault.trustInstrument(marketId, approvalDatas[marketId], isPool, 0);
         }
         approvalDatas[marketId].managers_stake = managerCollateral;
+                console.log('approved_principal',approvalDatas[marketId].approved_principal); 
 
         // TODO vault exchange rate should not change
         // pull from pool to vault, which will be used to fund the instrument
@@ -780,6 +781,8 @@ contract Controller {
             max_principal,
             quoted_interest
         );
+                console.log('approved_principal',max_principal); 
+
     }
 
     function generalApproval(uint256 marketId) internal {

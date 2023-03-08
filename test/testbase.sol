@@ -294,7 +294,14 @@ contract CustomTestBase is Test {
     }
 
     function initiateCreditline() public {
+        instrument = new CreditLine(
+            vault_ad, 
+            jott, principal, interest, duration, faceValue, 
+            address(collateral ), address(collateral), principal, 2
+            ); 
+        instrument.setUtilizer(jott); 
 
+        initiateCreditMarket(); 
     }
 
     function initiateOptionsOTCMarket() public{
@@ -582,7 +589,9 @@ contract CustomTestBase is Test {
 
     function closeMarket(uint256 marketId) public {
         vm.prank(deployer);
+        controller.beforeResolve(marketId); 
         controller.resolveMarket( marketId); 
+
     }
 
     function donateToInstrument(address vaultad, address instrument, uint256 amount, uint256 marketId) public {

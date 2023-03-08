@@ -11,9 +11,8 @@ library PerpTranchePricer{
     using PerpTranchePricer for PricingInfo; 
     uint256 constant BASE_UNIT = 1e18; 
 
-	/**
-	 @notice setter for PricingInfo
-	 */
+	
+	/// @notice setter for PricingInfo
 	function setNewPrices(
 		PricingInfo storage _self, 
 		uint256 psu,
@@ -61,6 +60,20 @@ library PerpTranchePricer{
 	    	 .mulWadDown(perp.inceptionPrice)
 	   		>= psu.mulWadDown(juniorSupply.mulWadDown(perp.leverageFactor)) 
 	   	); 
+	}
+
+	/// @notice with PSU determined by dynamicRF, can all seniors redeem
+	function isSolventDynamic(
+		PricingInfo memory _self,
+		address instrument, 
+		PoolData memory perp, 
+		uint256 juniorSupply
+		) internal view returns(bool){
+
+		uint256 seniorSupply = juniorSupply.mulWadDown(perp.leverageFactor); 
+		uint256 totalAssetsHeldScaled = Instrument(instrument).assetOracle(juniorSupply + seniorSupply)
+	    	 .mulWadDown(perp.inceptionPrice); 
+	   	return(totalAssetsHeldScaled >= _self.psu.mulWadDown(seniorSupply)); 
 	}
 
 	function constantRF_PSU(
@@ -118,26 +131,8 @@ library PerpTranchePricer{
 	    	(vars.totalAssetsHeldScaled 
 	      	- psu.mulWadDown(vars.seniorSupply)).divWadDown(juniorSupply); 
 
-	     // console.log('alternative', (levFactor + BASE_UNIT).mulWadDown(Instrument(instrument).assetOracle(BASE_UNIT).mulWadDown(perp.inceptionPrice), 
-	     // 	levFactor.mulWadDown(psu));
-	    // console.log('alternative pju', 
-	    // 	(
-	    // 		(levFactor + BASE_UNIT).mulWadDown(Instrument(instrument).assetOracle(BASE_UNIT).mulWadDown(perp.inceptionPrice)
-	    // 			) 
-	    // 	- levFactor.mulWadDown(psu)
-	    // 	), pju
-	    // 	); 
-
 	}
 
-    
-    function roundDown(uint256 rate) public view returns (uint256) {
-        return ((rate / Constants.PRICING_ROUND) * Constants.PRICING_ROUND);
-    }
-
-    function roundUp(uint256 rate) public view returns (uint256) {
-        return (((rate + Constants.PRICING_ROUND - 1) / Constants.PRICING_ROUND) * Constants.PRICING_ROUND);
-    }
 
 	struct localVars{
 
@@ -150,3 +145,12 @@ library PerpTranchePricer{
 
 }
 
+	     // console.log('alternative', (levFactor + BASE_UNIT).mulWadDown(Instrument(instrument).assetOracle(BASE_UNIT).mulWadDown(perp.inceptionPrice), 
+	     // 	levFactor.mulWadDown(psu));
+	    // console.log('alternative pju', 
+	    // 	(
+	    // 		(levFactor + BASE_UNIT).mulWadDown(Instrument(instrument).assetOracle(BASE_UNIT).mulWadDown(perp.inceptionPrice)
+	    // 			) 
+	    // 	- levFactor.mulWadDown(psu)
+	    // 	), pju
+	    // 	); 

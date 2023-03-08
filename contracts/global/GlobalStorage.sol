@@ -61,7 +61,6 @@ contract StorageHandler{
 	function setRF(uint256 marketId, bool isConstant) external onlyProtocol {
 		PricingInfos[marketId].setRF(isConstant); 
 	}
-	// function setMultiplier(uint256 marketId,  )
 
 	/// @notice updates whenever uRate changes 
 	/// urate changes whenever a borrow/repay is made OR 
@@ -100,6 +99,15 @@ contract StorageHandler{
 		));  
 	}
 
+	function checkIsSolventDynamicRF(uint256 marketId) public view returns(bool){
+		InstrumentData memory data = InstrumentDatas[marketId]; 
+		return PricingInfos[marketId].isSolventDynamic(
+			data.instrument_address, 
+			data.poolData, 
+			markets[marketId].longZCB.totalSupply()
+		);
+	}
+
 	function checkIsSolventConstantRF(uint256 marketId) public view returns(bool){
 		InstrumentData memory data = InstrumentDatas[marketId]; 
 		uint256 psu = PerpTranchePricer.constantRF_PSU(
@@ -109,6 +117,7 @@ contract StorageHandler{
 		return PerpTranchePricer.isSolvent(data.instrument_address, psu, markets[marketId].longZCB.totalSupply(), 
 			data.poolData); 
 	}
+
 
 
 	//--- Instrument ---//

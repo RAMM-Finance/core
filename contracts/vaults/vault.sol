@@ -400,7 +400,6 @@ contract Vault is ERC4626 {
             instrumentData.faceValue =
                 data.approved_principal +
                 data.approved_yield;
-
             depositIntoInstrument(
                 marketId,
                 data.approved_principal - data.managers_stake,
@@ -512,13 +511,13 @@ contract Vault is ERC4626 {
             uint256
         )
     {
-        // InstrumentData memory data = instrument_data[Instruments[marketId]];
+        InstrumentData memory data = instrument_data[Instruments[marketId]];
         return (
-            instrument_data[Instruments[marketId]].poolData.promisedReturn,
-            instrument_data[Instruments[marketId]].poolData.inceptionTime,
-            instrument_data[Instruments[marketId]].poolData.inceptionPrice,
-            instrument_data[Instruments[marketId]].poolData.leverageFactor,
-            instrument_data[Instruments[marketId]].poolData.managementFee
+            data.poolData.promisedReturn,
+            data.poolData.inceptionTime,
+            data.poolData.inceptionPrice,
+            data.poolData.leverageFactor,
+            data.poolData.managementFee
         );
     }
 

@@ -274,7 +274,7 @@ contract CreditLine is Instrument {
         collateral = _collateral; 
         oracle = _oracle; 
         collateral_balance = _collateral_balance; 
-        collateral_type = CollateralType(_collateral_type); 
+        collateral_type = CollateralType(0); 
 
         loanStatus = LoanStatus.notApproved; 
 
