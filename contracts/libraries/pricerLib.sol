@@ -10,7 +10,6 @@ library PerpTranchePricer{
     using FixedPointMathLib for uint256;
     using PerpTranchePricer for PricingInfo; 
     uint256 constant BASE_UNIT = 1e18; 
-	uint256 constant BASE_MULTIPLIER = 5284965330; //10% at 60% util rate 
 
 	/**
 	 @notice setter for PricingInfo
@@ -40,7 +39,7 @@ library PerpTranchePricer{
 	    
 	    // 1.00000003 ** x seconds
 	    uint256 accruedPSU = (BASE_UNIT + _self.prevIntervalRp).rpow(block.timestamp - _self.prevAccrueTime, BASE_UNIT); 
-
+	    console.log('accruedPSU', accruedPSU, _self.prevIntervalRp, block.timestamp- _self.prevAccrueTime); 
 	    _self.psu = _self.psu.mulWadDown(accruedPSU); 
 	    _self.prevAccrueTime = block.timestamp; 
 	    _self.prevIntervalRp = uRateRpLinear(uRate, _self.URATE_MULTIPLIER); 
@@ -48,7 +47,7 @@ library PerpTranchePricer{
 
 	/// @notice Get Promised return as function of uRate, 0<= uRate<= 1e18
 	function uRateRpLinear(uint256 uRate, uint256 multiplier) internal pure returns(uint256){
-		return multiplier > 0? uRate.mulWadDown(multiplier) : uRate.mulWadDown(BASE_MULTIPLIER); 
+		return multiplier > 0? uRate.mulWadDown(multiplier) : uRate.mulWadDown(Constants.BASE_MULTIPLIER); 
 	}
 
 	/// @notice can all seniors redeem for given psu 
@@ -74,9 +73,9 @@ library PerpTranchePricer{
 	function refreshViewCurrentPricing(
 		PricingInfo storage _self, 
 		address instrument, 
-		uint256 uRate, 
+		PoolData memory perp,
 		uint256 juniorSupply, 
-		PoolData memory perp
+		uint256 uRate
 		) public returns(uint256 psu, uint256 pju, uint256 levFactor){
 		_self.storeNewPSU(uRate); 
 		return viewCurrentPricing(_self, instrument, perp,juniorSupply ); 
@@ -114,8 +113,7 @@ library PerpTranchePricer{
 	    	vars.belowThreshold = true; 
 	    }
 	    // should be 0 otherwise 
-	    console.log('wtf',vars.totalAssetsHeldScaled, psu.mulWadDown(vars.seniorSupply), 
-	    juniorSupply ); 
+
 	    if(!vars.belowThreshold) pju = 
 	    	(vars.totalAssetsHeldScaled 
 	      	- psu.mulWadDown(vars.seniorSupply)).divWadDown(juniorSupply); 

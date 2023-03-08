@@ -1181,6 +1181,13 @@ contract PoolInstrument is
         return totalSupply.mulWadDown(previewMint(1e18));
         //TODO custom oracle
     }
+    function getUtilRate() public view returns(uint256){
+
+        return (1e18 * totalBorrow.amount) / totalAsset.amount; 
+    }
+    function getTotalBorrowAmount() public view returns(uint256){
+        return totalBorrow.amount; 
+    }
 
     /// @notice to modify totalassets very privileged function 
     function modifyTotalAsset(bool add, uint256 amount) external 

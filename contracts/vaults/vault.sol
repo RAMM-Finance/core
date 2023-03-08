@@ -130,7 +130,7 @@ contract Vault is ERC4626 {
     function trusted_transfer(uint256 amount, address to)
         external
         onlyController
-    {
+    {   console.log('resolving, bal', UNDERLYING.balanceOf(address(this))); 
         UNDERLYING.transfer(to, amount);
     }
 

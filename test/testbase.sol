@@ -188,7 +188,7 @@ contract CustomTestBase is Test {
 
     // only for pool instrument.
     function setCollaterals() public {
-        collateral = new Cash("Collateral", "COLL", 18);
+       // collateral = new Cash("Collateral", "COLL", 18);
         cash1 = new Cash("cash1", "CASH1", 18);
         cash2 = new Cash("cash2", "CASH2", 18);
         nft1 = new TestNFT("NFT1", "NFT1");
@@ -201,6 +201,54 @@ contract CustomTestBase is Test {
         setUsers();
         setCollaterals();
         controllerSetup();
+    PoolInstrument.Config[] configs;
+    PoolInstrument.CollateralLabel[] clabels;
+
+    function setupCollateral() public{
+        setCollaterals(); 
+    uint256 tau = 1000 seconds; // seconds after auction start when the price reaches zero -> linearDecrease
+    uint256 cusp = unit/2; // percentage price drop that can occur before an auction must be reset.
+    uint256 tail = 500 seconds; // seconds that can elapse before an auction must be reset. 
+    uint256 buf = unit*5/4; // auction start price = buf * maxAmount
+
+        clabels.push(
+            PoolInstrument.CollateralLabel(
+                address(cash1),
+                0
+            )
+        );
+        clabels.push(
+            PoolInstrument.CollateralLabel(
+                address(nft1),
+                1
+            )
+        );
+
+        configs.push(
+            PoolInstrument.Config(
+            0,
+            unit/2 + unit/10,
+            unit/2,
+            true,
+            tau,
+            cusp, // 50%
+            tail,
+            buf // 125%
+            )
+        );
+        
+        configs.push(
+            PoolInstrument.Config(
+            0,
+            unit + unit/10,
+            unit,
+            false,
+            tau,
+            cusp, // 50%
+            tail,
+            buf // 125%
+            )
+        );
     }
 
     function deploySetUps() public{
@@ -429,7 +477,41 @@ contract CustomTestBase is Test {
         vm.stopPrank();
     }
 
-   function setupPricer(
+    function borrowFromPool(uint256 collateralAmount, uint256 amount, address who) public{
+
+        vm.startPrank(who); 
+        cash1.approve(address(poolInstrument), collateralAmount); 
+        cash1.faucet(collateralAmount);
+
+        poolInstrument.addCollateral(
+            address(cash1),
+            0,
+            collateralAmount,
+            who,
+            true
+        );
+        // poolInstrument.addCollateral(
+        //     address(nft1),
+        //     1,
+        //     0,
+        //     toku,
+        //     true
+        // );
+
+        
+
+        poolInstrument.borrow(
+            amount,
+            address(0),
+            0,
+            0,
+            who,
+            false
+        );
+        vm.stopPrank(); 
+    }
+
+    function setupPricer(
         uint256 multiplier, 
         bool constantRF, 
 
@@ -496,11 +578,13 @@ contract CustomTestBase is Test {
         return vars; 
     }
 
+
     function deployExampleLendingPool(
         address vault_ad
         ) public{
-        PoolInstrument.CollateralLabel[] memory clabels;
-        PoolInstrument.Config[] memory configs;
+
+
+
 
         LinearInterestRate linearRateCalculator = (new LinearInterestRate());
         uint256 _minInterest = 0;
@@ -511,10 +595,14 @@ contract CustomTestBase is Test {
 
         bytes memory linearRateData;
         linearRateData = abi.encode(_minInterest,_vertexInterest, _maxInterest, _vertexUtilization);
+        setupCollateral(); 
+
+        PoolInstrument.CollateralLabel[] memory _clabels = clabels ;
+        PoolInstrument.Config[] memory _configs = configs; 
 
         deployPoolInstrument(
-            clabels,
-            configs,
+            _clabels,
+            _configs,
             vault_ad,
             0,
             deployer,
@@ -611,9 +699,12 @@ contract CustomTestBase is Test {
         doApproveCol(address(marketmanager), jonna); 
 
         // doInvest(vault_ad, gatdang, precision * 100000);
+        console.log('wtf'); 
         vm.prank(jonna); 
         
         (, uint256 amountOut) = marketmanager.buyBond(marketId, int256(amountToBuy), precision , data); 
+                console.log('wtf2'); 
+
         // let validator invest to vault and approve 
         doApprove(marketId, vault_ad);
         return amountOut; 
@@ -644,7 +735,8 @@ contract CustomTestBase is Test {
 
         if (min == 0 && max == type(uint256).max) return x;  // The entire uint256 space is effectively x.
 
-        return (x % ((max - min) + 1)) + min;  // Given the above exit conditions, `(max - min) + 1 <= type(uint256).max`.
+        result = (x % ((max - min) + 1)) + min;  // Given the above exit conditions, `(max - min) + 1 <= type(uint256).max`.
+        require(result>=min && result <= max, "MAX_LESS_THAN_MIN_AF"); 
     }
 
     // ALL input will be mod 2**32, to limit fuzzing space 
@@ -689,6 +781,7 @@ contract CustomTestBase is Test {
 
         uint rateBefore; 
         uint256 balbefore;
+        uint balBefore; 
         uint256 ratebefore; 
 
         uint amount1; 
@@ -702,6 +795,9 @@ contract CustomTestBase is Test {
         uint collateral_redeem_amount; 
         uint seniorAmount; 
         uint pjuDiscounted; 
+
+        uint urate1; 
+        uint urate2; 
     }
 
 

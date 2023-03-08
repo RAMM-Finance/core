@@ -2,7 +2,7 @@ pragma solidity ^0.8.16;
 import "./types.sol"; 
 import {PerpTranchePricer} from "../libraries/pricerLib.sol"; 
 import {CollateralPricer} from "../libraries/lendingOracleLib.sol"; 
-
+import {PoolInstrument} from "../instruments/poolInstrument.sol"; 
 import {Instrument} from "../vaults/instrument.sol"; 
 import {FixedPointMathLib} from "solmate/utils/FixedPointMathLib.sol";
 
@@ -61,17 +61,38 @@ contract StorageHandler{
 	function setRF(uint256 marketId, bool isConstant) external onlyProtocol {
 		PricingInfos[marketId].setRF(isConstant); 
 	}
+	// function setMultiplier(uint256 marketId,  )
 
 	/// @notice updates whenever uRate changes 
-	function refreshPricing(uint256 marketId, uint256 uRate) public onlyProtocol{
-		PricingInfos[marketId].storeNewPSU(uRate); 
+	/// urate changes whenever a borrow/repay is made OR 
+	/// when a longZCB is issued/redeemed
+	function refreshPricing(uint256 marketId) public onlyProtocol{
+		if(PricingInfos[marketId].constantRF) return; 
+
+		// if lendingpool, update psu based on new urate 
+		else{
+			PricingInfos[marketId].storeNewPSU(getPoolUtilRate(marketId)); 
+		} 
+
+		return; 
 	}
 
-	/**
-		wrapper for PricingInfo.viewCurrentPricing
-	 */
+	function getPoolUtilRate(uint256 marketId) public view returns(uint256){
+		return PoolInstrument(InstrumentDatas[marketId].instrument_address).getUtilRate(); 
+	}
+
 	function viewCurrentPricing(uint256 marketId) public view returns(uint256, uint256, uint256) {
 		InstrumentData memory data = InstrumentDatas[marketId]; 
+		return (PricingInfos[marketId].viewCurrentPricing(
+			data.instrument_address, 
+			data.poolData, 
+			markets[marketId].longZCB.totalSupply()
+		));  
+	}
+
+	function refreshViewCurrentPricing(uint256 marketId) public returns(uint256, uint256, uint256){
+		InstrumentData memory data = InstrumentDatas[marketId]; 
+		refreshPricing( marketId); 
 		return (PricingInfos[marketId].viewCurrentPricing(
 			data.instrument_address, 
 			data.poolData, 
@@ -103,6 +124,19 @@ contract StorageHandler{
 	function getInstrumentData(uint256 marketId) public view returns(InstrumentData memory){
 		return InstrumentDatas[marketId]; 
 	}
+
+    function getInstrumentType(uint256 marketId) public view returns (uint256) {
+    // CreditLine,
+    // CoveredCallShort,
+    // LendingPool, 
+    // StraddleBuy,
+    // LiquidityProvision, 
+    // Other
+    if (InstrumentDatas[marketId].instrument_type == InstrumentType.CreditLine)
+    	return 0; 
+    else if (InstrumentDatas[marketId].instrument_type == InstrumentType.LendingPool)
+        return 2; 
+    }
 
 	function getInstrumentAddress(uint256 marketId) public view returns(address){
 		return InstrumentDatas[marketId].instrument_address; 
