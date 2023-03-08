@@ -68,6 +68,14 @@ contract CustomTestBase is Test {
     address toku; 
     address goku;
 
+
+    // participants
+    address utilizer1;
+    address manager1;
+    address manager2;
+    address manager3;
+    address validator1;
+
     // Varaibles that sould be tinkered
     uint256 principal = 1000 * precision;
     uint256 interest = 100*precision; 
@@ -118,7 +126,18 @@ contract CustomTestBase is Test {
         goku = address(0xbabe7); 
         vm.label(goku, "goku"); //LP1 
         toku = address(0xbabe8);
-        vm.label(toku, "toku"); 
+        vm.label(toku, "toku");
+
+        utilizer1 = address(0xbabe10);
+        vm.label(utilizer1, "utilizer1");
+        manager1 = address(0xbabe11);
+        vm.label(manager1, "manager1");
+        manager2 = address(0xbabe12);
+        vm.label(manager2, "manager2");
+        manager3 = address(0xbabe13);
+        vm.label(manager3, "manager3");
+        validator1 = address(0xbabe14);
+        vm.label(validator1, "validator1");
 
 
         vm.startPrank(deployer);
@@ -176,6 +195,12 @@ contract CustomTestBase is Test {
         nft2 = new TestNFT("NFT2", "NFT2");
     }
 
+    /// @notice test setup
+    function testSetup() public {
+        deploySetUps();
+        setUsers();
+        setCollaterals();
+        controllerSetup();}
     PoolInstrument.Config[] configs;
     PoolInstrument.CollateralLabel[] clabels;
 
@@ -301,7 +326,43 @@ contract CustomTestBase is Test {
             ); 
         instrument.setUtilizer(jott); 
 
-        initiateCreditMarket(); 
+        initiateCreditMarket(); }
+
+    function makeCreditlineMarket(address creditline, uint256 vaultId) public returns (uint256 marketId) {
+        InstrumentData memory data;
+        data.trusted = false; 
+        data.balance = 0;
+        data.faceValue = CreditLine(creditline).faceValue();
+        data.marketId = 0; 
+        data.principal = CreditLine(creditline).principal();
+        data.expectedYield = CreditLine(creditline).notionalInterest();
+        data.duration = CreditLine(creditline).duration();
+        data.description = "test";
+        data.instrument_address = address(creditline);
+        data.instrument_type = InstrumentType.CreditLine;
+        data.maturityDate = 0;
+        marketId = controller.initiateMarket(
+            creditline,
+            data,
+            vaultId
+        );
+    }
+
+    function createCreditlineInstrument(uint256 vaultId, uint256 principal, uint256 yield, uint256 duration) public returns (address creditline) {
+        address vault = address(controller.getVaultfromId(vaultId));
+        CreditLine creditline = new CreditLine(
+            vault, 
+            utilizer1, 
+            principal, 
+            yield,
+            duration,
+            principal + yield,
+            address(0), 
+            address(0),
+            0,
+            3
+        );
+        return address(creditline);
     }
 
     function initiateOptionsOTCMarket() public{

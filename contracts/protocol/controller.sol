@@ -177,7 +177,7 @@ contract Controller {
         uint256 _total_asset_limit,
         MarketParameters memory default_params,
         string calldata _description
-    ) public {
+    ) public returns (address) {
         (Vault newVault, uint256 vaultId) = vaultFactory.newVault(
             underlying,
             address(this),
@@ -206,6 +206,8 @@ contract Controller {
             _total_asset_limit,
             default_params
         );
+
+        return address(newVault);
     }
 
     function getInstrumentSnapShot(uint256 marketId)
@@ -1097,6 +1099,7 @@ contract Controller {
         return ad_to_id[recipient];
     }
 
+    /// @notice gets vault from marketId.
     function getVault(uint256 marketId) public view returns (Vault) {
         return vaults[id_parent[marketId]];
     }
