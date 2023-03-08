@@ -85,7 +85,9 @@ contract ZCBFactory{
 
 contract SyntheticZCBPoolFactory{
     address public immutable controller;
-    address public immutable zcbFactory; 
+    address public immutable zcbFactory;
+
+
     constructor(address _controller, address _zcbFactory){
         controller = _controller; 
         zcbFactory = _zcbFactory; 

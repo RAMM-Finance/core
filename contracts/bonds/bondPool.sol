@@ -9,6 +9,10 @@ contract SyntheticZCBPool{
     using FixedPointMathLib for uint256;
     using LinearPiecewiseCurve for uint256; 
 
+    /// CONSTANTS
+    uint256 public MIN_INIT_PRICE = 1e10;
+    uint256 public PARAMETER_PRECISION = 1e5;
+
     constructor(address base, 
         address trade, 
         address s_trade, 
@@ -29,11 +33,11 @@ contract SyntheticZCBPool{
     /// @param data is abi.encode(address) -> address receives the long or short zcb
     /// @param poolamountOut is the opposite of whatever amountIn is in.
     function takerOpen(
-        bool isLong, 
+        bool isLong,
         int256 amountIn,
-        uint256 priceLimit, 
+        uint256 priceLimit,
         bytes calldata data
-        ) external  returns(uint256 poolamountIn, uint256 poolamountOut)
+    ) external  returns(uint256 poolamountIn, uint256 poolamountOut)
     {
         uint256 bal = baseBal(); 
         bool exactInput = amountIn>=0;
@@ -91,25 +95,28 @@ contract SyntheticZCBPool{
     /// These params are used for utilizer bond issuance, but a is set to 0 after issuance phase 
     /// @param sigma is the proportion of P that is going to be bought at a discount  
     function calculateInitCurveParams(
-        uint256 P, 
-        uint256 I, 
+        uint256 P,
+        uint256 I,
         uint256 sigma,
         uint256 alpha, 
-        uint256 delta) external {
+        uint256 delta
+    ) external {
         require(msg.sender == controller, "unauthorized"); 
+
+        // upper bound <= 1, i.e. max supply must be less than P + I?
+        require(P.mulWadDown(alpha+delta) <= P + I, "alpha+delta exceed bound");
         b_initial = (2*P).divWadDown(P+I) >= precision
             ? (2*P).divWadDown(P+I) - precision
-            : MIN_INIT_PRICE;         
+            : MIN_INIT_PRICE; 
         a_initial = (precision-b_initial).divWadDown(P+I); 
 
         discount_cap_collateral = P.mulWadDown(0); //sigma =0 TODO
 
         // Calculate and store maximum tokens for discounts, and get new initial price after saving for discounts
        (discount_cap, b) = discount_cap_collateral.amountOutGivenIn(SwapParams(0, a_initial, b_initial, true, 0));
+
         (, upperBound) = P.mulWadDown(alpha+delta).amountOutGivenIn(SwapParams(0, a_initial, b_initial,true, 0)); 
         curPrice = b;
-        // (discount_cap, b) = LinearCurve.amountOutGivenIn(P.mulWadDown(sigma), 0, a_initial, b_initial, true);
-        // (, upperBound )= LinearCurve.amountOutGivenIn(P.mulWadDown(alpha+delta), 0, a_initial, b_initial,true); 
     }
 
     /// @notice calculates initparams for pool based instruments 
@@ -217,8 +224,7 @@ contract SyntheticZCBPool{
     address public immutable entry; 
     address public immutable controller; 
     uint256 public constant precision = 1e18; 
-    uint256 public constant maxPrice = 1e18; 
-    uint256 public constant MIN_INIT_PRICE = 5e17;
+    uint256 public constant maxPrice = 1e18;
 }
 
 

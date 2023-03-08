@@ -200,11 +200,11 @@ contract CreditLine is Instrument {
     address public immutable borrower; 
 
     //  variables initiated at creation
-    uint256 principal;
-    uint256 notionalInterest; 
-    uint256 faceValue; //total amount due, i.e principal+interest
-    uint256 duration; // normalized to a year 1 means 1 year, 0.5 means 6 month 
-    uint256 interestAPR; 
+    uint256 public principal;
+    uint256 public notionalInterest; 
+    uint256 public faceValue; //total amount due, i.e principal+interest
+    uint256 public duration; // normalized to a year 1 means 1 year, 0.5 means 6 month 
+    uint256 public interestAPR; 
 
     // Modify-able Global Variables during repayments, borrow
     uint256 public totalOwed; 

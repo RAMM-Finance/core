@@ -38,6 +38,8 @@ contract ReputationManager {
   function setDataStore(address dataStore) public onlyProtocol{
     Data = StorageHandler(dataStore); 
   }
+
+    /// @param collateralAmount: total trader collateral w/n market
     struct RepLog{
         uint256 collateralAmount; 
         uint256 bondAmount; 

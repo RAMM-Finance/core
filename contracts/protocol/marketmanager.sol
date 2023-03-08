@@ -730,6 +730,8 @@ contract MarketManager {
         uint256 _priceLimit,
         bytes calldata _tradeRequestData
     ) external returns (uint256 amountIn, uint256 amountOut) {
+        (,address utilizer) = controller.market_data(_marketId);
+        require(msg.sender != utilizer, "utilizer can't be manager");
         (amountIn, amountOut) = this.buylongZCB(
             _marketId,
             _amountIn,
