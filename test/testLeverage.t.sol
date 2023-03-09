@@ -122,105 +122,41 @@ contract LeverageModuleTest is CustomTestBase {
 
     }
 
-    // function testSetup1() public {
-
-    //     controller = new Controller(deployer, address(0)); // zero addr for interep
-    //     vaultFactory = new VaultFactory(address(controller));
-    //     collateral = new Cash("n","n",18);
-    //     collateral2 = new Cash("nn", "nn", 18); 
-    //     bytes32  data;
-
-    //     clabels.push(
-    //         PoolInstrument.CollateralLabel(
-    //             address(collateral),
-    //             0
-    //         )
-    //     );
-    //     collaterals.push(
-    //         PoolInstrument.Config(
-    //         0,
-    //         wad/2,
-    //         wad/4,
-    //         true
-    //     )
-    //     );
-    //     marketmanager = new MarketManager(
-    //         deployer,
-    //         address(controller), 
-    //         address(0),data, uint64(0)
-    //     );
-    //     ZCBFactory zcbfactory = new ZCBFactory(); 
-    //     poolFactory = new SyntheticZCBPoolFactory(address(controller), address(zcbfactory)); 
-    //     reputationManager = new ReputationManager(address(controller), address(marketmanager));
-    //     leverageManager = new LeverageManager(address(controller), 
-    //         address(marketmanager),address(reputationManager) );
-
-    //     vm.startPrank(deployer); 
-    //     controller.setMarketManager(address(marketmanager));
-    //     controller.setVaultFactory(address(vaultFactory));
-    //     controller.setPoolFactory(address(poolFactory)); 
-    //     controller.setReputationManager(address(reputationManager));
-    //     validatorManager = new ValidatorManager(address(controller), address(marketmanager),address(reputationManager) );        
-    //     controller.setValidatorManager(address(validatorManager)); 
-    //     controller.setLeverageManager(address(leverageManager)); 
-    //     vm.stopPrank(); 
-
-    //     controller.createVault(
-    //         address(collateral),
-    //         false,
-    //         0,
-    //         type(uint256).max,
-    //         type(uint256).max,
-    //         MarketManager.MarketParameters(N, sigma, alpha, omega, delta, r, s, steak),
-    //         "description"
-    //     ); //vaultId = 1; 
-    //     vault_ad = controller.getVaultfromId(1); 
-
-    //     setUsers();
-
-    //     nftPool = new SimpleNFTPool(  vault_ad, toku, address(collateral)); 
-    //     nftPool.setUtilizer(toku); 
-
-    //     initiateSimpleNFTLendingPool(); 
-    //     doInvest(vault_ad,  toku, 1e18*10000); 
-
-
-
-    //     VariableInterestRate rateCalculator = new VariableInterestRate();
-
-    //     PoolInstrument.CollateralLabel[] memory _clabels = clabels;
-    //     PoolInstrument.Config[] memory _collaterals = collaterals;
-
-    //     // console.log("pool setup");
-    //     // console.log("rateContract", address(rateCalculator));
-
-    //     // console.log("deployer:", deployer);
-    //     pool = new PoolInstrument(
-    //         vault_ad,
-    //         address(reputationManager), 
-    //         0,
-    //         deployer,
-    //         "pool 1",
-    //         "P1",
-    //         address(rateCalculator),
-    //         initCallData,
-    //         _clabels,
-    //         _collaterals
-    //     );
-               
-    //     // vm.prank(address(controller));
-    //     // pool.addAcceptedCollateral(
-    //     //     vault_ad,
-    //     //     0,
-    //     //     precision, 
-    //     //     precision*9/10, 
-    //     //     true
-    //     // );      
-
-    
-    // }
    
+    // function testPoolLevMint(
+    //     uint256 multiplier, 
 
+    //     uint32 saleAmount, 
+    //     uint32 initPrice,
+    //     uint32 promisedReturn, 
+    //     uint32 inceptionPrice, 
+    //     uint32 leverageFactor, 
+
+    //     uint32 amountToBuy, 
+    //     uint32 amountToIssue
+    //     ) public returns(testVars1 memory){
+
+
+    //     testVars1 memory vars = createLendingPoolAndPricer(
+    //      multiplier, 
+
+    //      saleAmount, 
+    //      initPrice,
+    //      promisedReturn, 
+    //      inceptionPrice, 
+    //      leverageFactor
+    //     ); 
+
+
+    //     uint amountToBuy = constrictToRange(fuzzput(amountToBuy, 1e14), vars.saleAmount, vars.saleAmount*5 ); 
+    //     uint amountToIssue = constrictToRange(fuzzput(amountToIssue, 1e14), 1e12, vars.saleAmount*5 ); 
+
+    //     vm.assume(amountToBuy <= marketmanager.getTraderBudget(vars.marketId, jonna)); 
+    //     vm.assume(amountToIssue <= marketmanager.getTraderBudget(vars.marketId, jonna)); 
+
+        
+
+    // }
 
 
     /// @notice leverage pool mint 

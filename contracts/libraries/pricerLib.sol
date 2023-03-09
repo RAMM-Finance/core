@@ -38,10 +38,10 @@ library PerpTranchePricer{
 	    
 	    // 1.00000003 ** x seconds
 	    uint256 accruedPSU = (BASE_UNIT + _self.prevIntervalRp).rpow(block.timestamp - _self.prevAccrueTime, BASE_UNIT); 
-	    console.log('accruedPSU', accruedPSU, _self.prevIntervalRp, block.timestamp- _self.prevAccrueTime); 
 	    _self.psu = _self.psu.mulWadDown(accruedPSU); 
 	    _self.prevAccrueTime = block.timestamp; 
 	    _self.prevIntervalRp = uRateRpLinear(uRate, _self.URATE_MULTIPLIER); 
+
 	}
 
 	/// @notice Get Promised return as function of uRate, 0<= uRate<= 1e18

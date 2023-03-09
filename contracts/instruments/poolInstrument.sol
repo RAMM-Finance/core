@@ -1183,7 +1183,7 @@ contract PoolInstrument is
     }
     function getUtilRate() public view returns(uint256){
 
-        return (1e18 * totalBorrow.amount) / totalAsset.amount; 
+        return (uint256(totalBorrow.amount) * 1e18) / uint256(totalAsset.amount); 
     }
     function getTotalBorrowAmount() public view returns(uint256){
         return totalBorrow.amount; 

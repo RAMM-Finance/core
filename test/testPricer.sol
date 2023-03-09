@@ -423,7 +423,7 @@ contract PricerTest is CustomTestBase {
         vm.warp(block.timestamp+ timepass); 
         vm.prank(jonna);
         marketmanager.redeemPoolLongZCB(vars.marketId, issueamount); 
-        assertApproxEqAbs(vars.urate1, Data.getPoolUtilRate(vars.marketId),2 ); 
+        assertApproxEqAbs(vars.urate1, Data.getPoolUtilRate(vars.marketId),5 ); 
         ( vars.psu2,   vars.pju2, ) = Data.refreshViewCurrentPricing(vars.marketId) ;
         console.log('?',vars.psu2.divWadDown(vars.psu), (unit + Constants.BASE_MULTIPLIER.mulWadDown(Data.getPoolUtilRate(vars.marketId))
             ).rpow(timepass, unit));

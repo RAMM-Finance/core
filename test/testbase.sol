@@ -481,6 +481,8 @@ contract CustomTestBase is Test {
      */
     function resolveMarket(uint256 marketId) public {
         vm.startPrank(deployer);
+        controller.beforeResolve(marketId); 
+
         // controller.beforeResolve(marketId); 
         controller.resolveMarket(marketId);
         vm.stopPrank();

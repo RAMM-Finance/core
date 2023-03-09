@@ -73,7 +73,6 @@ contract StorageHandler{
 			PricingInfos[marketId].storeNewPSU(getPoolUtilRate(marketId)); 
 		} 
 
-		return; 
 	}
 
 	function getPoolUtilRate(uint256 marketId) public view returns(uint256){
