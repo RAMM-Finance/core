@@ -820,7 +820,11 @@ contract Controller {
         onlyManager
     {
         Vault vault = getVault(marketId);
+        console.log('transferring', amount,         vault.UNDERLYING().balanceOf(address(vault))
+); 
         vault.trusted_transfer(amount, msg.sender);
+        console.log('after',         vault.UNDERLYING().balanceOf(address(vault))
+); 
         vault.modifyInstrumentHoldings(true, amount);
     }
 

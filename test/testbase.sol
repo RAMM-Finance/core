@@ -31,7 +31,11 @@ import {OrderManager} from "../contracts/protocol/ordermanager.sol";
 // 2. else integration tests, fuzz this if possible 
 // 3. else Edge case tests, 
 
-
+// invariants: 
+// 1. junior supply invariant,
+// 2. instrument balance invariant, 
+// 3. for a single instrument, everything is solvent(enough funds to redeem)
+// 4. senior supply invariant 
 
 contract CustomTestBase is Test {
     using FixedPointMath for uint256; 
@@ -764,6 +768,7 @@ contract CustomTestBase is Test {
     struct testVars1{
         uint256 marketId;
         address vault_ad; 
+        address instrument; 
         uint amountToBuy; 
         uint curPrice; 
 
@@ -811,6 +816,8 @@ contract CustomTestBase is Test {
 
         uint urate1; 
         uint urate2; 
+        uint start; 
+        uint mid; 
     }
 
 
