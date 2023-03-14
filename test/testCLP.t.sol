@@ -271,6 +271,14 @@ contract PoolInstrumentTest is CustomTestBase {
         }
     }
 
+    function test_unit_liquidateERC20() public {
+        
+    }
+
+    function test_unit_liquidateERC721() public {
+
+    }
+
     function logPoolState(PoolInstrument _pool, bool accrue) public {
         console.log("POOL STATE BEGIN");
 

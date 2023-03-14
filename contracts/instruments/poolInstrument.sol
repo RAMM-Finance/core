@@ -776,6 +776,17 @@ contract PoolInstrument is
             _violator,
             msg.sender
         );
+
+        // if bad debt
+        (uint256 debt, uint256 maxDebt) = userAccountLiquidity(_violator);
+        if (debt > 0 && maxDebt == 0) {
+            // write off bad debt
+            uint256 badShares = totalBorrow.toShares(debt, false);
+            totalBorrow.amount -= SafeCast.toUint128(debt);
+            totalBorrow.shares -= SafeCast.toUint128(badShares);
+            totalAsset.amount -= SafeCast.toUint128(debt);
+            userBorrowShares[_violator] -= badShares;
+        }
     }
 
     /// @param _violator: address of borrower with negative account liquidity
@@ -812,6 +823,17 @@ contract PoolInstrument is
             _violator,
             msg.sender
         );
+
+        // if bad debt
+        (uint256 debt, uint256 maxDebt) = userAccountLiquidity(_violator);
+        if (debt > 0 && maxDebt == 0) {
+            // write off bad debt
+            uint256 badShares = totalBorrow.toShares(debt, false);
+            totalBorrow.amount -= SafeCast.toUint128(debt);
+            totalBorrow.shares -= SafeCast.toUint128(badShares);
+            totalAsset.amount -= SafeCast.toUint128(debt);
+            userBorrowShares[_violator] -= badShares;
+        }
     }
 
     /// @notice computes the maximum amount of asset that can be repaid to liquidate a user and the discount bonus 
@@ -829,11 +851,6 @@ contract PoolInstrument is
         uint256 T = config.maxAmount.divWadDown(config.maxBorrow);
 
         maxRepay = (T.mulWadDown(debt) - maxDebt).divWadDown(T - WAD.divWadDown(WAD - discount)); // in description above.
-
-        // maxRepay capped at debt
-        if (maxRepay > debt) {
-            maxRepay = debt;
-        }
     }
 
     /// INSTRUMENT LOGIC
