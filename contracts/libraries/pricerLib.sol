@@ -90,7 +90,7 @@ library PerpTranchePricer{
 		uint256 juniorSupply, 
 		uint256 uRate
 		) public returns(uint256 psu, uint256 pju, uint256 levFactor){
-		_self.storeNewPSU(uRate); 
+		_self.storeNewPSU(uRate);
 		return viewCurrentPricing(_self, instrument, perp,juniorSupply ); 
 	}
 

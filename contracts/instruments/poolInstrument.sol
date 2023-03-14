@@ -15,34 +15,20 @@ import {ERC721TokenReceiver} from "solmate/tokens/ERC721.sol";
 import {Vault} from "../vaults/vault.sol";
 import "forge-std/console.sol";
 import {ReputationManager} from "../protocol/reputationmanager.sol";
-import {Auctioneer} from "./auctioneer.sol";
+import {SafeCast} from "openzeppelin-contracts/utils/math/SafeCast.sol";
 
-// import "@prb/math/SD59x18.sol";
-
-interface Bouncer {
-    function borrowerAllowed(address _borrower) external view returns (bool);
-}
-
-contract BouncerLike is Bouncer {
-    function borrowerAllowed(address _borrower) external view override returns (bool) {
-        return true;
-    }
-}
-
-// https://github.com/FraxFinance/fraxlend
-/// ****THIS IS A PROOF OF CONCEPT INSTRUMENT.
+// conditional lending pool
 contract PoolInstrument is
     ERC4626,
     Instrument,
     PoolConstants,
     ReentrancyGuard,
-    // Pausable,
     ERC721TokenReceiver
 {
     using SafeTransferLib for ERC20;
     using VaultAccountingLibrary for VaultAccount;
-    using SafeCastLib for uint256;
     using FixedPointMathLib for uint256;
+    // using SafeCastLib for uint256;
 
     /// @param lastBlock last block number
     /// @param lastTimestamp last block.timestamp
@@ -53,46 +39,62 @@ contract PoolInstrument is
         uint64 ratePerSec;
     }
 
+    /// @param lastBlock last block number
+    /// @param lastTimestamp last block.timestamp
+    /// @param lastUtilizationRate last utilization rate
+    struct BorrowRateInfo {
+        uint64 lastBlock;
+        uint64 lastTimestamp;
+        uint256 lastUtilizationRate;
+    }
+
     /// @param tokenAddress collateral token address
     /// @param tokenId collateral tokenId, 0 for ERC20.
+    /// @param isERC20 whether collateral is ERC20, determines liquidation mechanism used.
     struct CollateralLabel {
         address tokenAddress;
         uint256 tokenId;
-    }
-
-    /// @param totalCollateral total amount of collateral for a given ERC20 asset, will be zero for NFTs
-    /// @param maxAmount max amount in underlying that a user can "owe" per base unit of collateral (unit = 1 for NFTs, 1e18 for ERC20s)
-    /// should always be more than the maxBorrowAmount, acts as buffer for protocol and borrower. this is the value to determine whether
-    /// a borrower is liquidatable
-    /// @param maxBorrowAmount max amount in underlying that a user can borrow per base unit of collateral (unit = 1 for NFTs, 1e18 for ERC20s)
-    struct Config {
-        uint256 totalCollateral;
-        uint256 maxAmount;
-        uint256 maxBorrowAmount;
         bool isERC20;
-        // auction parameters
-        uint256 tau; // seconds after auction start when the price reaches zero -> linearDecrease
-        uint256 cusp; // percentage price drop that can occur before an auction must be reset.
-        uint256 tail; // seconds that can elapse before an auction must be reset.
-        uint256 buf; // auction start price = buf * maxAmount
     }
 
-    /// @notice amount: asset token borrowed, shares = total shares outstanding
+
+    /// @param maxAmount: max amount in underlying that a user can "owe" per base unit of collateral (unit = 1 for NFTs, 1e18 for ERC20s)
+    /// @param maxBorrow: max amount in underlying that a user can borrow per base unit of collateral (unit = 1 for NFTs, 1e18 for ERC20s)
+    /// @param step: maxBorrow/maxAmount = (1 + step) * maxBorrow/maxAmount, in WAD precision.
+    /// @param upperUtil: upperthreshold utilization rate, precision in UTIL_PREC
+    /// @param lowerUtil: lowerthreshold utilization rate, precision in UTIL_PREC
+    /// @param r: reputation percentile needed to borrow
+    struct Config {
+        uint256 maxBorrow;
+        uint256 maxAmount;
+        uint256 step;
+        uint256 lowerUtil;
+        uint256 upperUtil;
+        uint256 r;
+    }
+
+    // CLP parameters
+    Config public config;
+    // amount: asset token borrowed, shares = total shares outstanding
     VaultAccount public totalBorrow;
-    /// @notice amount: total asset supplied + interest earned, shares = total shares outstanding
+    // amount: total asset supplied + interest earned, shares = total shares outstanding
     VaultAccount public totalAsset;
 
-    mapping(bytes32 => Config) public collateralConfigs; // collateral address => tokenId (0 for erc20) => collateral data.
+    /// NOTE: id for collateral => keccak256(abi.encodePacked(collateral, tokenId))
+    // approved collateral for the pool
     mapping(bytes32 => bool) public approvedCollateral;
-    mapping(bytes32 => mapping(address => uint256)) public userERC20s; // per collateral, user balance of collateral. id -> user -> balance.
-    mapping(bytes32 => address) public userERC721s; // nft addr => tokenId => owner.
-    mapping(address => uint256) public userBorrowShares; // user -> shares, this should be equivalent to balanceOf(user), since pool is vault.
-
-    // mapping(address=>uint256) private baseUnits; // equivalent to 10**decimals for ERC20s, 1 for NFTs.
-    mapping(address => mapping(bytes32 => bool)) public enabledCollateral; // user -> collateral -> enabled.
+    // stores the balance of collateral per user. balance is 1 for nft.
+    mapping(address => mapping(bytes32 => uint256)) public userCollateralBalances;
+    // borrow share balance per user
+    mapping(address => uint256) public userBorrowShares;
+    // helper for collateral
+    mapping(bytes32 => bool) private isERC20;
+    // user deposited collateral, should never have collateral balance of 0 for collateral in this list.
     mapping(address => CollateralLabel[]) public userCollateral;
-
-    // *** id for collateral = keccak256(abi.encodePacked(collateral, tokenId))
+    // boolean for active collateral for the user
+    mapping(address => mapping(bytes32=>bool)) private userCollateralBool;
+    // collateral -> total collateral, decimals are whatever the collateral is in.
+    mapping(bytes32 => uint256) public totalCollateral;
 
     IRateCalculator public rateContract;
 
@@ -100,61 +102,101 @@ contract PoolInstrument is
     bytes public rateInitCallData;
 
     CurrentRateInfo public currentRateInfo;
-    CollateralLabel[] private collaterals; //approved collaterals.
+    BorrowRateInfo public borrowRateInfo;
+
+    // approved collaterals
+    CollateralLabel[] private collaterals;
     ReputationManager private reputationManager;
-    Auctioneer private auctioneer;
-    uint256 public r; // reputation score for this instrument.
+
+    /// SETUP
 
     constructor(
         address _vault,
         address _reputationManager,
-        uint256 _r,
         address _utilizer,
+        address _rateCalculator,
         string memory _name,
         string memory _symbol,
-        address _rateCalculator,
         bytes memory _rateInitCallData,
-        CollateralLabel[] memory _collaterals,
-        Config[] memory _collateralData
+        Config memory _config,
+        CollateralLabel[] memory _labels
     )
         Instrument(_vault, _utilizer)
-        ERC4626(Vault(_vault).UNDERLYING(), _name, _symbol)
+        ERC4626(Vault(_vault).asset(), _name, _symbol)
     {
         rateContract = IRateCalculator(_rateCalculator);
         rateInitCallData = _rateInitCallData;
         rateContract.requireValidInitData(_rateInitCallData);
 
-        // need to check for added collateral that erc20 is erc20. ability to add or remove accepted collateral.
+        require(_config.maxBorrow > 0);
+        require(_config.maxAmount > _config.maxBorrow);
+        require(_config.step < 1e18);
+
+        config = _config;
 
         reputationManager = ReputationManager(_reputationManager);
-        r = _r;
 
-        for (uint256 i = 0; i < _collaterals.length; i++) {
-            _addAcceptedCollateral(
-                _collaterals[i].tokenAddress,
-                _collaterals[i].tokenId,
-                _collateralData[i]
+        borrowRateInfo.lastTimestamp = uint64(block.timestamp);
+
+        for (uint256 i = 0; i < _labels.length; i++) {
+            addAcceptedCollateral(
+                _labels[i].tokenAddress,
+                _labels[i].tokenId,
+                _labels[i].isERC20
+                
             );
         }
     }
 
-    /**
-     helper fxn for computing id for collateral, tokenId == 0 for ERC20s.
-     */
+    /// @notice adds accepted collateral to the CLP
+    function addAcceptedCollateral(
+        address collateral,
+        uint256 tokenId,
+        bool _isERC20
+    ) public {
+        bytes32 id = computeId(collateral, tokenId);
+    
+        require(msg.sender == vault.owner(), "only owner");
+        require(!approvedCollateral[id], "already approved");
+
+        if (_isERC20) {
+            require(tokenId == 0, "tokenId must be 0 for ERC20");
+        }
+
+        collaterals.push(CollateralLabel(collateral, tokenId, _isERC20));
+        isERC20[id] = _isERC20;
+        approvedCollateral[id] = true;
+    }
+
+    /// MODIFIERS + HELPERS
+
+    modifier onlyApprovedCollateral(address _collateral, uint256 _tokenId) {
+        require(
+            approvedCollateral[computeId(_collateral, _tokenId)],
+            "!collateral_approved"
+        );
+        _;
+    }
+
+    /// @notice Checks if total amount of asset user borrowed is less than or equal to maxBorrowableAmount, i.e. maxAmount/maxBorrow =< userCollateralValue/userDebt.
+    modifier isHealthy(address _borrower) {
+        _;
+        require(userMaxBorrowCapacity(_borrower) >= totalBorrow.toAmount(userBorrowShares[_borrower], true), "!healthy");
+    }
+
+    /// @notice checks if the user is not liquidatable after executing the contract code
+    modifier isSolvent(address _borrower) {
+        _;
+        require(!isLiquidatable(_borrower), "!solvent");
+    }
+
+    /// @notice computes the id for a collateral
     function computeId(address _addr, uint256 _tokenId)
         public
         pure
         returns (bytes32)
     {
         return keccak256(abi.encodePacked(_addr, _tokenId));
-    }
-
-    function getCollateralConfig(bytes32 collateralId)
-        public
-        view
-        returns (Config memory)
-    {
-        return collateralConfigs[collateralId];
     }
 
     function getAcceptedCollaterals()
@@ -165,68 +207,7 @@ contract PoolInstrument is
         return collaterals;
     }
 
-    function setAuctioneer(address _auctioneer) public {
-        require(msg.sender == vault.owner(), "only owner");
-        auctioneer = Auctioneer(_auctioneer);
-    }
-
-    // event NewCollateralAdded(address collateral, uint256 tokenId, uint256 maxAmount, uint256 maxBorrowAmount, bool isERC20);
-    // legacy for tests, remove later.
-
-    function addAcceptedCollateral(
-        address _collateral,
-        uint256 _tokenId,
-        Config calldata _config
-    ) public {
-        require(msg.sender == vault.owner(), "only owner");
-        _addAcceptedCollateral(_collateral, _tokenId, _config);
-    }
-
-    /**
-     @notice adds a new collateral to the instrument
-     */
-    function _addAcceptedCollateral(
-        address _collateral,
-        uint256 _tokenId,
-        Config memory _config
-    ) internal {
-        // need to ensure that _config isERC20 is correct.
-        // max borrow must be less than max amount.
-        bytes32 id = computeId(_collateral, _tokenId);
-        require(!approvedCollateral[id], "already approved");
-        require(
-            _config.maxBorrowAmount < _config.maxAmount,
-            "maxBorrowAmount must be less than maxAmount"
-        );
-        if (_config.isERC20) {
-            require(_tokenId == 0, "tokenId must be 0 for ERC20");
-        }
-        _config.totalCollateral = 0;
-        collateralConfigs[id] = _config;
-        collaterals.push(CollateralLabel(_collateral, _tokenId));
-        approvedCollateral[id] = true;
-    }
-
-    function updateConfig(
-        CollateralLabel calldata _label,
-        Config calldata _config
-    ) public {
-        require(msg.sender == vault.owner(), "!owner");
-        bytes32 id = computeId(_label.tokenAddress, _label.tokenId);
-        require(approvedCollateral[id], "!collateral_approved");
-        collateralConfigs[id] = _config;
-    }
-
-    // INTERNAL HELPERS
-
-    modifier onlyApprovedCollateral(address _collateral, uint256 _tokenId) {
-        require(
-            approvedCollateral[computeId(_collateral, _tokenId)],
-            "!collateral_approved"
-        );
-        _;
-    }
-
+    // total amount of asset available in the pool
     function _totalAssetAvailable(
         VaultAccount memory _totalAsset,
         VaultAccount memory _totalBorrow
@@ -234,7 +215,33 @@ contract PoolInstrument is
         return _totalAsset.amount - _totalBorrow.amount;
     }
 
-    // INTEREST RATE LOGIC
+    function getUserCollaterals(address borrower) public returns(CollateralLabel[] memory) {
+        return userCollateral[borrower];
+    }
+
+    function getUserSnapshot(address _address)
+        external
+        view
+        returns (
+            uint256 _userAssetShares,
+            uint256 _userAssetAmount,
+            uint256 _userBorrowShares,
+            uint256 _userBorrowAmount,
+            int256 _userAccountLiquidity,
+            CollateralLabel[] memory _userCollaterals
+        )
+    {
+        _userAssetShares = balanceOf[_address];
+        _userAssetAmount = totalAsset.toAmount(_userAssetShares, false);
+        _userBorrowShares = userBorrowShares[_address];
+        _userBorrowAmount = totalBorrow.toAmount(_userBorrowShares, false);
+        (uint256 debt, uint256 maxDebt) = userAccountLiquidity(_address);
+        _userAccountLiquidity = SafeCast.toInt256(maxDebt) - SafeCast.toInt256(debt);
+        _userCollaterals = userCollateral[_address];
+    }
+
+    /// INTEREST RATE LOGIC
+
     event InterestAdded(
         uint256 indexed timestamp,
         uint256 interestEarned,
@@ -276,11 +283,7 @@ contract PoolInstrument is
         VaultAccount memory _totalAsset = totalAsset;
         VaultAccount memory _totalBorrow = totalBorrow;
 
-        // If there are no borrows or contract is paused, no interest adds and we reset interest rate
         if (_totalBorrow.shares == 0) {
-            // if (!paused()) {
-            //     _currentRateInfo.ratePerSec = DEFAULT_INT;
-            // }
             _currentRateInfo.ratePerSec = DEFAULT_INT;
             _currentRateInfo.lastTimestamp = uint64(block.timestamp);
             _currentRateInfo.lastBlock = uint64(block.number);
@@ -295,8 +298,7 @@ contract PoolInstrument is
             // NOTE: Violates Checks-Effects-Interactions pattern
             // Be sure to mark external version NONREENTRANT (even though rateContract is trusted)
             // Calc new rate
-            uint256 _utilizationRate = (UTIL_PREC * _totalBorrow.amount) /
-                _totalAsset.amount;
+            uint256 _utilizationRate = (UTIL_PREC * _totalBorrow.amount) / _totalAsset.amount;
             // console.log("_utilizationRate: ", _utilizationRate);
             bytes memory _rateData = abi.encode(
                 _currentRateInfo.ratePerSec,
@@ -315,11 +317,7 @@ contract PoolInstrument is
             _currentRateInfo.lastBlock = uint64(block.number);
 
             // Calculate interest addd
-            _interestEarned =
-                (_deltaTime *
-                    _totalBorrow.amount *
-                    _currentRateInfo.ratePerSec) /
-                1e18;
+            _interestEarned =(_deltaTime * _totalBorrow.amount * _currentRateInfo.ratePerSec) / 1e18;
 
             // Accumulate interest and fees, only if no overflow upon casting
             if (
@@ -344,86 +342,77 @@ contract PoolInstrument is
         );
     }
 
-    // SOLVENCY* LOGIC
+    /// DYNAMIC MAXBORROW && MAXAMOUNT
 
-    /// @notice Checks if total amount of asset user borrowed is less than max borrow threshold AFTER executing contract code
-    modifier canBorrow(address _borrower) {
-        _;
-        require(_canBorrow(_borrower), "!solvent");
+    /// @notice external implementation of _updateBorrowParameters
+    function updateBorrowParameters() public returns (uint256 updatedMaxBorrow, uint256 updatedMaxAmount) {
+        return _updateBorrowParameters();
     }
 
-    modifier isSolvent(address _borrower) {
-        _;
-        bool isLiq = _isLiquidatable(_borrower);
-        require(!isLiq, "!solvent");
-    }
+    /// @notice updates borrow parameters based on the current utilization rate of the pool
+    function _updateBorrowParameters() internal returns (uint256 updatedMaxBorrow, uint256 updatedMaxAmount) {
+        BorrowRateInfo memory _borrowRateInfo = borrowRateInfo;
+        Config memory _config = config;
 
-    /// @notice checks if the borrower is can borrow
-    /// @dev collateral value is in asset, summed across all approved collaterals.
-    /// @dev will return true if the borrower has no collateral and also has no borrower shares.
-    /// @dev 0 addr cannot borrow.
-    function _canBorrow(address _borrower) public view returns (bool) {
-        uint256 _maxBorrowableAmount = getMaxBorrow(_borrower);
+        // if (block.timestamp == _borrowRateInfo.lastTimestamp) {
+        //     return (config.maxBorrow, config.maxAmount);
+        // }
+        
+        uint256 currUtilizationRate = (UTIL_PREC * totalBorrow.amount) / totalAsset.amount; //uint256(totalBorrow.amount).mulDivDown(UTIL_PREC, uint256(totalAsset.amount));
 
-        if (userBorrowShares[_borrower] == 0) {
-            return true;
+
+        if (_borrowRateInfo.lastUtilizationRate > _config.upperUtil) {
+            updatedMaxBorrow = (WAD - config.step).rpow(block.timestamp - _borrowRateInfo.lastTimestamp, WAD).mulWadDown(_config.maxBorrow);
+            updatedMaxAmount = (WAD - config.step).rpow(block.timestamp - _borrowRateInfo.lastTimestamp, WAD).mulWadDown(_config.maxAmount);
+        } else if (_borrowRateInfo.lastUtilizationRate < _config.lowerUtil) {
+            updatedMaxBorrow = (WAD + config.step).rpow(block.timestamp - _borrowRateInfo.lastTimestamp, WAD).mulWadDown(_config.maxBorrow);
+            updatedMaxAmount = (WAD + config.step).rpow(block.timestamp - _borrowRateInfo.lastTimestamp, WAD).mulWadDown(_config.maxAmount);
+        } else {
+            updatedMaxBorrow = _config.maxBorrow;
+            updatedMaxAmount = _config.maxAmount;
         }
-        if (_maxBorrowableAmount == 0) {
-            return false;
-        }
-        return
-            _maxBorrowableAmount >=
-            totalBorrow.toAmount(userBorrowShares[_borrower], false);
+
+        // write to storage
+        config.maxBorrow = updatedMaxBorrow;
+        config.maxAmount = updatedMaxAmount;
+
+        _borrowRateInfo.lastTimestamp = uint64(block.timestamp);
+        _borrowRateInfo.lastBlock = uint64(block.number);
+        _borrowRateInfo.lastUtilizationRate = uint256(currUtilizationRate);
+
+        borrowRateInfo = _borrowRateInfo;
+    
     }
 
-    function getMaxBorrow(address _borrower)
+    /// BORROW LOGIC
+
+    event Borrow(address indexed _borrower, uint256 _amount, uint256 _shares);
+
+    /// @notice retrieves the maximum asset borrowable by the user.
+    function userMaxBorrowCapacity(address _user)
         public
         view
-        returns (uint256 _maxBorrowableAmount)
+        returns (uint256 _capacity)
     {
-        CollateralLabel[] memory userCollaterals = userCollateral[_borrower];
+        CollateralLabel[] memory userCollaterals = userCollateral[_user];
+        uint256 maxBorrow = config.maxBorrow;
 
         for (uint256 i; i < userCollaterals.length; i++) {
-            CollateralLabel memory _collateral = userCollaterals[i];
+            
+            CollateralLabel memory _label = userCollaterals[i];
             bytes32 id = computeId(
-                _collateral.tokenAddress,
-                _collateral.tokenId
+                _label.tokenAddress,
+                _label.tokenId
             );
-            Config memory _collateralData = collateralConfigs[id];
-            if (_collateralData.isERC20 && userERC20s[id][_borrower] > 0) {
-                uint256 _d = ERC20(_collateral.tokenAddress).decimals();
-                _maxBorrowableAmount +=
-                    (userERC20s[id][_borrower] *
-                        _collateralData.maxBorrowAmount) /
-                    (10**_d); // <= precision of collateral.
-            } else if (userERC721s[id] == _borrower) {
-                _maxBorrowableAmount += _collateralData.maxBorrowAmount;
+
+            if (_label.isERC20) {
+                uint256 d = ERC20(_label.tokenAddress).decimals();
+                _capacity += (userCollateralBalances[_user][id]).mulDivDown(maxBorrow, 10**d);
+            } else  {
+                _capacity += (maxBorrow);
             }
         }
     }
-
-    /// @notice returns how much collateral can be removed from a borrower given the debt condition
-    /// borrowed assets < maxBorrowAmount, then collateral can be removed,
-    // only needed for erc20s.
-    // function removeableCollateral(
-    //     address _borrower,
-    //     uint256 tokenId,
-    //     address collateral
-    // ) public view returns (uint256) {
-    //     //800 borrowable = 800 * 1, 600borrowed (800-x)*1 - 600 = 0 x=?
-    //     //800*1-x*1-600 , x = (800*1 - 600)/1
-    //     uint256 _maxBorrowableAmount = getMaxBorrow(_borrower);
-    //     bytes32 id = computeId(collateral, tokenId);
-    //     uint256 perUnitMaxBorrowAmount = collateralConfigs[id].maxBorrowAmount;
-    //     //check solvency
-    //     return
-    //         ((_maxBorrowableAmount -
-    //             totalBorrow.toAmount(userBorrowShares[_borrower], true)) *
-    //             ERC20(collateral).decimals()) / perUnitMaxBorrowAmount;
-    // }
-
-    // BORROW LOGIC
-    event Borrow(address indexed _borrower, uint256 _amount, uint256 _shares);
 
     /// @param _borrowAmount amount of asset to borrow
     /// @param _collateralAmount amount of collateral to add
@@ -434,25 +423,18 @@ contract PoolInstrument is
         address _collateral,
         uint256 _tokenId,
         uint256 _collateralAmount,
-        address _reciever,
-        bool _enable
+        address _reciever
     )
         external
-        canBorrow(msg.sender)
+        isHealthy(msg.sender)
         nonReentrant
-        // whenNotPaused
         returns (uint256 _shares)
     {
         _addInterest();
 
-        if (
-            _collateral != address(0) && (_collateralAmount > 0 || _tokenId > 0)
-        ) {
-            bytes32 id = computeId(_collateral, _tokenId);
-            require(approvedCollateral[id], "!unapproved");
-            if (_enable) {
-                enableCollateral(_collateral, _tokenId);
-            }
+        bytes32 id = computeId(_collateral, _tokenId);
+
+        if (approvedCollateral[id] && (isERC20[id] && _collateralAmount > 0 || !isERC20[id])) {
             _addCollateral(
                 msg.sender,
                 _collateral,
@@ -461,8 +443,11 @@ contract PoolInstrument is
                 _tokenId
             );
         }
+
         // borrow asset.
-        _shares = _borrow(_borrowAmount.safeCastTo128(), _reciever);
+        _shares = _borrow(SafeCast.toUint128(_borrowAmount), _reciever);
+
+        _updateBorrowParameters();
     }
 
     function _borrow(uint128 _borrowAmount, address _receiver)
@@ -501,37 +486,25 @@ contract PoolInstrument is
     // REPAY LOGIC
     event Repay(address indexed borrower, uint256 amount, uint256 shares);
 
-    // function repayWithAmount(uint256 _amount, address _borrower)
-    //     external
-    //     nonReentrant
-    //     returns (uint256 _sharesToRepay)
-    // {
-    //     VaultAccount memory _totalBorrow = totalBorrow;
-    //     _sharesToRepay = _totalBorrow.toShares(_amount, true);
-    //     _repay(
-    //         _totalBorrow,
-    //         _amount.safeCastTo128(),
-    //         _sharesToRepay.safeCastTo128(),
-    //         msg.sender,
-    //         _borrower
-    //     );
-    // }
-
     function repay(uint256 _shares, address _borrower)
         external
         nonReentrant
         returns (uint256 _amountToRepay)
     {
+        _addInterest();
+
         VaultAccount memory _totalBorrow = totalBorrow;
         _amountToRepay = _totalBorrow.toAmount(_shares, true);
-        console.log("amount to repay: ", _amountToRepay);
+
         _repay(
             _totalBorrow,
-            _amountToRepay.safeCastTo128(),
-            _shares.safeCastTo128(),
+            SafeCast.toUint128(_amountToRepay),
+            SafeCast.toUint128(_shares),
             msg.sender,
             _borrower
         );
+
+        _updateBorrowParameters();
     }
 
     function _repay(
@@ -563,14 +536,10 @@ contract PoolInstrument is
         if (_payer != address(this)) {
             asset.safeTransferFrom(_payer, address(this), _amountToRepay);
         }
-
-        // need to check if liquidatable, if so and there are open auctions, then need to close those auctions.
-        if (auctioneer.getActiveUserAuctions(_borrower).length != 0) {
-            auctioneer.closeAllAuctions(_borrower);
-        }
     }
 
-    // ADD/REMOVE/ENABLE/DISABLE COLLATERAL LOGIC
+    /// ADD/REMOVE COLLATERAL LOGIC
+
     event AddCollateral(
         address indexed borrower,
         address collateral,
@@ -584,57 +553,6 @@ contract PoolInstrument is
         uint256 amount
     );
 
-    function enableCollateral(address _collateral, uint256 _tokenId)
-        public
-        onlyApprovedCollateral(_collateral, _tokenId)
-    {
-        // if already enabled, then return
-        bytes32 id = computeId(_collateral, _tokenId);
-        if (enabledCollateral[msg.sender][id]) {
-            return;
-        }
-        enabledCollateral[msg.sender][id] = true;
-        userCollateral[msg.sender].push(CollateralLabel(_collateral, _tokenId));
-    }
-
-    /**
-     can only disable collateral if no collateral balance.
-     */
-    function disableCollateral(address _collateral, uint256 _tokenId)
-        public
-        
-        onlyApprovedCollateral(_collateral, _tokenId)
-        isSolvent(msg.sender)
-    {
-        // if already enabled, then return
-        bytes32 id = computeId(_collateral, _tokenId);
-        if (!enabledCollateral[msg.sender][id]) {
-            return;
-        }
-
-        // require zero collateral, maybe this isn't necessary.
-        require(
-            userERC20s[id][msg.sender] == 0 ||
-                userERC721s[id] != address(msg.sender),
-            "must remove all remaining collateral to disable"
-        );
-
-        // switch w/ last and pop
-        CollateralLabel[] memory arr = userCollateral[msg.sender];
-        for (uint256 i; i < arr.length; i++) {
-            if (
-                arr[i].tokenAddress == _collateral && arr[i].tokenId == _tokenId
-            ) {
-                userCollateral[msg.sender][i] = userCollateral[msg.sender][
-                    userCollateral[msg.sender].length - 1
-                ];
-                userCollateral[msg.sender].pop();
-                break;
-            }
-        }
-
-        enabledCollateral[msg.sender][id] = false;
-    }
 
     /// @notice The ```addCollateral``` function allows the caller to add Collateral Token to a borrowers position
     /// @dev msg.sender must call ERC20.approve() on the Collateral Token contract prior to invocation, or ERC721.approve().
@@ -644,14 +562,9 @@ contract PoolInstrument is
         address _collateral,
         uint256 _tokenId,
         uint256 _collateralAmount,
-        address _borrower,
-        bool _enable
+        address _borrower
     ) external onlyApprovedCollateral(_collateral, _tokenId) nonReentrant {
         _addInterest();
-
-        if (_enable) {
-            enableCollateral(_collateral, _tokenId);
-        }
 
         _addCollateral(
             msg.sender,
@@ -671,19 +584,20 @@ contract PoolInstrument is
     ) internal {
         // Interactions
         bytes32 id = computeId(_collateral, _tokenId);
-        bool _isERC20 = collateralConfigs[id].isERC20;
 
         if (_sender != address(this)) {
-            if (_isERC20) {
-                userERC20s[id][_borrower] += _collateralAmount;
-                collateralConfigs[id].totalCollateral += _collateralAmount;
+            if (isERC20[id]) {
+                userCollateralBalances[_borrower][id] += _collateralAmount;
+                totalCollateral[id] += _collateralAmount;
+                
                 ERC20(_collateral).safeTransferFrom(
                     _sender,
                     address(this),
                     _collateralAmount
                 );
             } else {
-                userERC721s[id] = _borrower;
+                userCollateralBalances[_borrower][id] = 1;
+                totalCollateral[id] = 1;
                 ERC721(_collateral).safeTransferFrom(
                     _sender,
                     address(this),
@@ -691,56 +605,29 @@ contract PoolInstrument is
                 );
             }
         }
+
+        // user collateral accounting
+        if (!userCollateralBool[_borrower][id]) {
+            userCollateralBool[_borrower][id] = true;
+            userCollateral[_borrower].push(CollateralLabel(_collateral, _tokenId, isERC20[id]));
+        }
+
         emit AddCollateral(_borrower, _collateral, _tokenId, _collateralAmount);
     }
-
-    /**
-     erc20: removes all collateral so that maxBorrow === existing borrow.
-     erc721: if can remove collateral, then removes it, otherwise reverts.
-     */
-    // function removeAvailableCollateral(
-    //     address _collateral,
-    //     uint256 _tokenId,
-    //     address _receiver
-    // )
-    //     external
-    //     nonReentrant
-    //     canBorrow(msg.sender)
-    //     onlyApprovedCollateral(_collateral, _tokenId)
-    //     returns (uint256 removeable)
-    // {
-    //     _addInterest();
-
-    //     removeable = removeableCollateral(msg.sender, _tokenId, _collateral);
-
-    //     _removeCollateral(
-    //         _collateral,
-    //         removeable,
-    //         _tokenId,
-    //         msg.sender,
-    //         _receiver
-    //     );
-    // }
 
     function removeCollateral(
         address _collateral,
         uint256 _tokenId,
         uint256 _collateralAmount,
-        address _receiver,
-        bool _disable
+        address _receiver
     )
         external
         nonReentrant
-        canBorrow(msg.sender)
+        isSolvent(msg.sender)
         onlyApprovedCollateral(_collateral, _tokenId)
     {
         _addInterest();
 
-        if (_disable) {
-            disableCollateral(_collateral, _tokenId);
-        }
-
-        // Note: exchange rate is irrelevant when borrower has no debt shares
         _removeCollateral(
             _collateral,
             _collateralAmount,
@@ -757,20 +644,23 @@ contract PoolInstrument is
         address _borrower,
         address _receiver
     ) internal {
-        // Interactions
+
         bytes32 id = computeId(_collateral, _tokenId);
-        bool _isERC20 = collateralConfigs[id].isERC20;
+
+        require(_collateralAmount <= userCollateralBalances[_borrower][id], "!balance");
+        require(_collateralAmount > 0, "!amount");
+
         if (_receiver != address(this)) {
-            if (_isERC20) {
+            if (isERC20[id]) {
                 // console.log("removing erc20 collateral");
                 // console.log("userCollateralerc20: ", userERC20s[id][_borrower] );
                 // console.log("collateralAmount: ", _collateralAmount);
-                userERC20s[id][_borrower] -= _collateralAmount;
-                collateralConfigs[id].totalCollateral -= _collateralAmount;
+                userCollateralBalances[_borrower][id] -= _collateralAmount;
+                totalCollateral[id] -= _collateralAmount;
                 ERC20(_collateral).safeTransfer(_receiver, _collateralAmount);
             } else {
-                require(userERC721s[id] == _borrower, "not owner of nft");
-                delete userERC721s[id];
+                delete userCollateralBalances[_borrower][id];
+                delete totalCollateral[id];
                 ERC721(_collateral).safeTransferFrom(
                     address(this),
                     _receiver,
@@ -778,6 +668,18 @@ contract PoolInstrument is
                 );
             }
         }
+
+        if (userCollateralBalances[_borrower][id] == 0) {
+            CollateralLabel[] memory labels = userCollateral[_borrower];
+            for (uint256 i; i < labels.length; i++) {
+                if (computeId(labels[i].tokenAddress, labels[i].tokenId) == id) {
+                    userCollateral[_borrower][i] = userCollateral[_borrower][labels.length - 1];
+                }
+            }
+            userCollateral[_borrower].pop();
+            delete userCollateralBool[_borrower][id];
+        }
+
         emit RemoveCollateral(
             _borrower,
             _collateral,
@@ -786,222 +688,159 @@ contract PoolInstrument is
         );
     }
 
-    // liquidation logic
+    /// LIQUIDATION LOGIC
 
-    /// @notice collateral should be auctioned off at a minimum price chosen by the managers
+    /// @notice returns true if the user is liquidatable
     /// underlying balance, collateral balance, what do we know about the user?
     /// if the user's borrow shares are equal to an amount of asset that is greater than the maximum amount they can borrow,
-    /// they are suceptible to liquidation
-    /// how to determine what collateral should be auctioned off?
-    /// maxBorrowAmount
-    function _isLiquidatable(address _borrower)
+    function isLiquidatable(address _borrower)
         public
         view
         returns (bool)
     {
-        return (accountLiquidity(_borrower) < 0);
+
+        if (userBorrowShares[_borrower] == 0) {
+            return false;
+        }
+
+        (uint256 debt, uint256 maxDebt) = userAccountLiquidity(_borrower);
+        return (debt >= maxDebt);
     }
 
-    function accountLiquidity(address _borrower) public view returns (int256) {
+    /// @notice debt, max allowable debt, all in vault underlying.
+    function userAccountLiquidity(address user) public view returns (uint256 debt, uint256 maxDebt) {
         uint256 _maxAmount;
 
-        CollateralLabel[] memory userCollaterals = userCollateral[_borrower];
+        CollateralLabel[] memory userCollaterals = userCollateral[user];
+
         for (uint256 i; i < userCollaterals.length; i++) {
-            CollateralLabel memory _collateral = userCollaterals[i];
+            
+            CollateralLabel memory _label = userCollaterals[i];
             bytes32 id = computeId(
-                _collateral.tokenAddress,
-                _collateral.tokenId
-            );
-            Config memory _collateralData = collateralConfigs[id];
-            if (_collateralData.isERC20 && userERC20s[id][_borrower] > 0) {
-                uint256 _d = ERC20(_collateral.tokenAddress).decimals();
-                _maxAmount +=
-                    (userERC20s[id][_borrower] * _collateralData.maxAmount) /
-                    (10**_d); // <= precision of collateral.
-            } else {
-                if (userERC721s[id] == _borrower) {
-                    _maxAmount += _collateralData.maxAmount;
-                }
-            }
-        }
-
-        return int256(_maxAmount) - int256(totalBorrow.toAmount(userBorrowShares[_borrower], true));
-    }
-
-    // function getUserCollateral(address _borrower)
-    //     external
-    //     view
-    //     returns (CollateralLabel[] memory)
-    // {
-    //     return userCollateral[_borrower];
-    // }
-
-    /**
-     @notice can only be called when user is liquidatable, all auctions are terminated if not the case.
-     need rewards for ppl who call this fxn right?
-     */
-    function triggerAuction(
-        address _borrower,
-        address _collateral,
-        uint256 _tokenId
-    )
-        external
-        onlyApprovedCollateral(_collateral, _tokenId)
-        nonReentrant
-        returns (bytes32 _auctionId)
-    {
-        _addInterest();
-
-        // bool _liquidatable = _isLiquidatable(_borrower);
-
-
-        if (_isLiquidatable(_borrower)) {
-            _auctionId = auctioneer.createAuction(
-                _borrower,
-                _collateral,
-                _tokenId
-            );
-            
-        }
-    }
-
-    /**
-     @param _amount: amount of collateral to purchase w/ collateral decimals.
-     will reset auction if either tau passed or cusp reached and user still insolvent.
-     watch for price increases, maxPrice should be param set by user. mkerdao
-     if collateral not erc20, then amount is ignored.
-     */
-    function purchaseCollateral(
-        address _borrower,
-        CollateralLabel calldata _label,
-        uint256 _amount,
-        uint256 _deadline
-    ) external returns (uint128 _totalCost) {
-        if (block.timestamp > _deadline) {
-            revert("past deadline");
-        }
-
-        _addInterest();
-
-        bytes32 collateralId = computeId(_label.tokenAddress, _label.tokenId);
-
-        Config memory config = collateralConfigs[collateralId];
-
-        require(auctioneer.getAuction(_borrower, _label.tokenAddress, _label.tokenId).alive, "!alive");
-
-        (bool reset, bool closed) = checkAuction(_borrower, _label.tokenAddress, _label.tokenId);
-
-        if (reset || closed) {
-            return 0;
-        }
-
-        uint256 currentPrice = auctioneer.purchasePrice(
-            _borrower,
-            _label.tokenAddress,
-            _label.tokenId
-        ); // price of collateral in underlying.
-
-        if (config.isERC20) {
-            //TODO need to ensure safe to cast here.
-            _totalCost = uint128((_amount * currentPrice) / (10**ERC20(_label.tokenAddress).decimals())); // <= decimals of collateral.
-            
-            console.log("total cost: %s", _totalCost);
-            if (_amount == userERC20s[collateralId][_borrower]) {
-                auctioneer.closeAuction(
-                    _borrower,
-                    _label.tokenAddress,
-                    _label.tokenId
-                );
-            }
-        } else {
-            _totalCost = uint128(currentPrice);
-            auctioneer.closeAuction(
-                _borrower,
                 _label.tokenAddress,
                 _label.tokenId
             );
 
-            // if nft sold for more than borrowShares, then give rest of asset to borrower
-            if (_totalCost > totalBorrow.toAmount(userBorrowShares[_borrower], false)) {
-                uint256 difference = _totalCost - totalBorrow.toAmount(userBorrowShares[_borrower], false);
-                
-                // difference goes to the pool.
-                totalAsset.amount += difference.safeCastTo128();
-                asset.safeTransferFrom(msg.sender, address(this), difference);
-
-                _totalCost = uint128(totalBorrow.toAmount(userBorrowShares[_borrower], true));
+            if (_label.isERC20) {
+                uint256 d = ERC20(_label.tokenAddress).decimals();
+                _maxAmount += (userCollateralBalances[user][id] * config.maxAmount) / (10**d);
+            } else  {
+                _maxAmount += (config.maxAmount);
             }
         }
 
-        VaultAccount memory _totalBorrow = totalBorrow;
+        return (totalBorrow.toAmount(userBorrowShares[user], true), _maxAmount);
+    }
 
-        // console.log("cost share: %s", totalBorrow.toShares(_totalCost, false));
-        // console.log("user borrow shares: %s", userBorrowShares[_borrower]);
-        // console.log("gt?", totalBorrow.toShares(_totalCost, false) > userBorrowShares[_borrower]);
+    /// @notice liquidation mechanism, if not enough collateral to give for the repayAmount, then reverts?
+    /// minYield parameter?
+    /// @param _violator address of borrower with negative account liquidity
+    /// @param _collateral address of collateral
+    /// @param _repayAmount amount of asset to repay
+    function liquidateERC20(
+        address _violator,
+        address _collateral,
+        uint256 _repayAmount
+    )   public 
+        onlyApprovedCollateral(_collateral, 0) // tokenId is 0 for ERC20
+        returns (uint256 collateralToLiquidator)
+    {
+
+        require(isLiquidatable(_violator), "not liquidatable");
+        require(isERC20[computeId(_collateral, 0)], "not ERC20");
+
+        (uint256 maxRepay, uint256 discount) = computeLiqOpp(_violator);
+
+        // execute liquidation.
+        require(_repayAmount <= maxRepay, "!maxRepay");
+
+        uint256 d = ERC20(_collateral).decimals();
+        collateralToLiquidator = _repayAmount.divWadDown(config.maxAmount.mulWadDown(WAD - discount)) * (10 ** d) / 1e18;
+
+        VaultAccount memory _totalBorrow = totalBorrow;
+        
+        // repay borrowed amount, reverts if not enough asset.
+        _repay(
+            _totalBorrow,
+            SafeCast.toUint128(_repayAmount),
+            SafeCast.toUint128(totalBorrow.toShares(_repayAmount, false)),
+            msg.sender,
+            _violator
+        );
+
+        // transfer collateral to liquidator, reverts if not enough collateral
+        _removeCollateral(
+            _collateral,
+            collateralToLiquidator,
+            0, // tokenId => 0
+            _violator,
+            msg.sender
+        );
+    }
+
+    /// @param _violator: address of borrower with negative account liquidity
+    /// @param _collateral: address of collateral
+    /// @param _tokenId: id of token
+    function liquidateERC721(
+        address _violator,
+        address _collateral,
+        uint256 _tokenId 
+    )   public
+        onlyApprovedCollateral(_collateral, _tokenId) 
+        returns (uint256 repaidAmount)
+    {
+        require(isLiquidatable(_violator), "not liquidatable");
+
+        (, uint256 discount) = computeLiqOpp(_violator);
+
+        repaidAmount = config.maxAmount.mulWadDown(WAD - discount);
+
+        VaultAccount memory _totalBorrow = totalBorrow;
 
         _repay(
             _totalBorrow,
-            _totalCost,
-            uint128(totalBorrow.toShares(_totalCost, false)),
+            SafeCast.toUint128(repaidAmount),
+            SafeCast.toUint128(totalBorrow.toShares(repaidAmount, false)),
             msg.sender,
-            _borrower
+            _violator
         );
 
-        // reverts if not enough collateral
         _removeCollateral(
-            _label.tokenAddress,
-            _amount,
-            _label.tokenId,
-            _borrower,
+            _collateral,
+            0,
+            _tokenId,
+            _violator,
             msg.sender
         );
-
-        // total cost of collateral in asset.
     }
 
-    /**
-        @notice checks if auction is still valid -> borrower still liq + none of the auction end conditions have been met , if not resets auction.
-        only for alive auctions
-     */
-    function checkAuction(
-        address _borrower,
-        address _collateral,
-        uint256 _tokenId
-    ) public onlyApprovedCollateral(_collateral, _tokenId) returns (bool reset, bool closed) {
-        Auctioneer.Auction memory auction = auctioneer.getAuction(
-            _borrower,
-            _collateral,
-            _tokenId
-        );
+    /// @notice computes the maximum amount of asset that can be repaid to liquidate a user and the discount bonus 
+    /// maxRepay is used for ERC20 collateral only, in asset
+    /// eq: maxAmount / maxBorrow = (userMaxAllowableDebt - maxRepay / (1 - discount)) / (currentDebt - maxRepay)
+    function computeLiqOpp(address _violator) internal view returns (uint256 maxRepay, uint256 discount) {
+        (uint256 debt, uint256 maxDebt) = userAccountLiquidity(_violator);
 
-        Config memory config = collateralConfigs[computeId(_collateral, _tokenId)];
+        uint256 healthScore = maxDebt.divWadDown(debt);
 
-        // close all auctions if liquidatable.
-        if (!_isLiquidatable(_borrower)) {
-            auctioneer.closeAllAuctions(
-                _borrower
-            );
-            return (false, true);
-        }
-        
-        if (
-            (block.timestamp > auction.creationTimestamp + config.tau) ||
-            (auctioneer.purchasePrice(_borrower, _collateral, _tokenId) < config.cusp.mulWadDown(config.maxAmount.mulWadDown(config.buf)))
-        ) {
-            auctioneer.resetAuction(
-                _borrower,
-                _collateral,
-                _tokenId
-            );
-            return (true, false);
+        assert(healthScore <= WAD);
+
+        discount = WAD - healthScore;
+
+        uint256 T = config.maxAmount.divWadDown(config.maxBorrow);
+
+        maxRepay = (T.mulWadDown(debt) - maxDebt).divWadDown(T - WAD.divWadDown(WAD - discount)); // in description above.
+
+        // maxRepay capped at debt
+        if (maxRepay > debt) {
+            maxRepay = debt;
         }
     }
+
+    /// INSTRUMENT LOGIC
 
     /**
      @notice returns cost of purchasing _numTokens of collateral in pool underlying.
      */
-
-    // instrument functions
     function instrumentApprovalCondition()
         public
         view
@@ -1012,11 +851,11 @@ contract PoolInstrument is
         return true;
     }
 
+    /// ERC4626 LOGIC
+
     function totalAssetAvailable() public view returns (uint256) {
         return _totalAssetAvailable(totalAsset, totalBorrow);
     }
-
-    // ERC4626 functions.
 
     function beforeWithdraw(uint256 assets, uint256 shares)
         internal
@@ -1033,10 +872,12 @@ contract PoolInstrument is
 
         VaultAccount memory _totalAsset = totalAsset;
 
-        _totalAsset.amount -= assets.safeCastTo128();
-        _totalAsset.shares -= shares.safeCastTo128();
+        _totalAsset.amount -= SafeCast.toUint128(assets);
+        _totalAsset.shares -= SafeCast.toUint128(shares);
 
         totalAsset = _totalAsset;
+
+        _updateBorrowParameters();
     }
 
     function afterDeposit(uint256 assets, uint256 shares)
@@ -1047,33 +888,15 @@ contract PoolInstrument is
         // require(msg.sender == address(vault) || msg.sender == controller, "!Vault/Controller"); // only the vault can deposit
         VaultAccount memory _totalAsset = totalAsset;
 
-        _totalAsset.amount += assets.safeCastTo128();
-        _totalAsset.shares += shares.safeCastTo128();
+        _totalAsset.amount += SafeCast.toUint128(assets);
+        _totalAsset.shares += SafeCast.toUint128(shares);
 
         totalAsset = _totalAsset;
+
+        _updateBorrowParameters();
     }
 
-    function getUserSnapshot(address _address)
-        external
-        view
-        returns (
-            uint256 _userAssetShares,
-            uint256 _userAssetAmount,
-            uint256 _userBorrowShares,
-            uint256 _userBorrowAmount,
-            int256 _userAccountLiquidity,
-            CollateralLabel[] memory _userCollaterals
-        )
-    {
-        _userAssetShares = balanceOf[_address];
-        _userAssetAmount = totalAsset.toAmount(_userAssetShares, false);
-        _userBorrowShares = userBorrowShares[_address];
-        _userBorrowAmount = totalBorrow.toAmount(_userBorrowShares, false);
-        _userAccountLiquidity = accountLiquidity(_address);
-        _userCollaterals = userCollateral[_address];
-    }
-
-    function isWithdrawAble(address holder, uint256 amount)
+    function isWithdrawable(address holder, uint256 amount)
         external
         view
         returns (bool)
@@ -1181,11 +1004,13 @@ contract PoolInstrument is
         return totalSupply.mulWadDown(previewMint(1e18));
         //TODO custom oracle
     }
-    function getUtilRate() public view returns(uint256){
 
+    // TODO doesn't use the UTIL_PREC, just defaults to 1e18
+    function getUtilizationRate() public view returns(uint256){
         return (uint256(totalBorrow.amount) * 1e18) / uint256(totalAsset.amount); 
     }
-    function getTotalBorrowAmount() public view returns(uint256){
+
+    function totalBorrowAmount() public view returns(uint256){
         return totalBorrow.amount; 
     }
 
@@ -1202,33 +1027,3 @@ contract PoolInstrument is
         else return underlying.balanceOf(user); 
     }
 }
-
-/**
-nonReentrant
-deposit asset
-redeem/withdraw
-borrow
-add collateral,
-remove collateral,
-liquidate,
-repay,
-repay behalf,
-update exchange rate,
-update interest rate,
-onlyVault
-update oracle,
-update rateCalculator
-
-minting, redeeming, depositing
-
- add collateral in batches
- batch liquidation
- update exchange rate + accue interest when *necessary
-
- virtual function, is approved borrower.
-
- instrument functions to override: 
- function estimatedTotalAssets() public view virtual returns (uint256){}
- prepareWithdraw
- liquidatePosition => protocol liquidation for all outstanding debt.
- */

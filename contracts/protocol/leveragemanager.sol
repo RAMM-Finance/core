@@ -442,8 +442,7 @@ contract LeverageManager is ERC721Enumerable {
             address(vars.vault),
             0,
             collateralAmount,
-            address(this),
-            true
+            address(this)
         );
 
         console.log("new collateral amount", collateralAmount);
@@ -498,11 +497,13 @@ contract LeverageManager is ERC721Enumerable {
         vars.availableLiquidity = vars.leveragePool.totalAssetAvailable();
 
         if (vars.availableLiquidity == 0) revert("Not Enough Liq");
-        (, , vars.collateralPower, , , , , ) = vars
-            .leveragePool
-            .collateralConfigs(
-                vars.leveragePool.computeId(address(vars.vault), 0)
-            );
+        // (, , vars.collateralPower, , , , , ) = vars
+            // .leveragePool
+            // .collateralConfigs(
+            //     vars.leveragePool.computeId(address(vars.vault), 0)
+            // );
+        (,vars.collateralPower,,,,) = vars.leveragePool.config();
+ 
 
         // Initial minting
         vars.shares = vars.vault.deposit(suppliedCapital, address(this));
@@ -604,14 +605,15 @@ contract LeverageManager is ERC721Enumerable {
             );
             // get 70 collateral in, 30 collateral in,
 
-            uint256 _maxBorrowableAmount = leveragePool.getMaxBorrow(
+            uint256 _maxBorrowableAmount = leveragePool.userMaxBorrowCapacity(
                 address(this)
             );
-            uint256 perUnitMaxBorrowAmount = leveragePool
-                .getCollateralConfig(
-                    leveragePool.computeId(address(vault), tokenId)
-                )
-                .maxBorrowAmount;
+            // uint256 perUnitMaxBorrowAmount = leveragePool
+            //     .getCollateralConfig(
+            //         leveragePool.computeId(address(vault), tokenId)
+            //     )
+            //     .maxBorrowAmount;
+            (uint256 perUnitMaxBorrowAmount,,,,,) = leveragePool.config();
             //check solvency
             vars.removed =
                 ((_maxBorrowableAmount -
@@ -625,8 +627,7 @@ contract LeverageManager is ERC721Enumerable {
                 address(vault),
                 0,
                 vars.removed,
-                address(this),
-                false
+                address(this)
             );
 
             // get 80 collateral out , 34 collateral out

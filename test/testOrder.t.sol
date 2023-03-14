@@ -44,17 +44,18 @@ contract OrderTest is CustomTestBase {
         clabels.push(
             PoolInstrument.CollateralLabel(
                 address(collateral),
-                0
+                0,
+                true
             )
         );
-        collaterals.push(
-            PoolInstrument.Config(
-            0,
-            wad/2,
-            wad/4,
-            true,
-            0,0,0,0
-        )
+        
+        poolConfig = PoolInstrument.Config(
+            5 * unit / 4,
+            unit,
+            step,
+            lowerUtil,
+            upperUtil,
+            0
         );
         // marketmanager = new MarketManager(
         //     deployer,
@@ -95,30 +96,21 @@ contract OrderTest is CustomTestBase {
 
         pool = new PoolInstrument(
             vault_ad,
-            address(reputationManager), 
-            0,
-            deployer,
-            "pool 1",
-            "P1",
+            address(reputationManager),
+            address(utilizer1),
             address(rateCalculator),
+            "Pool1",
+            "P1",
             initCallData,
-            _clabels,
-            _collaterals
+            poolConfig,
+            _clabels
         );
                
         // vm.prank(a);
         pool.addAcceptedCollateral(
             vault_ad,
             0,
-            PoolInstrument.Config(
-            0,
-            precision, 
-            precision*9/10, 
-            true,
-            0,
-            0,
-            0,
-            0)
+            true
         );      
 
     }

@@ -34,8 +34,6 @@ contract Fetcher {
         address tokenAddress;
         uint256 tokenId;
         uint256 decimals;
-        uint256 maxAmount;
-        uint256 borrowAmount;
         uint256 totalCollateral; //only for ERC20.
         string symbol;
         string name;
@@ -132,6 +130,9 @@ contract Fetcher {
         address rateContract;
         string rateName;
         uint256 exchangeRate;
+
+        uint256 maxAmount;
+        uint256 borrowAmount;
         // constants
         CollateralBundle[] collaterals;
     }
@@ -351,12 +352,12 @@ contract Fetcher {
         uint256 l = labels.length;
         bundle.collaterals = new CollateralBundle[](l);
         for (uint256 i; i < l; i++) {
-            (uint256 totalCollateral,
-            uint256 maxAmount,
-            uint256 maxBorrowAmount,
-            bool isERC20, , , ,) = PoolInstrument(instrument).collateralConfigs(PoolInstrument(instrument).computeId(labels[i].tokenAddress, labels[i].tokenId));
-            bundle.collaterals[i] = buildCollateralBundle(labels[i].tokenAddress, labels[i].tokenId, maxAmount, maxBorrowAmount, isERC20, totalCollateral);
-            bundle.collaterals[i].owner = PoolInstrument(instrument).userERC721s(PoolInstrument(instrument).computeId(labels[i].tokenAddress, labels[i].tokenId));
+            // (uint256 totalCollateral,
+            // uint256 maxAmount,
+            // uint256 maxBorrowAmount,
+            // bool isERC20, , , ,) = PoolInstrument(instrument).collateralConfigs(PoolInstrument(instrument).computeId(labels[i].tokenAddress, labels[i].tokenId));
+            // bundle.collaterals[i] = buildCollateralBundle(labels[i].tokenAddress, labels[i].tokenId, maxAmount, maxBorrowAmount, isERC20, totalCollateral);
+            // bundle.collaterals[i].owner = PoolInstrument(instrument).userERC721s(PoolInstrument(instrument).computeId(labels[i].tokenAddress, labels[i].tokenId));
         }
         
         
@@ -380,8 +381,8 @@ contract Fetcher {
     function buildCollateralBundle(address tokenAddress, uint256 tokenId, uint256 maxAmount, uint256 borrowAmount, bool isERC20, uint256 totalCollateral) internal view returns (CollateralBundle memory bundle) {
         bundle.tokenAddress = tokenAddress;
         bundle.tokenId = tokenId;
-        bundle.maxAmount = maxAmount;
-        bundle.borrowAmount = borrowAmount;
+        // bundle.maxAmount = maxAmount;
+        // bundle.borrowAmount = borrowAmount;
         bundle.isERC20 = isERC20;
         bundle.totalCollateral = totalCollateral;
         if (isERC20) {

@@ -37,7 +37,6 @@ library LinearPiecewiseCurve{
         amountDelta = amount > 0 ? (
             (
                 (curPrice.mulWadDown(curPrice) + 2*(vars.a.mulWadDown(amount))) * PRECISION
-               
             ).sqrt() - curPrice
         ).divWadDown(vars.a) : 0; 
 

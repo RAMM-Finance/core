@@ -18,7 +18,7 @@ import {StorageHandler} from "../contracts/global/GlobalStorage.sol";
 import "contracts/global/types.sol"; 
 import {PoolInstrument} from "../contracts/instruments/poolInstrument.sol";
 import {TestNFT} from "../contracts/utils/TestNFT.sol";
-import {Auctioneer} from "../contracts/instruments/auctioneer.sol";
+// import {Auctioneer} from "../contracts/instruments/auctioneer.sol";
 import {LinearInterestRate} from "../contracts/instruments/LinearInterestRate.sol";
 import {OrderManager} from "../contracts/protocol/ordermanager.sol"; 
 
@@ -79,6 +79,7 @@ contract CustomTestBase is Test {
     address manager2;
     address manager3;
     address validator1;
+    address borrower1;
 
     // Varaibles that sould be tinkered
     uint256 principal = 1000 * precision;
@@ -112,7 +113,7 @@ contract CustomTestBase is Test {
     TestNFT nft2;
 
     PoolInstrument poolInstrument;
-    Auctioneer auctioneer;
+    // Auctioneer auctioneer;
 
     function setUsers() public {
         jonna = address(0xbabe);
@@ -142,6 +143,9 @@ contract CustomTestBase is Test {
         vm.label(manager3, "manager3");
         validator1 = address(0xbabe14);
         vm.label(validator1, "validator1");
+        borrower1 = address(0xbabe15);
+        vm.label(borrower1, "borrower1");
+        
 
 
         vm.startPrank(deployer);
@@ -204,54 +208,42 @@ contract CustomTestBase is Test {
         deploySetUps();
         setUsers();
         setCollaterals();
-        controllerSetup();}
-    PoolInstrument.Config[] configs;
+        controllerSetup();
+    }
+
+
+    PoolInstrument.Config poolConfig;
     PoolInstrument.CollateralLabel[] clabels;
+    uint256 step = 5.64701 * 1e11;
+    uint256 internal constant UTIL_PREC = 1e5;
+    uint256 lowerUtil = UTIL_PREC * 6 / 10;
+    uint256 upperUtil = UTIL_PREC * 8 / 10;
 
     function setupCollateral() public{
         setCollaterals(); 
-    uint256 tau = 1000 seconds; // seconds after auction start when the price reaches zero -> linearDecrease
-    uint256 cusp = unit/2; // percentage price drop that can occur before an auction must be reset.
-    uint256 tail = 500 seconds; // seconds that can elapse before an auction must be reset. 
-    uint256 buf = unit*5/4; // auction start price = buf * maxAmount
 
         clabels.push(
             PoolInstrument.CollateralLabel(
                 address(cash1),
-                0
+                0,
+                true
             )
         );
         clabels.push(
             PoolInstrument.CollateralLabel(
                 address(nft1),
-                1
+                1,
+                false
             )
         );
 
-        configs.push(
-            PoolInstrument.Config(
-            0,
-            unit/2 + unit/10,
-            unit/2,
-            true,
-            tau,
-            cusp, // 50%
-            tail,
-            buf // 125%
-            )
-        );
-        
-        configs.push(
-            PoolInstrument.Config(
-            0,
-            unit + unit/10,
+        poolConfig = PoolInstrument.Config(
             unit,
-            false,
-            tau,
-            cusp, // 50%
-            tail,
-            buf // 125%
-            )
+            5 * unit / 4,
+            step,
+            lowerUtil,
+            upperUtil,
+            0
         );
     }
 
@@ -330,7 +322,8 @@ contract CustomTestBase is Test {
             ); 
         instrument.setUtilizer(jott); 
 
-        initiateCreditMarket(); }
+        initiateCreditMarket(); 
+    }
 
     function makeCreditlineMarket(address creditline, uint256 vaultId) public returns (uint256 marketId) {
         InstrumentData memory data;
@@ -502,8 +495,7 @@ contract CustomTestBase is Test {
             address(cash1),
             0,
             collateralAmount,
-            who,
-            true
+            who
         );
         // poolInstrument.addCollateral(
         //     address(nft1),
@@ -520,8 +512,7 @@ contract CustomTestBase is Test {
             address(0),
             0,
             0,
-            who,
-            false
+            who
         );
         vm.stopPrank(); 
     }
@@ -598,9 +589,6 @@ contract CustomTestBase is Test {
         address vault_ad
         ) public{
 
-
-
-
         LinearInterestRate linearRateCalculator = (new LinearInterestRate());
         uint256 _minInterest = 0;
         uint256 _vertexInterest = 8319516187; // 30% APR
@@ -613,45 +601,19 @@ contract CustomTestBase is Test {
         setupCollateral(); 
 
         PoolInstrument.CollateralLabel[] memory _clabels = clabels ;
-        PoolInstrument.Config[] memory _configs = configs; 
+        PoolInstrument.Config memory _config = poolConfig; 
 
-        deployPoolInstrument(
-            _clabels,
-            _configs,
-            vault_ad,
-            0,
-            deployer,
-            address(linearRateCalculator),
-            linearRateData
-        ); 
-    }
-
-    function deployPoolInstrument(
-        PoolInstrument.CollateralLabel[] memory clabels,
-        PoolInstrument.Config[] memory configs,
-        address _vault,
-        uint256 _r,
-        address _utilizer,
-        address _rateCalculator,
-        bytes memory rateData
-    ) public {
         poolInstrument = new PoolInstrument(
-            _vault,
+            vault_ad,
             address(reputationManager),
-            _r,
-            _utilizer,
-            "pool instrument",
-            "pool1",
-            _rateCalculator,
-            rateData,
-            clabels,
-            configs
+            address(utilizer1),
+            address(linearRateCalculator),
+            "Pool1",
+            "P1",
+            linearRateData,
+            _config,
+            clabels
         );
-
-        auctioneer = new Auctioneer(
-            address(poolInstrument)
-        );
-        poolInstrument.setAuctioneer(address(auctioneer));
     }
 
     function closeMarket(uint256 marketId) public {

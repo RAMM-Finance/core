@@ -19,7 +19,7 @@ library CollateralPricer{
  		uint256 uRate
  		) internal returns(uint256){
 
-	    uint256 accruedMax; 
+	    uint256 accruedMax;
 
 	    if(_self.prevURate> _self.urateUpper) 
 	    	accruedMax = (BASE_UNIT - _self.incrementRate).rpow(block.timestamp - _self.prevAccrueTime, BASE_UNIT); 
@@ -33,9 +33,5 @@ library CollateralPricer{
 
 	    return _self.maxBorrowable; 
 	}
-
-
-
-
 
 }

@@ -76,7 +76,7 @@ contract StorageHandler{
 	}
 
 	function getPoolUtilRate(uint256 marketId) public view returns(uint256){
-		return PoolInstrument(InstrumentDatas[marketId].instrument_address).getUtilRate(); 
+		return PoolInstrument(InstrumentDatas[marketId].instrument_address).getUtilizationRate(); 
 	}
 
 	function viewCurrentPricing(uint256 marketId) public view returns(uint256, uint256, uint256) {

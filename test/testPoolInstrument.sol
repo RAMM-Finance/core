@@ -590,7 +590,7 @@ contract PoolInstrumentTest is CustomTestBase {
         else if(newURate > urateUpper) assertApproxEqAbs(ltv, 
             maxBorrowable.mulWadDown((1e18-incrementRate).rpow(time1, 1e18)), 50); 
         else assertApproxEqAbs(ltv, maxBorrowable, 10); 
-        maxBorrowable = ltv; 
+        maxBorrowable = ltv;
 
         vm.warp(block.timestamp + time2); 
         ltv = Data.refreshAndGetNewLTV(vars.marketId, newURate2);
@@ -598,8 +598,7 @@ contract PoolInstrumentTest is CustomTestBase {
             assertApproxEqAbs(ltv, maxBorrowable.mulWadDown((1e18+incrementRate).rpow(time2, 1e18)), 50);
         else if(newURate2 > urateUpper) assertApproxEqAbs(ltv, 
             maxBorrowable.mulWadDown((1e18-incrementRate).rpow(time2, 1e18)), 50); 
-        else assertApproxEqAbs(ltv, maxBorrowable, 10); 
-
+        else assertApproxEqAbs(ltv, maxBorrowable, 10);
     }
 
 }
