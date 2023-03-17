@@ -502,7 +502,7 @@ contract LeverageManager is ERC721Enumerable {
             // .collateralConfigs(
             //     vars.leveragePool.computeId(address(vars.vault), 0)
             // );
-        (,vars.collateralPower,,,,) = vars.leveragePool.config();
+        (,vars.collateralPower,,,,,,) = vars.leveragePool.config();
  
 
         // Initial minting
@@ -613,7 +613,7 @@ contract LeverageManager is ERC721Enumerable {
             //         leveragePool.computeId(address(vault), tokenId)
             //     )
             //     .maxBorrowAmount;
-            (uint256 perUnitMaxBorrowAmount,,,,,) = leveragePool.config();
+            (uint256 perUnitMaxBorrowAmount,,,,,,,) = leveragePool.config();
             //check solvency
             vars.removed =
                 ((_maxBorrowableAmount -

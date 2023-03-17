@@ -55,7 +55,9 @@ contract OrderTest is CustomTestBase {
             step,
             lowerUtil,
             upperUtil,
-            0
+            0,
+            maxDiscount,
+            buf
         );
         // marketmanager = new MarketManager(
         //     deployer,

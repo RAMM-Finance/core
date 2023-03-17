@@ -23,20 +23,15 @@ import {VaultAccount} from "../contracts/instruments/VaultAccount.sol";
 import {LinearInterestRate} from "../contracts/instruments/LinearInterestRate.sol";
 // import {Auctioneer} from "../contracts/instruments/auctioneer.sol";
 
-
+// TODO test with collateral that is not 18.
 contract PoolInstrumentTest is CustomTestBase {
     using FixedPointMath for uint256;
+    using stdStorage for StdStorage;
 
 
     uint256 totalCollateral;
-    uint256 maxAmount = unit/2 + unit/10;
-    uint256 maxBorrowAmount = unit/2;
 
     // auction parameters
-    uint256 tau = 1000 seconds; // seconds after auction start when the price reaches zero -> linearDecrease
-    uint256 cusp = unit/2; // percentage price drop that can occur before an auction must be reset.
-    uint256 tail = 500 seconds; // seconds that can elapse before an auction must be reset. 
-    uint256 buf = unit*5/4; // auction start price = buf * maxAmount
 
     VariableInterestRate variableRateCalculator;
     LinearInterestRate linearRateCalculator;
@@ -84,7 +79,9 @@ contract PoolInstrumentTest is CustomTestBase {
             step,
             lowerUtil,
             upperUtil,
-            0
+            0,
+            maxDiscount,
+            buf
         );
 
         controller.createVault(
@@ -121,7 +118,7 @@ contract PoolInstrumentTest is CustomTestBase {
 
         bytes32 cash1Id = poolInstrument.computeId(address(cash1), 0);
         vm.startPrank(borrower1);
-        (uint256 maxBorrow,,,,,) = poolInstrument.config();
+        (uint256 maxBorrow,,,,,,,) = poolInstrument.config();
         collateralAmount = bound(collateralAmount, 1, type(uint256).max / maxBorrow);
         cash1.faucet(collateralAmount);
         cash1.approve(address(poolInstrument), type(uint256).max);
@@ -134,9 +131,8 @@ contract PoolInstrumentTest is CustomTestBase {
     }
 
     function test_unit_removeCollateral(uint256 collateralAmount) public {
-        (uint256 maxBorrow,,,,,) = poolInstrument.config();
+        (uint256 maxBorrow,,,,,,,) = poolInstrument.config();
         collateralAmount = bound(collateralAmount, 1, type(uint256).max / maxBorrow);
-        console.log("collateralAmount:", collateralAmount);
         bytes32 cash1Id = poolInstrument.computeId(address(cash1), 0);
         vm.startPrank(borrower1);
         cash1.faucet(collateralAmount);
@@ -148,10 +144,11 @@ contract PoolInstrumentTest is CustomTestBase {
         assertTrue(poolInstrument.userCollateralBalances(borrower1, cash1Id) == 0, "user balance equality");
         assertTrue(poolInstrument.userMaxBorrowCapacity(borrower1) == 0, "user max borrow");
         assertTrue(poolInstrument.getUserCollaterals(borrower1).length == 0, "active collateral");
+        assertTrue(!poolInstrument.userCollateralBool(borrower1, cash1Id), "user collateral bool");
     }
 
     function test_unit_borrow(uint256 collateralAmount, uint256 borrowAmount) public {
-        (uint256 maxBorrow,,,,,) = poolInstrument.config();
+        (uint256 maxBorrow,,,,,,,) = poolInstrument.config();
         
         collateralAmount = bound(collateralAmount, 1, type(uint128).max / maxBorrow);
         
@@ -181,7 +178,7 @@ contract PoolInstrumentTest is CustomTestBase {
     }
 
     function test_unit_repay(uint256 collateralAmount, uint256 borrowAmount) public {
-                (uint256 maxBorrow,,,,,) = poolInstrument.config();
+                (uint256 maxBorrow,,,,,,,) = poolInstrument.config();
         
         collateralAmount = bound(collateralAmount, 1, type(uint128).max / maxBorrow);
         
@@ -219,7 +216,7 @@ contract PoolInstrumentTest is CustomTestBase {
     }
 
     function test_unit_updateBorrowParams(uint256 supply1, uint256 borrow1) public {
-        (uint256 maxBorrow_i,uint256 maxAmount_i,,,,) = poolInstrument.config();
+        (uint256 maxBorrow_i,uint256 maxAmount_i,,,,,,) = poolInstrument.config();
 
         // can either vary the time or the rate
         // util1 -> util2, with an interval of time1.
@@ -246,7 +243,7 @@ contract PoolInstrumentTest is CustomTestBase {
 
         poolInstrument.updateBorrowParameters();
 
-        (uint256 maxBorrow_f, uint256 maxAmount_f, uint256 step, uint256 lowerUtil, uint256 upperUtil,) = poolInstrument.config();
+        (uint256 maxBorrow_f, uint256 maxAmount_f, uint256 step, uint256 lowerUtil, uint256 upperUtil,,,) = poolInstrument.config();
         (uint64 lastBlock, uint64 lastTimestamp, uint256 lastUtilizationRate) = poolInstrument.borrowRateInfo();
 
 
@@ -271,12 +268,299 @@ contract PoolInstrumentTest is CustomTestBase {
         }
     }
 
-    function test_unit_liquidateERC20() public {
-        
+
+    // invariants to test: totalCollateral, totalAssetAvailable, userCollateralBalances, userBorrowShares, 
+    struct LiqInvars {
+        uint256 TCollateral_i;
+        uint256 TAssetAvailable_i;
+        uint256 uCollateralBalance_i;
+        uint256 uBorrowShares_i;
+        uint128 TBorrowAmount_i;
+        uint128 TBorrowShares_i;
+        uint128 TAssetAmount_i;
+        uint128 TAssetShares_i;
+        uint256 debt_i;
+        uint256 maxDebt_i;
+
+        uint256 TCollateral_f;
+        uint256 TAssetAvailable_f;
+        uint256 uCollateralBalance_f;
+        uint256 uBorrowShares_f;
+        uint128 TBorrowAmount_f;
+        uint128 TBorrowShares_f;
+        uint128 TAssetAmount_f;
+        uint128 TAssetShares_f;
+        uint256 debt_f;
+        uint256 maxDebt_f;
     }
 
-    function test_unit_liquidateERC721() public {
+    function test_unit_liquidateERC20_closePosition(uint256 collateralAmount, uint256 maxDebt) public {
+        (uint256 maxBorrow,,,,,,,) = poolInstrument.config();
+        
+        collateralAmount = bound(collateralAmount, 1e8, type(uint128).max / maxBorrow);
+        
+        uint256 borrowAmount = (maxBorrow * collateralAmount / 1e18);
+        bytes32 id = poolInstrument.computeId(address(cash1), 0);
+        // uint256 borrowAmount = userMaxBorrowable;
 
+        maxDebt = bound(maxDebt, borrowAmount/16, borrowAmount);
+
+        vm.startPrank(deployer);
+        collateral.faucet(borrowAmount);
+        collateral.approve(address(poolInstrument), type(uint128).max);
+        poolInstrument.deposit(borrowAmount, deployer);
+        vm.stopPrank();
+
+        vm.startPrank(borrower1);
+        cash1.faucet(collateralAmount);
+        poolInstrument.borrow(
+            borrowAmount,
+            address(cash1),
+            0,
+            collateralAmount,
+            borrower1
+        );
+        vm.stopPrank();
+
+        // (,,uint256 utilRate) = poolInstrument.borrowRateInfo();
+        // assertTrue(UTIL_PREC == utilRate, "util1"); // utilization rate of 100%.
+
+        uint256 newMaxAmount = maxDebt.mulDivDown(1e18, collateralAmount);
+        uint256 newMaxBorrow = newMaxAmount * 4 / 5;
+
+
+        stdstore
+        .target(address(poolInstrument))
+        .sig("config()")
+        .depth(0)
+        .checked_write(newMaxBorrow);
+
+        stdstore
+        .target(address(poolInstrument))
+        .sig("config()")
+        .depth(1)
+        .checked_write(newMaxAmount);
+
+        
+        uint256 totalAsset_i = poolInstrument.totalAssets();
+        assertTrue(poolInstrument.isLiquidatable(borrower1), "liq");
+        (uint256 debt_i, uint256 maxDebt_f) = poolInstrument.userAccountLiquidity(borrower1);
+        assertApproxEqAbs(debt_i, borrowAmount, 4e2);
+        assertApproxEqAbs(maxDebt_f, maxDebt, 4e2);
+        
+        // repay the debt
+        vm.startPrank(deployer);
+
+        (uint256 repayLimit, uint256 discount) = poolInstrument.computeLiqOpp(borrower1, address(cash1), 0);
+
+        logDec("repayLimit", repayLimit, 18);
+
+        // repayAmount = bound(repayAmount, 1, borrowAmount);
+
+        assertTrue(repayLimit <= debt_i, "repayLimit");
+        collateral.approve(address(poolInstrument), type(uint128).max);
+        collateral.faucet(repayLimit);
+
+        // close out the position
+        poolInstrument.liquidateERC20(borrower1, address(cash1), repayLimit);
+
+        // (uint256 debt_f,) = poolInstrument.userAccountLiquidity(borrower1);
+
+        assertTrue(poolInstrument.userBorrowShares(borrower1) == uint256(0),"!closed");
+        logDec("userBorrowShares", poolInstrument.userBorrowShares(borrower1), 18);
+        assertTrue(poolInstrument.userCollateralBalances(borrower1, id) == 0, "0 user collateral");
+        logDec("userCollateralBalances", poolInstrument.userCollateralBalances(borrower1, id), 18);
+        assertTrue(poolInstrument.totalCollateral(id) == 0, "0 total collateral");
+        logDec("totalCollateral", poolInstrument.totalCollateral(id), 18);
+        assertTrue(poolInstrument.totalAssetAvailable() == (repayLimit), "totalAssetAvailable");
+        (uint128 TborrowAmount, uint128 TborrowShares) = poolInstrument.totalBorrow();
+
+        assertTrue(TborrowAmount == 0, "0 TborrowAmount");
+        logDec("TborrowAmount", TborrowAmount, 18);
+        assertTrue(TborrowShares == 0, "0 TborrowShares");
+        logDec("TborrowShares", TborrowShares, 18);
+
+        // if bad debt then total asset should be less than before
+        if (repayLimit < debt_i) {
+            assertTrue(totalAsset_i - (debt_i - repayLimit) == poolInstrument.totalAssets(), "bad debt");
+        }
+    }
+
+    function test_unit_liquidateERC20_variableRepay(uint256 collateralAmount, uint256 maxDebt, uint256 repayAmount) public {
+        (uint256 maxBorrow,,,,,,,) = poolInstrument.config();
+        LiqInvars memory iv;
+        
+        collateralAmount = bound(collateralAmount, 1e8, type(uint128).max / maxBorrow);
+        
+        bytes32 id = poolInstrument.computeId(address(cash1), 0);
+        uint256 borrowAmount = (maxBorrow * collateralAmount / 1e18);
+
+        // uint256 borrowAmount = userMaxBorrowable;
+
+        maxDebt = bound(maxDebt, borrowAmount/16, borrowAmount);
+
+        vm.startPrank(deployer);
+        collateral.faucet(borrowAmount);
+        collateral.approve(address(poolInstrument), type(uint128).max);
+        poolInstrument.deposit(borrowAmount, deployer);
+        vm.stopPrank();
+
+        vm.startPrank(borrower1);
+        cash1.faucet(collateralAmount);
+        poolInstrument.borrow(
+            borrowAmount,
+            address(cash1),
+            0,
+            collateralAmount,
+            borrower1
+        );
+        vm.stopPrank();
+
+        // (,,uint256 utilRate) = poolInstrument.borrowRateInfo();
+        // assertTrue(UTIL_PREC == utilRate, "util1"); // utilization rate of 100%.
+
+        uint256 newMaxAmount = maxDebt.mulDivDown(1e18, collateralAmount);
+        uint256 newMaxBorrow = newMaxAmount * 4 / 5;
+
+
+        stdstore
+        .target(address(poolInstrument))
+        .sig("config()")
+        .depth(0)
+        .checked_write(newMaxBorrow);
+
+        stdstore
+        .target(address(poolInstrument))
+        .sig("config()")
+        .depth(1)
+        .checked_write(newMaxAmount);
+
+
+        assertTrue(poolInstrument.isLiquidatable(borrower1), "liq");
+        (iv.debt_i, iv.maxDebt_i) = poolInstrument.userAccountLiquidity(borrower1);
+        assertApproxEqAbs(iv.debt_i, borrowAmount, 4e2, "debt");
+        assertApproxEqAbs(iv.maxDebt_i, maxDebt, 4e2, "maxDebt");
+
+        // repay the debt
+        vm.startPrank(deployer);
+        (uint256 repayLimit, uint256 discount) = poolInstrument.computeLiqOpp(borrower1, address(cash1), 0);
+
+        uint256 repayAmount = bound(repayAmount, 1e4, repayLimit);
+
+        iv.TAssetAvailable_i = poolInstrument.totalAssetAvailable();
+        iv.uCollateralBalance_i = poolInstrument.userCollateralBalances(borrower1, id);
+        iv.uBorrowShares_i = poolInstrument.userBorrowShares(borrower1);
+        (iv.TBorrowAmount_i, iv.TBorrowShares_i) = poolInstrument.totalBorrow();
+        (iv.TAssetAmount_i, iv.TAssetShares_i) = poolInstrument.totalAsset();
+        iv.TCollateral_i = poolInstrument.totalCollateral(id);
+
+        uint256 bSharesDelta = poolInstrument.toBorrowShares(repayAmount, false);
+
+        /// LIQUIDATION ACTION vvv
+        collateral.faucet(repayAmount);
+        collateral.approve(address(poolInstrument), type(uint128).max);
+        poolInstrument.liquidateERC20(borrower1, address(cash1), repayAmount);
+        vm.stopPrank();
+        /// LIQUIDATION ACTION ^^^
+
+        iv.TAssetAvailable_f = poolInstrument.totalAssetAvailable();
+        iv.uCollateralBalance_f = poolInstrument.userCollateralBalances(borrower1, id);
+        iv.uBorrowShares_f = poolInstrument.userBorrowShares(borrower1);
+        (iv.TBorrowAmount_f, iv.TBorrowShares_f) = poolInstrument.totalBorrow();
+        (iv.TAssetAmount_f, iv.TAssetShares_f) = poolInstrument.totalAsset();
+        iv.TCollateral_f = poolInstrument.totalCollateral(id);
+        (iv.debt_f, iv.maxDebt_f) = poolInstrument.userAccountLiquidity(borrower1);
+
+        uint256 d = cash1.decimals();
+
+        uint256 collateralToLiquidator = repayLimit == repayAmount ? 
+        iv.uCollateralBalance_i
+        : repayAmount.mulDivDown(10 ** (18 + d), newMaxAmount * (unit - discount)).divWadDown(buf);
+    
+        // check all the invariants
+        assertTrue(repayAmount == iv.TAssetAvailable_f, "total asset");
+        assertApproxEqAbs(iv.uCollateralBalance_i - iv.uCollateralBalance_f, collateralToLiquidator, 1e4, "collateral");
+        // logDec("collateralToLiquidator", collateralToLiquidator, d);
+        // logDec("uCollateralBalance_i", iv.uCollateralBalance_i, d);
+        // logDec("uCollateralBalance_f", iv.uCollateralBalance_f, d);
+        if (repayAmount < repayLimit) {
+            assertTrue(iv.TBorrowAmount_i - iv.TBorrowAmount_f == repayAmount, "borrow amount");
+            logDec("TBorrowAmount_i", iv.TBorrowAmount_i, d);
+            logDec("TBorrowAmount_f", iv.TBorrowAmount_f, d);
+            logDec("repayAmount", repayAmount, d);
+            assertTrue(iv.TBorrowShares_i - iv.TBorrowShares_f == bSharesDelta, "borrow shares");
+            logDec("TBorrowShares_i", iv.TBorrowShares_i, d);
+            logDec("TBorrowShares_f", iv.TBorrowShares_f, d);
+            logDec("bSharesDelta", bSharesDelta, d);
+        } else {
+            assertTrue(iv.TBorrowAmount_f == 0, "borrow amount");
+            assertTrue(iv.TBorrowShares_f == 0, "borrow shares");
+        }
+
+    }
+
+    function test_unit_liquidateERC721(uint256 maxDebt) public {     
+        (uint256 maxBorrow,,,,,,,) = poolInstrument.config();
+        
+        uint256 borrowAmount = (maxBorrow);
+        bytes32 id = poolInstrument.computeId(address(cash1), 0);
+        // uint256 borrowAmount = userMaxBorrowable;
+
+        maxDebt = bound(maxDebt, borrowAmount/16, borrowAmount);
+
+        vm.startPrank(deployer);
+        collateral.faucet(borrowAmount);
+        collateral.approve(address(poolInstrument), type(uint128).max);
+        poolInstrument.deposit(borrowAmount, deployer);
+        vm.stopPrank();
+
+        vm.startPrank(borrower1);
+
+        nft1.freeMint(borrower1, 1);
+        nft1.approve(address(poolInstrument), 1);
+        poolInstrument.borrow(
+            borrowAmount,
+            address(nft1),
+            1,
+            1,
+            borrower1
+        );
+        vm.stopPrank();
+
+        // (,,uint256 utilRate) = poolInstrument.borrowRateInfo();
+        // assertTrue(UTIL_PREC == utilRate, "util1"); // utilization rate of 100%.
+
+        uint256 newMaxAmount = maxDebt;
+        uint256 newMaxBorrow = newMaxAmount * 4 / 5;
+
+
+        stdstore
+        .target(address(poolInstrument))
+        .sig("config()")
+        .depth(0)
+        .checked_write(newMaxBorrow);
+
+        stdstore
+        .target(address(poolInstrument))
+        .sig("config()")
+        .depth(1)
+        .checked_write(newMaxAmount); 
+
+        assertTrue(poolInstrument.isLiquidatable(borrower1), "liq");
+
+        uint256 totalAsset_i = poolInstrument.totalAssets();
+        (uint256 debt_i, uint256 maxDebt_f) = poolInstrument.userAccountLiquidity(borrower1);
+        (,uint256 discount) = poolInstrument.computeLiqOpp(borrower1, address(nft1), 1);
+        // repay the debt
+        vm.startPrank(deployer);
+        collateral.faucet(newMaxAmount.mulWadDown(unit - discount));
+        collateral.approve(address(poolInstrument), type(uint256).max);
+        poolInstrument.liquidateERC721(borrower1, address(nft1), 1);
+        vm.stopPrank();
+
+        assertTrue(poolInstrument.userBorrowShares(borrower1) == uint256(0),"!closed");
+        assertTrue(poolInstrument.totalCollateral(id) == 0, "0 total collateral");
+        assertTrue(poolInstrument.totalAssetAvailable() == (newMaxAmount.mulWadDown(unit - discount)), "totalAssetAvailable");
     }
 
     function logPoolState(PoolInstrument _pool, bool accrue) public {
@@ -332,7 +616,5 @@ contract PoolInstrumentTest is CustomTestBase {
         console.log("\n");
     }
 
-    function logDec(uint256 _amount) public {
-        console.log("amount: ", _amount / (10**18));
-    }
+
 }

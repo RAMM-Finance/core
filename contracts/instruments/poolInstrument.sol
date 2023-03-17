@@ -71,6 +71,8 @@ contract PoolInstrument is
         uint256 lowerUtil;
         uint256 upperUtil;
         uint256 r;
+        uint256 maxDiscount; // in wad precision.
+        uint256 buf; // starting price for liquidation is buf * maxAmount, in wad precision.
     }
 
     // CLP parameters
@@ -92,7 +94,7 @@ contract PoolInstrument is
     // user deposited collateral, should never have collateral balance of 0 for collateral in this list.
     mapping(address => CollateralLabel[]) public userCollateral;
     // boolean for active collateral for the user
-    mapping(address => mapping(bytes32=>bool)) private userCollateralBool;
+    mapping(address => mapping(bytes32=>bool)) public userCollateralBool;
     // collateral -> total collateral, decimals are whatever the collateral is in.
     mapping(bytes32 => uint256) public totalCollateral;
 
@@ -143,7 +145,6 @@ contract PoolInstrument is
                 _labels[i].tokenAddress,
                 _labels[i].tokenId,
                 _labels[i].isERC20
-                
             );
         }
     }
@@ -357,7 +358,7 @@ contract PoolInstrument is
         // if (block.timestamp == _borrowRateInfo.lastTimestamp) {
         //     return (config.maxBorrow, config.maxAmount);
         // }
-        
+
         uint256 currUtilizationRate = (UTIL_PREC * totalBorrow.amount) / totalAsset.amount; //uint256(totalBorrow.amount).mulDivDown(UTIL_PREC, uint256(totalAsset.amount));
 
 
@@ -630,8 +631,8 @@ contract PoolInstrument is
 
         _removeCollateral(
             _collateral,
-            _collateralAmount,
             _tokenId,
+            _collateralAmount,
             msg.sender,
             _receiver
         );
@@ -639,8 +640,8 @@ contract PoolInstrument is
 
     function _removeCollateral(
         address _collateral,
-        uint256 _collateralAmount,
         uint256 _tokenId,
+        uint256 _collateralAmount,
         address _borrower,
         address _receiver
     ) internal {
@@ -648,7 +649,7 @@ contract PoolInstrument is
         bytes32 id = computeId(_collateral, _tokenId);
 
         require(_collateralAmount <= userCollateralBalances[_borrower][id], "!balance");
-        require(_collateralAmount > 0, "!amount");
+        require(isERC20[id] && _collateralAmount > 0 || !isERC20[id], "!amount");
 
         if (_receiver != address(this)) {
             if (isERC20[id]) {
@@ -714,7 +715,7 @@ contract PoolInstrument is
         CollateralLabel[] memory userCollaterals = userCollateral[user];
 
         for (uint256 i; i < userCollaterals.length; i++) {
-            
+
             CollateralLabel memory _label = userCollaterals[i];
             bytes32 id = computeId(
                 _label.tokenAddress,
@@ -723,13 +724,29 @@ contract PoolInstrument is
 
             if (_label.isERC20) {
                 uint256 d = ERC20(_label.tokenAddress).decimals();
-                _maxAmount += (userCollateralBalances[user][id] * config.maxAmount) / (10**d);
+                _maxAmount += userCollateralBalances[user][id].mulDivDown(config.maxAmount, 10**d);// (userCollateralBalances[user][id] * config.maxAmount) / (10**d);
+                // console.log("maxAmount: ", userCollateralBalances[user][id].mulDivDown(config.maxAmount, 10**d));
+                // console.log("another: ", (userCollateralBalances[user][id] * config.maxAmount) <= 10**d);
             } else  {
                 _maxAmount += (config.maxAmount);
             }
         }
 
         return (totalBorrow.toAmount(userBorrowShares[user], true), _maxAmount);
+    }
+
+    struct LiquidationLocals {
+        uint256 maxDiscount;
+        uint256 healthScore;
+        uint256 targetHealthScore;
+        uint256 debt;
+        uint256 maxDebt;
+        
+        uint256 repayLimit;
+        uint256 discount;
+        uint256 d;
+        bytes32 id;
+        uint256 badShares;
     }
 
     /// @notice liquidation mechanism, if not enough collateral to give for the repayAmount, then reverts?
@@ -741,29 +758,56 @@ contract PoolInstrument is
         address _violator,
         address _collateral,
         uint256 _repayAmount
-    )   public 
+    )   public
         onlyApprovedCollateral(_collateral, 0) // tokenId is 0 for ERC20
         returns (uint256 collateralToLiquidator)
     {
-
+        _addInterest();
+        _updateBorrowParameters();
+    
+        LiquidationLocals memory local;
+        local.id = computeId(_collateral, 0);
+        require(msg.sender != _violator, "self liquidation");
         require(isLiquidatable(_violator), "not liquidatable");
-        require(isERC20[computeId(_collateral, 0)], "not ERC20");
+        require(isERC20[local.id], "not ERC20");
 
-        (uint256 maxRepay, uint256 discount) = computeLiqOpp(_violator);
+        (local.repayLimit, local.discount) = computeLiqOpp(_violator, _collateral, 0);
 
         // execute liquidation.
-        require(_repayAmount <= maxRepay, "!maxRepay");
+        require(_repayAmount <= local.repayLimit, "!repayLimit");
 
-        uint256 d = ERC20(_collateral).decimals();
-        collateralToLiquidator = _repayAmount.divWadDown(config.maxAmount.mulWadDown(WAD - discount)) * (10 ** d) / 1e18;
+        console.log("repayAmount: ", _repayAmount);
+        console.log("discount:", local.discount);
 
+        local.d = ERC20(_collateral).decimals();
+        collateralToLiquidator = _repayAmount == local.repayLimit ? 
+        userCollateralBalances[_violator][local.id] 
+        : _repayAmount.mulDivDown(10 ** (18 + local.d), config.maxAmount * (WAD - local.discount)).divWadDown(config.buf);
+        console.log("collateralToLiquidator: ", collateralToLiquidator);
+        // console.log("collateralBalanceBefore: ", userCollateralBalances[_violator][computeId(_collateral, 0)]);
         VaultAccount memory _totalBorrow = totalBorrow;
+
+        (local.debt, local.maxDebt) = userAccountLiquidity(_violator);
+
+        uint128 sharesToAdjust;
+        uint128 amountToAdjust = uint128(local.debt - _repayAmount);
+
+        // if no collateral left and there still exists debt, this is bad debt that needs to be deducted from the protocol asset balance.
+        if (local.maxDebt == collateralToLiquidator.mulDivDown(config.maxAmount, 10**local.d) && amountToAdjust > 0) {
+        
+            sharesToAdjust = uint128(userBorrowShares[_violator] - _totalBorrow.toShares(_repayAmount, false));
+
+            _totalBorrow.amount -= amountToAdjust;
+
+            // write to asset state, loss for protocol
+            totalAsset.amount -= amountToAdjust;
+        }
         
         // repay borrowed amount, reverts if not enough asset.
         _repay(
             _totalBorrow,
             SafeCast.toUint128(_repayAmount),
-            SafeCast.toUint128(totalBorrow.toShares(_repayAmount, false)),
+            SafeCast.toUint128(totalBorrow.toShares(_repayAmount, false)) + sharesToAdjust,
             msg.sender,
             _violator
         );
@@ -771,22 +815,11 @@ contract PoolInstrument is
         // transfer collateral to liquidator, reverts if not enough collateral
         _removeCollateral(
             _collateral,
-            collateralToLiquidator,
             0, // tokenId => 0
+            collateralToLiquidator,
             _violator,
             msg.sender
         );
-
-        // if bad debt
-        (uint256 debt, uint256 maxDebt) = userAccountLiquidity(_violator);
-        if (debt > 0 && maxDebt == 0) {
-            // write off bad debt
-            uint256 badShares = totalBorrow.toShares(debt, false);
-            totalBorrow.amount -= SafeCast.toUint128(debt);
-            totalBorrow.shares -= SafeCast.toUint128(badShares);
-            totalAsset.amount -= SafeCast.toUint128(debt);
-            userBorrowShares[_violator] -= badShares;
-        }
     }
 
     /// @param _violator: address of borrower with negative account liquidity
@@ -800,57 +833,102 @@ contract PoolInstrument is
         onlyApprovedCollateral(_collateral, _tokenId) 
         returns (uint256 repaidAmount)
     {
-        require(isLiquidatable(_violator), "not liquidatable");
+        _addInterest();
+        _updateBorrowParameters();
+    
+        LiquidationLocals memory local;
+        local.id = computeId(_collateral, 0);
 
-        (, uint256 discount) = computeLiqOpp(_violator);
+        require(msg.sender != _violator, "self liquidation");
+        require(isLiquidatable(_violator), "not liquidatable");
+        require(!isERC20[local.id], "not ERC721");
+
+        (, uint256 discount) = computeLiqOpp(_violator, _collateral, _tokenId);
 
         repaidAmount = config.maxAmount.mulWadDown(WAD - discount);
-
+        
         VaultAccount memory _totalBorrow = totalBorrow;
+
+        (local.debt, local.maxDebt) = userAccountLiquidity(_violator);
+        // if no collateral left and there still exists debt, this is bad debt that needs to be deducted from the protocol asset balance.
+        uint128 sharesToAdjust;
+        uint128 amountToAdjust = uint128(local.debt - repaidAmount);
+        if (local.maxDebt == config.maxAmount && amountToAdjust > 0) {
+            
+            sharesToAdjust = uint128(userBorrowShares[_violator] - _totalBorrow.toShares(repaidAmount, false));
+
+            _totalBorrow.amount -= amountToAdjust;
+
+            // write to asset state, loss to lenders
+            totalAsset.amount -= amountToAdjust;
+        }
 
         _repay(
             _totalBorrow,
             SafeCast.toUint128(repaidAmount),
-            SafeCast.toUint128(totalBorrow.toShares(repaidAmount, false)),
+            SafeCast.toUint128(totalBorrow.toShares(repaidAmount, false)) + sharesToAdjust,
             msg.sender,
             _violator
         );
 
         _removeCollateral(
             _collateral,
-            0,
             _tokenId,
+            0,
             _violator,
             msg.sender
         );
-
-        // if bad debt
-        (uint256 debt, uint256 maxDebt) = userAccountLiquidity(_violator);
-        if (debt > 0 && maxDebt == 0) {
-            // write off bad debt
-            uint256 badShares = totalBorrow.toShares(debt, false);
-            totalBorrow.amount -= SafeCast.toUint128(debt);
-            totalBorrow.shares -= SafeCast.toUint128(badShares);
-            totalAsset.amount -= SafeCast.toUint128(debt);
-            userBorrowShares[_violator] -= badShares;
-        }
     }
 
     /// @notice computes the maximum amount of asset that can be repaid to liquidate a user and the discount bonus 
     /// maxRepay is used for ERC20 collateral only, in asset
-    /// eq: maxAmount / maxBorrow = (userMaxAllowableDebt - maxRepay / (1 - discount)) / (currentDebt - maxRepay)
-    function computeLiqOpp(address _violator) internal view returns (uint256 maxRepay, uint256 discount) {
-        (uint256 debt, uint256 maxDebt) = userAccountLiquidity(_violator);
+    /// eq: maxAmount / maxBorrow = (userMaxAllowableDebt - maxRepay / (buf * (1 - discount))) / (currentDebt - maxRepay)
+    function computeLiqOpp(address _violator, address _collateral, uint256 tokenId) public view returns (uint256 repayLimit, uint256 discount) {
+        require(isLiquidatable(_violator), "not liquidatable");
+        bytes32 id = computeId(_collateral, tokenId);
+        LiquidationLocals memory local;
+        (local.debt, local.maxDebt) = userAccountLiquidity(_violator);
 
-        uint256 healthScore = maxDebt.divWadDown(debt);
+        local.healthScore = local.maxDebt.divWadDown(local.debt);
 
-        assert(healthScore <= WAD);
+        assert(local.healthScore <= WAD);
 
-        discount = WAD - healthScore;
+        // console.log("healthScore: ", healthScore);
 
-        uint256 T = config.maxAmount.divWadDown(config.maxBorrow);
+        local.targetHealthScore = config.maxAmount.divWadDown(config.maxBorrow);
+        local.maxDiscount = config.maxDiscount; // WAD - WAD.divWadDown(local.targetHealthScore) - 2e16;
 
-        maxRepay = (T.mulWadDown(debt) - maxDebt).divWadDown(T - WAD.divWadDown(WAD - discount)); // in description above.
+        discount = WAD - local.healthScore < local.maxDiscount ? WAD - local.healthScore : local.maxDiscount; // max discount -> derived from the soft liquidation factor.
+
+        // console.log("discount: ", discount);
+        // console.log("T: ", targetHealthScore - WAD.divWadDown(WAD - discount));
+        // console.log("H: ", targetHealthScore.mulWadDown(debt) - maxDebt);
+
+        
+        // soft liquidations won't make sense in virtually all scenarios tbh
+        //repayLimit = (local.targetHealthScore.mulWadDown(local.debt) - local.maxDebt).divWadDown(local.targetHealthScore - WAD.divWadDown(config.buf.mulWadDown(WAD - discount))); // in description above.
+        
+        // if (repayLimit > local.debt) {
+        //     repayLimit = local.debt;
+        // }
+        repayLimit = local.debt;
+
+        // if collateral is ERC20, cap repayLimit at the value of the collateral
+        if (isERC20[id]) {
+            uint256 d = ERC20(_collateral).decimals();
+            if (
+                repayLimit
+                >=
+                userCollateralBalances[_violator][id].mulDivDown(config.maxAmount.mulWadDown(config.buf.mulWadDown(WAD - discount)), 10 ** d)
+            ) {
+                repayLimit = userCollateralBalances[_violator][id].mulDivDown(config.maxAmount.mulWadDown(config.buf.mulWadDown(WAD - discount)), (10 ** d));
+            }
+ 
+            // console.log("repayLimit collateral cap: ", repayLimit);
+            // console.log("user collateral balance: ", userCollateralBalances[_violator][id]);
+            // console.log("user collateral stuff: ", userCollateralBalances[_violator][id].mulDivDown(1e18, (10 ** d)));
+            // console.log("user collateral stuff2: ", config.maxAmount.mulWadDown(WAD-discount));
+        }
     }
 
     /// INSTRUMENT LOGIC
@@ -955,7 +1033,7 @@ contract PoolInstrument is
     }
 
     function totalAssets() public view virtual override returns (uint256) {
-        return totalAsset.amount;
+        return uint256(totalAsset.amount);
     }
 
     function convertToShares(uint256 assets)

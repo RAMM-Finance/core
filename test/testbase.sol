@@ -115,6 +115,11 @@ contract CustomTestBase is Test {
     PoolInstrument poolInstrument;
     // Auctioneer auctioneer;
 
+    /// LOGGING FUNCTIONALITY
+    function logDec(string memory s, uint256 x, uint256 y) public {
+        emit log_named_decimal_uint(s, x, y);
+    }
+
     function setUsers() public {
         jonna = address(0xbabe);
         vm.label(jonna, "jonna"); // manager1
@@ -218,6 +223,8 @@ contract CustomTestBase is Test {
     uint256 internal constant UTIL_PREC = 1e5;
     uint256 lowerUtil = UTIL_PREC * 6 / 10;
     uint256 upperUtil = UTIL_PREC * 8 / 10;
+    uint256 buf = 1.1e18;
+    uint256 maxDiscount = 2e17; // 20%
 
     function setupCollateral() public{
         setCollaterals(); 
@@ -243,7 +250,9 @@ contract CustomTestBase is Test {
             step,
             lowerUtil,
             upperUtil,
-            0
+            0,
+            maxDiscount,
+            buf
         );
     }
 

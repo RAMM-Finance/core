@@ -37,7 +37,7 @@ abstract contract Instrument {
         address _Utilizer
     ) {
         vault = Vault(_vault);
-        underlying =vault.UNDERLYING();
+        underlying = vault.asset();
         underlying.approve(_vault, MAX_UINT); // Give Vault unlimited access 
         Utilizer = _Utilizer;
     }
@@ -47,7 +47,7 @@ abstract contract Instrument {
     Vault public vault; 
     bool locked; 
     uint256 private constant MAX_UINT = 2**256 - 1;
-    uint256 private maturity_balance; 
+    uint256 private maturity_balance;
     uint256 rawFunds; 
 
     /// @notice address of user who submits the liquidity proposal 
@@ -65,11 +65,6 @@ abstract contract Instrument {
         Utilizer = _Utilizer;
     }
 
-    // function setValidator(address _validator) external {
-    //     require(msg.sender == vault.owner(), "Not owner"); 
-    //     validators.push(_validator); 
-    //     isValidator[_validator] = true;     
-    // }
     function setVault(address newVault) external onlyAuthorized {
         vault = Vault(newVault); 
     }
@@ -189,10 +184,6 @@ abstract contract Instrument {
     function assetOracle(uint256 supply) public view virtual returns(uint256){}
 }
 
-
-
- 
-/// @notice Contract for unsecured loans, each instance will be associated to a borrower+marketId
 /// approved borrowers will interact with this contract to borrow, repay. 
 /// and vault will supply principal and harvest principal/interest 
 contract CreditLine is Instrument {
@@ -221,6 +212,7 @@ contract CreditLine is Instrument {
         ownership,        
         none
     }
+
     address public collateral; 
     address public oracle; 
     uint256 public collateral_balance; 
