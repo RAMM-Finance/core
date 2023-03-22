@@ -55,7 +55,7 @@ contract ApprovalTest is CustomTestBase {
 
         setUsers();
 
-        nftPool = new SimpleNFTPool(  vault_ad, toku, address(collateral));
+        nftPool = new SimpleNFTPool(vault_ad, toku, address(collateral));
         nftPool.setUtilizer(toku);
 
         // initiateLendingPool(vault_ad);

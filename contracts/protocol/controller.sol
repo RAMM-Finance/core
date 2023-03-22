@@ -480,7 +480,7 @@ contract Controller {
         (
             bool atLoss,
             uint256 extra_gain,
-            uint256 total_loss, // total loss
+            uint256 total_loss,
             bool premature
         ) = getVault(marketId).resolveInstrument(marketId);
         // TODO updating if only market is pool.
@@ -583,6 +583,7 @@ contract Controller {
         uint256 totalJuniorCollateral = marketManager.loggedCollaterals(
             marketId
         );
+
         uint256 principal = getVault(marketId)
             .fetchInstrumentData(marketId)
             .principal;
@@ -631,8 +632,7 @@ contract Controller {
                 Data.getMarket(marketId).longZCB.totalSupply(),
                 Data.getMarket(marketId).bondPool.saleAmountQty()
             );
-            return (marketManager.loggedCollaterals(marketId) >=
-                Data.getInstrumentData(marketId).poolData.saleAmount);
+            return (marketManager.loggedCollaterals(marketId) >= Data.getInstrumentData(marketId).poolData.saleAmount);
         } else {
             uint256 principal = getVault(marketId)
                 .fetchInstrumentData(marketId)
@@ -680,7 +680,7 @@ contract Controller {
             "!marketCondition"
         );
         require(
-            vault.instrumentApprovalCondition(marketId),
+            vault.approvalCondition(marketId),
             "!instrumentCondition"
         );
         marketManager.approveMarket(marketId);

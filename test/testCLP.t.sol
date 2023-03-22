@@ -268,7 +268,6 @@ contract PoolInstrumentTest is CustomTestBase {
         }
     }
 
-
     // invariants to test: totalCollateral, totalAssetAvailable, userCollateralBalances, userBorrowShares, 
     struct LiqInvars {
         uint256 TCollateral_i;
@@ -615,6 +614,4 @@ contract PoolInstrumentTest is CustomTestBase {
         console.log("USER POOL STATE END");
         console.log("\n");
     }
-
-
 }

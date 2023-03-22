@@ -5,20 +5,32 @@ pragma solidity ^0.8.16;
 import "./vault.sol";
 import {ERC20} from "solmate/tokens/ERC20.sol";
 import "openzeppelin-contracts/utils/math/Math.sol";
-import {FixedPointMathLib} from "./utils/FixedPointMathLib.sol";
+import {FixedPointMathLib} from "solmate/utils/FixedPointMathLib.sol";
 import "forge-std/console.sol";
-import "../global/types.sol"; 
+import "../global/types.sol";
+import {SafeTransferLib} from "solmate/utils/SafeTransferLib.sol";
 
 /// @notice Minimal interface for Vault compatible strategies.
 abstract contract Instrument {
+    using SafeTransferLib for ERC20;
+
+    ERC20 public underlying;
+    Vault public vault; 
+    bool locked; 
+    uint256 private constant MAX_UINT = 2**256 - 1;
+    uint256 private maturity_balance;
+    uint256 rawFunds; 
+
+    /// @notice address of user who submits the liquidity proposal 
+    address public utilizer;
 
     modifier onlyUtilizer() {
-        require(msg.sender == Utilizer, "!Utilizer");
+        require(msg.sender == utilizer, "!Utilizer");
         _;
     }
 
     modifier onlyAuthorized() {
-        require(msg.sender == vault.owner() || isValidator[msg.sender], "!authorized");
+        require(msg.sender == vault.owner(), "!authorized");
         _;
     }
 
@@ -34,35 +46,17 @@ abstract contract Instrument {
 
     constructor (
         address _vault,
-        address _Utilizer
+        address _utilizer
     ) {
         vault = Vault(_vault);
         underlying = vault.asset();
         underlying.approve(_vault, MAX_UINT); // Give Vault unlimited access 
-        Utilizer = _Utilizer;
+        utilizer = _utilizer;
     }
 
-
-    ERC20 public underlying;
-    Vault public vault; 
-    bool locked; 
-    uint256 private constant MAX_UINT = 2**256 - 1;
-    uint256 private maturity_balance;
-    uint256 rawFunds; 
-
-    /// @notice address of user who submits the liquidity proposal 
-    address public Utilizer; 
-    address[] public validators; //set when deployed, but can't be ch
-    mapping(address=>bool) isValidator;
-
-    /**
-     @notice hooks for approval logic that are specific to each instrument type, called by controller for approval/default logic
-     */
-    function onMarketApproval(uint256 principal, uint256 yield) virtual external {}
-
-    function setUtilizer(address _Utilizer) external onlyAuthorized {
-        require(_Utilizer != address(0));
-        Utilizer = _Utilizer;
+    function setUtilizer(address _utilizer) external onlyAuthorized {
+        require(_utilizer != address(0));
+        utilizer = _utilizer;
     }
 
     function setVault(address newVault) external onlyAuthorized {
@@ -88,13 +82,10 @@ abstract contract Instrument {
         return underlying.balanceOf(user); 
     }
 
-    /// @notice raw funds should not be harvested by the vault
-    // function pullRawFunds(uint256 amount) public {
-    //     underlying.transferFrom(msg.sender,address(this), amount); 
-    //     rawFunds += amount; 
-    // }
-
-
+    /**
+     @notice hooks for approval logic that are specific to each instrument type, called by controller for approval/default logic
+     */
+    function onMarketApproval(uint256 principal, uint256 yield) virtual external {}
 
     function estimatedTotalAssets() public view virtual returns (uint256){}
 
@@ -102,7 +93,7 @@ abstract contract Instrument {
     /// @notice Free up returns for vault to pull,  checks if the instrument is ready to be withdrawed, i.e all 
     /// loans have been paid, all non-underlying have been liquidated, etc
     function readyForWithdrawal() public view virtual returns(bool){
-        return true; 
+        return true;
     }
 
     /// @notice checks whether the vault can withdraw and record profit from this instrument 
@@ -142,13 +133,14 @@ abstract contract Instrument {
     }
 
     event LiquidityTransfer(address indexed from ,address indexed to, uint256 amount);
-    function transfer_liq(address to, uint256 amount) internal notLocked {
-        underlying.transfer(to, amount);
+    
+    function underlyingTransfer(address to, uint256 amount) internal notLocked {
+        underlying.safeTransfer(to, amount);
         emit LiquidityTransfer(address(this), to, amount);
     }
 
-    function transfer_liq_from(address from, address to, uint256 amount) internal notLocked {
-        underlying.transferFrom(from, to, amount);
+    function underlyingTransferFrom(address from, address to, uint256 amount) internal notLocked {
+        underlying.safeTransferFrom(from, to, amount);
         emit LiquidityTransfer(from, to, amount);
     }
 
@@ -178,7 +170,7 @@ abstract contract Instrument {
     /// instrument is met. For example, for a creditline with a collateral 
     /// requirement need to check if this address has the specific amount of collateral
     /// @dev called to be checked at the approve phase from controller  
-    function instrumentApprovalCondition() public virtual view returns(bool); 
+    function approvalCondition() public virtual view returns(bool); 
 
     /// @notice fetches how much asset the instrument has in underlying for the given share supply 
     function assetOracle(uint256 supply) public view virtual returns(uint256){}
@@ -251,7 +243,6 @@ contract CreditLine is Instrument {
         uint256 _principal,
         uint256 _notionalInterest, 
         uint256 _duration,
-        uint256 _faceValue,
         address _collateral, //collateral for the dao, could be their own native token or some tokenized revenue 
         address _oracle, // oracle for price of collateral 
         uint256 _collateral_balance, //promised collateral balance
@@ -260,13 +251,12 @@ contract CreditLine is Instrument {
         borrower = _borrower; 
         principal =  _principal; 
         notionalInterest = _notionalInterest; 
-        duration = _duration;   
-        faceValue = _faceValue;
+        duration = _duration;
 
         collateral = _collateral; 
         oracle = _oracle; 
         collateral_balance = _collateral_balance; 
-        collateral_type = CollateralType(0); 
+        collateral_type = CollateralType(_collateral_type); 
 
         loanStatus = LoanStatus.notApproved; 
 
@@ -276,6 +266,7 @@ contract CreditLine is Instrument {
     function getCurrentTime() internal view returns(uint256){
         return block.timestamp + 31536000/2; 
     }
+
     function getProxy() public view returns(address){
         return address(proxy); 
     }
@@ -290,9 +281,8 @@ contract CreditLine is Instrument {
     }
 
     function getApprovedBorrowConditions() public view returns(uint256, uint256){
-        if (vault.isTrusted(this)) return(principal, notionalInterest) ;
-
-        return (0,0); 
+        if (vault.isTrusted(this)) return(principal, notionalInterest);
+        return (0,0);
     }
 
     /// @notice if possible, and borrower defaults, liquidates given collateral to underlying
@@ -319,10 +309,8 @@ contract CreditLine is Instrument {
         ERC20(collateral).transfer(to, amount); 
     }
 
-
-
     /// @notice validators have to check these conditions at a human level too before approving 
-    function instrumentApprovalCondition() public override view returns(bool){
+    function approvalCondition() public override view returns(bool){
         // check if borrower has correct identity 
 
         // check if enough collateral has been added as agreed   
@@ -332,11 +320,8 @@ contract CreditLine is Instrument {
             } 
         }
 
-        // // check if validator(s) are set 
-        // if (validators.length == 0) {revert("No validators"); }
-
         // Check if proxy has been given ownership
-        if (collateral_type == CollateralType.ownership && proxy.numContracts() == 0) revert("Ownership "); 
+        if (collateral_type == CollateralType.ownership && proxy.numContracts() == 0) revert("Ownership"); 
 
         return true; 
     } 
@@ -355,8 +340,6 @@ contract CreditLine is Instrument {
 
         ERC20(collateral).transfer(msg.sender,collateral_balance); 
     }
-
-
 
     /// @notice should only be called when (portion of) principal is repayed
     function adjustInterestOwed() internal {
@@ -412,13 +395,13 @@ contract CreditLine is Instrument {
         loanStatus = LoanStatus.drawdowned; 
 
         drawdown_block = block.timestamp; 
-        lastRepaymentTime = block.timestamp;//-31536000/2; 
+        lastRepaymentTime = block.timestamp;
 
-        totalOwed = principal + notionalInterest; 
-        principalOwed = principal; 
+        totalOwed = principal + notionalInterest;
+        principalOwed = principal;
         interestOwed = notionalInterest;
 
-        transfer_liq(msg.sender, principal); 
+        underlyingTransfer( msg.sender, principal );
 
         emit Drawdown(principal);
     }
@@ -430,14 +413,14 @@ contract CreditLine is Instrument {
     function repay( uint256 _repay_amount) external onlyUtilizer{
         require(vault.isTrusted(this), "Not approved");
 
-        uint256 owedInterest = interestToRepay(); 
+        uint256 owedInterest = interestToRepay();
         uint256 repay_principal; 
         uint256 repay_interest = _repay_amount; 
 
         // Push remaineder to repaying principal 
         if (_repay_amount >= owedInterest){
             repay_principal += (_repay_amount - owedInterest);  
-            repay_interest = owedInterest; 
+            repay_interest = owedInterest;
             accumulated_interest = 0; 
         }
 
@@ -459,7 +442,7 @@ contract CreditLine is Instrument {
 
         lastRepaymentTime = getCurrentTime();  
 
-        transfer_liq_from(msg.sender, address(this), _repay_amount);
+        underlyingTransferFrom(msg.sender, address(this), _repay_amount);
 
         emit Repay(_repay_amount);
 
@@ -541,11 +524,6 @@ contract CreditLine is Instrument {
     }
 
     function getCurrentLoanStatus() public view returns(uint256){}
-
-
-
-
-
 }
 
 
@@ -562,8 +540,7 @@ contract Proxy{
     /// buying the ownership 
     constructor(address _owner, address _delegator){
         owner = _owner; 
-        delegator = _delegator; 
-
+        delegator = _delegator;
     }
 
     function changeOwnership(address newOwner) external {

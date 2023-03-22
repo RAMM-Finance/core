@@ -329,7 +329,7 @@ contract Fetcher {
         bundle.maturityDate = _maturityDate;
         bundle.tradeTime = _tradeTime;
         bundle.oracle = _oracle;
-        bundle.approvalStatus = instrumentContract.instrumentApprovalCondition();
+        bundle.approvalStatus = instrumentContract.approvalCondition();
     }
 
     function buildPoolBundle(uint256 mid, uint256 vid, Controller controller, MarketManager marketManager) internal view returns (PoolBundle memory bundle) {

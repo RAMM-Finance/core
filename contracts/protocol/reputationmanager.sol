@@ -15,7 +15,6 @@ contract ReputationManager {
 
     address controller;
     address marketManager;
-
     address deployer;
 
     modifier onlyProtocol() {

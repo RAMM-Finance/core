@@ -936,7 +936,7 @@ contract PoolInstrument is
     /**
      @notice returns cost of purchasing _numTokens of collateral in pool underlying.
      */
-    function instrumentApprovalCondition()
+    function approvalCondition()
         public
         view
         virtual

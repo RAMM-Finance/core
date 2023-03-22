@@ -688,7 +688,7 @@ contract Vault is ERC4626 {
         view
         returns (bool)
     {
-        return Instruments[marketId].instrumentApprovalCondition();
+        return Instruments[marketId].approvalCondition();
     }
 
     /// TODO

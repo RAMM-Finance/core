@@ -74,7 +74,7 @@ contract SimpleNFTPool is Instrument, ERC4626{
         acceptedList.push(key); 
     }
 
-    function instrumentApprovalCondition() public override view returns(bool){
+    function approvalCondition() public override view returns(bool){
         return true; 
     }
     function assetOracle(uint256 supply) public view override returns(uint256){
