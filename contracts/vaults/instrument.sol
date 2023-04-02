@@ -16,16 +16,22 @@ abstract contract Instrument {
 
     ERC20 public underlying;
     Vault public vault; 
-    bool locked; 
-    uint256 private constant MAX_UINT = 2**256 - 1;
-    uint256 private maturity_balance;
-    uint256 rawFunds; 
 
-    /// @notice address of user who submits the liquidity proposal 
+    /// @notice true if underlying in the existing instrument cannot be transferred to any address other than the vault
+    bool locked;
+    
+    // underlying recorded at the beginning of the resolve phase
+    uint256 private maturityBalance;
+    uint256 private rawFunds;
     address public utilizer;
 
     modifier onlyUtilizer() {
         require(msg.sender == utilizer, "!Utilizer");
+        _;
+    }
+
+    modifier onlyValidator() {
+        require(vault.isValidator(msg.sender, address(this)), "!validator");
         _;
     }
 
@@ -39,9 +45,10 @@ abstract contract Instrument {
         _;
     }
 
-    modifier notLocked() {
+    /// @notice can be used for every function call that transfers underlying to addresses other than vault
+    modifier notLocked () {
         require(!locked); 
-        _; 
+        _;
     }
 
     constructor (
@@ -50,27 +57,11 @@ abstract contract Instrument {
     ) {
         vault = Vault(_vault);
         underlying = vault.asset();
-        underlying.approve(_vault, MAX_UINT); // Give Vault unlimited access 
+        underlying.approve(_vault, type(uint256).max); // Give Vault unlimited access 
         utilizer = _utilizer;
     }
 
-    function setUtilizer(address _utilizer) external onlyAuthorized {
-        require(_utilizer != address(0));
-        utilizer = _utilizer;
-    }
-
-    function setVault(address newVault) external onlyAuthorized {
-        vault = Vault(newVault); 
-    }
-
-    /// @notice Withdraws a specific amount of underlying tokens from the Instrument.
-    /// @param amount The amount of underlying tokens to withdraw.
-    /// @return An error code, or 0 if the withdrawal was successful.
-    function redeemUnderlying(uint256 amount) external onlyVault returns (bool){
-        //TODO if this is pool redeemig to vault, need to redeem pool shares 
-        console.log('wtf', underlying.balanceOf(address(this)), amount); 
-        return underlying.transfer(address(vault), amount); 
-    }
+    /// HELPER FUNCTIONS
 
     /// @notice Returns a user's Instrument balance in underlying tokens.
     /// @param user The user to get the underlying balance of.
@@ -82,87 +73,47 @@ abstract contract Instrument {
         return underlying.balanceOf(user); 
     }
 
-    /**
-     @notice hooks for approval logic that are specific to each instrument type, called by controller for approval/default logic
-     */
-    function onMarketApproval(uint256 principal, uint256 yield) virtual external {}
-
-    function estimatedTotalAssets() public view virtual returns (uint256){}
-
-
-    /// @notice Free up returns for vault to pull,  checks if the instrument is ready to be withdrawed, i.e all 
-    /// loans have been paid, all non-underlying have been liquidated, etc
-    function readyForWithdrawal() public view virtual returns(bool){
-        return true;
-    }
-
-    /// @notice checks whether the vault can withdraw and record profit from this instrument 
-    /// for this instrument to resolve 
-    /// For creditlines, all debts should be repaid
-    /// for strategies, all assets should be divested + converted to Underlying
-    /// this function is important in preventing manipulations, 
-    /// @dev prepareWithdraw->vault.beforeResolve->vault.resolveInstrument in separate txs
-    function prepareWithdraw()
-        external 
-        onlyVault 
-        virtual
-        returns (
-            uint256 _profit,
-            uint256 _loss,
-            uint256 _debtPayment
-        ){
-            require(readyForWithdrawal(), "not ready to withdraw"); 
-
-            // Lock additional drawdowns or usage of instrument balance 
-            lockLiquidityFlow();    
-
-        }
-
-
-    function liquidatePosition(uint256 _amountNeeded) public  virtual returns (uint256 _liquidatedAmount, uint256 _loss){}
-
-
-    function liquidateAllPositions() public  virtual returns (uint256 _amountFreed){}
-
-    function lockLiquidityFlow() internal{
+    /// @notice locks the underlying in the instrument, for every function call that transfers underlying must use the notLocked modifier
+    function lockLiquidityFlow() internal {
         locked = true; 
     }
 
     function isLocked() public view returns(bool){
-        return true; 
+        return locked; 
     }
 
     event LiquidityTransfer(address indexed from ,address indexed to, uint256 amount);
-    
-    function underlyingTransfer(address to, uint256 amount) internal notLocked {
+
+    function underlyingTransfer(address to, uint256 amount) internal {
         underlying.safeTransfer(to, amount);
         emit LiquidityTransfer(address(this), to, amount);
     }
 
-    function underlyingTransferFrom(address from, address to, uint256 amount) internal notLocked {
+    function underlyingTransferFrom(address from, address to, uint256 amount) internal {
         underlying.safeTransferFrom(from, to, amount);
         emit LiquidityTransfer(from, to, amount);
     }
 
-    /// @notice called before resolve, to avoid calculating redemption price based on manipulations 
-    function store_internal_balance() external onlyVault{
-
-        maturity_balance = balanceOfUnderlying(address(this)); 
-
-    }
-
     function getMaturityBalance() public view returns(uint256){
-        return maturity_balance; 
+        return maturityBalance; 
     }
 
+    /// @dev for perps only
     function isLiquid(uint256 amount) public virtual view returns(bool){
         //TODO 
         console.log('isliquid', balanceOfUnderlying(address(this)), amount); 
         return balanceOfUnderlying(address(this)) >= amount; 
     }
 
-    // function beforeApprove(Vault.InstrumentData memory _instrumentData) onlyVault virtual external  {}
+    /// @notice fetches how much asset the instrument has in underlying for the given share supply 
+    function assetOracle(uint256 supply) public view virtual returns(uint256) {}
 
+    /// APPROVAL LOGIC
+
+    /**
+     @notice hook for approval logic that are specific to each instrument type, called by controller for approval/default logic
+     */
+    function onMarketApproval(uint256 approvedPrincipal, uint256 approvedYield) virtual onlyVault external {}
 
     /// @notice Before supplying liquidity from the vault to this instrument,
     /// which is done automatically when instrument is trusted, 
@@ -170,361 +121,386 @@ abstract contract Instrument {
     /// instrument is met. For example, for a creditline with a collateral 
     /// requirement need to check if this address has the specific amount of collateral
     /// @dev called to be checked at the approve phase from controller  
-    function approvalCondition() public virtual view returns(bool); 
+    function approvalCondition() public virtual view returns (bool);
 
-    /// @notice fetches how much asset the instrument has in underlying for the given share supply 
-    function assetOracle(uint256 supply) public view virtual returns(uint256){}
+    /// RESOLUTION LOGIC
+
+    /// @notice Withdraws a specific amount of underlying tokens from the Instrument.
+    /// @param amount The amount of underlying tokens to withdraw.
+    function redeemUnderlying(uint256 amount) external onlyVault {
+        //TODO if this is pool redeeming to vault, need to redeem pool shares 
+        underlyingTransfer(address(vault), amount); 
+    }
+
+    /// @notice checks if the instrument is ready to be withdrawed, i.e all 
+    /// loans have been paid, all non-underlying have been liquidated, etc 
+    /// record profit from this instrument 
+    /// for this instrument to resolve 
+    /// For creditlines, all debts should be repaid
+    /// for strategies, all assets should be divested + converted to Underlying
+    /// this function is important in preventing manipulations, 
+    function resolveCondition() external view virtual returns (bool);
+
+    /// @notice triggers any underlying asset recouperation attempts (ex. liquidations)
+    /// @dev prepareWithdraw->readyForWithdrawal ? resolveInstrument1 -> resolveInstrument2.
+    /// should revert if already called, or if already withdrawn
+    // function prepareResolve(bytes calldata data) virtual external {}
+
+    /// @notice called before resolve, to avoid calculating redemption price based on manipulations 
+    function storeInternalBalance() external onlyVault{
+        maturityBalance = balanceOfUnderlying(address(this)); 
+    }
 }
 
 /// approved borrowers will interact with this contract to borrow, repay. 
 /// and vault will supply principal and harvest principal/interest 
-contract CreditLine is Instrument {
-    using FixedPointMathLib for uint256;
-    address public immutable borrower; 
+// contract CreditLine is Instrument {
+//     using FixedPointMathLib for uint256;
+//     address public immutable borrower; 
 
-    //  variables initiated at creation
-    uint256 public principal;
-    uint256 public notionalInterest; 
-    uint256 public faceValue; //total amount due, i.e principal+interest
-    uint256 public duration; // normalized to a year 1 means 1 year, 0.5 means 6 month 
-    uint256 public interestAPR; 
+//     //  variables initiated at creation
+//     uint256 public principal;
+//     uint256 public notionalInterest; 
+//     uint256 public faceValue; //total amount due, i.e principal+interest
+//     uint256 public duration; // normalized to a year 1 means 1 year, 0.5 means 6 month 
+//     uint256 public interestAPR; 
 
-    // Modify-able Global Variables during repayments, borrow
-    uint256 public totalOwed; 
-    uint256 public principalOwed; 
-    uint256 public interestOwed;
-    uint256 public accumulated_interest; 
-    uint256 public principalRepayed;
-    uint256 public interestRepayed; 
+//     // Modify-able Global Variables during repayments, borrow
+//     uint256 public totalOwed; 
+//     uint256 public principalOwed; 
+//     uint256 public interestOwed;
+//     uint256 public accumulated_interest; 
+//     uint256 public principalRepayed;
+//     uint256 public interestRepayed; 
 
-    // Collateral Info 
-    enum CollateralType{
-        liquidatable, 
-        nonLiquid, 
-        ownership,        
-        none
-    }
+//     // Collateral Info 
+//     enum CollateralType{
+//         liquidatable, 
+//         nonLiquid, 
+//         ownership,        
+//         none
+//     }
 
-    address public collateral; 
-    address public oracle; 
-    uint256 public collateral_balance; 
-    CollateralType public collateral_type; 
+//     address public collateral; 
+//     address public oracle; 
+//     uint256 public collateral_balance; 
+//     CollateralType public collateral_type; 
 
-    uint256 drawdown_block; 
-    bool didDrawdown; 
+//     uint256 drawdown_block; 
+//     bool didDrawdown; 
 
-    uint256 gracePeriod; 
-    uint256 resolveBlock; 
-    uint256 constant DUST = 1e18; //1usd
+//     uint256 gracePeriod; 
+//     uint256 resolveBlock; 
+//     uint256 constant DUST = 1e18; //1usd
 
-    enum LoanStatus{
-        notApproved,
-        approvedNotDrawdowned,
-        drawdowned, 
-        partially_repayed,
-        prepayment_fulfilled, 
-        matured, 
-        grace_period, 
-        isDefault
-    }
+//     enum LoanStatus{
+//         notApproved,
+//         approvedNotDrawdowned,
+//         drawdowned, 
+//         partially_repayed,
+//         prepayment_fulfilled, 
+//         matured, 
+//         grace_period, 
+//         isDefault
+//     }
 
-    LoanStatus public loanStatus; 
+//     LoanStatus public loanStatus; 
 
-    uint256 lastRepaymentTime; 
-    uint256 gracePeriodStart; 
-    Proxy proxy; 
+//     uint256 lastRepaymentTime; 
+//     uint256 gracePeriodStart; 
+//     Proxy proxy; 
 
-    /// @notice both _collateral and _oracle could be 0
-    /// address if fully uncollateralized or does not have a price oracle 
-    /// param _notionalInterest and _principal is initialized as desired variables
-    constructor(
-        address vault,
-        address _borrower, 
-        uint256 _principal,
-        uint256 _notionalInterest, 
-        uint256 _duration,
-        address _collateral, //collateral for the dao, could be their own native token or some tokenized revenue 
-        address _oracle, // oracle for price of collateral 
-        uint256 _collateral_balance, //promised collateral balance
-        uint256 _collateral_type
-    )  Instrument(vault, _borrower) {
-        borrower = _borrower; 
-        principal =  _principal; 
-        notionalInterest = _notionalInterest; 
-        duration = _duration;
+//     /// @notice both _collateral and _oracle could be 0
+//     /// address if fully uncollateralized or does not have a price oracle 
+//     /// param _notionalInterest and _principal is initialized as desired variables
+//     constructor(
+//         address vault,
+//         address _borrower, 
+//         uint256 _principal,
+//         uint256 _notionalInterest, 
+//         uint256 _duration,
+//         address _collateral, //collateral for the dao, could be their own native token or some tokenized revenue 
+//         address _oracle, // oracle for price of collateral 
+//         uint256 _collateral_balance, //promised collateral balance
+//         uint256 _collateral_type
+//     )  Instrument(vault, _borrower) {
+//         borrower = _borrower; 
+//         principal =  _principal; 
+//         notionalInterest = _notionalInterest; 
+//         duration = _duration;
 
-        collateral = _collateral; 
-        oracle = _oracle; 
-        collateral_balance = _collateral_balance; 
-        collateral_type = CollateralType(_collateral_type); 
+//         collateral = _collateral; 
+//         oracle = _oracle; 
+//         collateral_balance = _collateral_balance; 
+//         collateral_type = CollateralType(_collateral_type); 
 
-        loanStatus = LoanStatus.notApproved; 
+//         loanStatus = LoanStatus.notApproved; 
 
-        proxy = new Proxy(address(this), _borrower); 
-    }
+//         proxy = new Proxy(address(this), _borrower); 
+//     }
 
-    function getCurrentTime() internal view returns(uint256){
-        return block.timestamp + 31536000/2; 
-    }
+//     function getCurrentTime() internal view returns(uint256){
+//         return block.timestamp + 31536000/2; 
+//     }
 
-    function getProxy() public view returns(address){
-        return address(proxy); 
-    }
+//     function getProxy() public view returns(address){
+//         return address(proxy); 
+//     }
 
-    /// @notice checks if the creditline is ready to be withdrawed, i.e all 
-    /// loans have been paid, all non-underlying have been liquidated, etc
-    function readyForWithdrawal() public view override returns(bool){
-        if (loanStatus == LoanStatus.matured || loanStatus == LoanStatus.isDefault
-            || loanStatus == LoanStatus.prepayment_fulfilled) return true; 
-        return true; 
-        //return false  
-    }
+//     /// @notice checks if the creditline is ready to be withdrawed, i.e all 
+//     /// loans have been paid, all non-underlying have been liquidated, etc
+//     function readyForWithdrawal() public view override returns(bool){
+//         if (loanStatus == LoanStatus.matured || loanStatus == LoanStatus.isDefault
+//             || loanStatus == LoanStatus.prepayment_fulfilled) return true; 
+//         return true; 
+//         //return false  
+//     }
 
-    function getApprovedBorrowConditions() public view returns(uint256, uint256){
-        if (vault.isTrusted(this)) return(principal, notionalInterest);
-        return (0,0);
-    }
+//     function getApprovedBorrowConditions() public view returns(uint256, uint256){
+//         if (vault.isTrusted(this)) return(principal, notionalInterest);
+//         return (0,0);
+//     }
 
-    /// @notice if possible, and borrower defaults, liquidates given collateral to underlying
-    /// and push back to vault. If not possible, push the collateral back to
-    function liquidateAndPushToVault() internal  {}
-    function auctionAndPushToVault() internal {} 
-    function isLiquidatable(address collateral) public view returns(bool){}
+//     /// @notice if possible, and borrower defaults, liquidates given collateral to underlying
+//     /// and push back to vault. If not possible, push the collateral back to
+//     function liquidateAndPushToVault() internal  {}
+//     function auctionAndPushToVault() internal {} 
+//     function isLiquidatable(address collateral) public view returns(bool){}
 
-    /// @notice if collateral is liquidateable and has oracle, fetch value of collateral 
-    /// and return ratio to principal 
-    function getCollateralRatio() public view returns(uint256){
+//     /// @notice if collateral is liquidateable and has oracle, fetch value of collateral 
+//     /// and return ratio to principal 
+//     function getCollateralRatio() public view returns(uint256){
 
-    }
-    /// @notice After grace period auction off ownership to some other party and transfer the funds back to vault 
-    /// @dev assumes collateral has already been transferred to vault, needs to be checked by the caller 
-    function liquidateOwnership(address buyer) public virtual onlyAuthorized{
-        // TODO implement auction 
-        proxy.changeOwnership(buyer);
-    }
+//     }
+//     /// @notice After grace period auction off ownership to some other party and transfer the funds back to vault 
+//     /// @dev assumes collateral has already been transferred to vault, needs to be checked by the caller 
+//     function liquidateOwnership(address buyer) public virtual onlyAuthorized{
+//         // TODO implement auction 
+//         proxy.changeOwnership(buyer);
+//     }
 
-    /// @notice transfers collateral back to vault when default 
-    function pushCollateralToVault(uint256 amount, address to) public virtual onlyAuthorized{
-        require(loanStatus == LoanStatus.isDefault); 
-        ERC20(collateral).transfer(to, amount); 
-    }
+//     /// @notice transfers collateral back to vault when default 
+//     function pushCollateralToVault(uint256 amount, address to) public virtual onlyAuthorized{
+//         require(loanStatus == LoanStatus.isDefault); 
+//         ERC20(collateral).transfer(to, amount); 
+//     }
 
-    /// @notice validators have to check these conditions at a human level too before approving 
-    function approvalCondition() public override view returns(bool){
-        // check if borrower has correct identity 
+//     /// @notice validators have to check these conditions at a human level too before approving 
+//     function approvalCondition() public override view returns(bool){
+//         // check if borrower has correct identity 
 
-        // check if enough collateral has been added as agreed   
-        if (collateral_type == CollateralType.liquidatable || collateral_type == CollateralType.nonLiquid){
-            if (ERC20(collateral).balanceOf(address(this)) >= collateral_balance){
-                return false;
-            } 
-        }
+//         // check if enough collateral has been added as agreed   
+//         if (collateral_type == CollateralType.liquidatable || collateral_type == CollateralType.nonLiquid){
+//             if (ERC20(collateral).balanceOf(address(this)) >= collateral_balance){
+//                 return false;
+//             } 
+//         }
 
-        // Check if proxy has been given ownership
-        if (collateral_type == CollateralType.ownership && proxy.numContracts() == 0) revert("Ownership"); 
+//         // Check if proxy has been given ownership
+//         if (collateral_type == CollateralType.ownership && proxy.numContracts() == 0) revert("Ownership"); 
 
-        return true; 
-    } 
+//         return true; 
+//     } 
 
-    event DepositCollateral(uint256 amount);
-    /// @notice borrower deposit promised collateral  
-    function depositCollateral(uint256 amount) external onlyUtilizer {
-        require(collateral!= address(0)); 
-        ERC20(collateral).transferFrom(msg.sender, address(this), amount); 
-        emit DepositCollateral(amount);
-    }
+//     event DepositCollateral(uint256 amount);
+//     /// @notice borrower deposit promised collateral  
+//     function depositCollateral(uint256 amount) external onlyUtilizer {
+//         require(collateral!= address(0)); 
+//         ERC20(collateral).transferFrom(msg.sender, address(this), amount); 
+//         emit DepositCollateral(amount);
+//     }
 
-    /// @notice can only redeem collateral when debt is fully paid 
-    function releaseAllCollateral() internal {
-        require(loanStatus == LoanStatus.matured || loanStatus == LoanStatus.prepayment_fulfilled, "Loan status err"); 
+//     /// @notice can only redeem collateral when debt is fully paid 
+//     function releaseAllCollateral() internal {
+//         require(loanStatus == LoanStatus.matured || loanStatus == LoanStatus.prepayment_fulfilled, "Loan status err"); 
 
-        ERC20(collateral).transfer(msg.sender,collateral_balance); 
-    }
+//         ERC20(collateral).transfer(msg.sender,collateral_balance); 
+//     }
 
-    /// @notice should only be called when (portion of) principal is repayed
-    function adjustInterestOwed() internal {
+//     /// @notice should only be called when (portion of) principal is repayed
+//     function adjustInterestOwed() internal {
 
-        uint256 remainingDuration = (drawdown_block + toSeconds(duration)) - getCurrentTime();
+//         uint256 remainingDuration = (drawdown_block + toSeconds(duration)) - getCurrentTime();
 
-        interestOwed = interestAPR.mulWadDown(toYear(remainingDuration).mulWadDown(principalOwed)); 
-    }
+//         interestOwed = interestAPR.mulWadDown(toYear(remainingDuration).mulWadDown(principalOwed)); 
+//     }
 
-    /// @param quoted_yield is in notional amount denominated in underlying, which is the area between curve and 1 at the x-axis point 
-    /// where area under curve is max_principal 
-    function onMarketApproval(uint256 max_principal, uint256 quoted_yield) external override onlyVault {
-        principal = max_principal; 
-        notionalInterest = quoted_yield; //this accounts for duration as well
-        interestAPR = quoted_yield.divWadDown(duration.mulWadDown(principal)); 
+//     /// @param quoted_yield is in notional amount denominated in underlying, which is the area between curve and 1 at the x-axis point 
+//     /// where area under curve is max_principal 
+//     function onMarketApproval(uint256 max_principal, uint256 quoted_yield) external override onlyVault {
+//         principal = max_principal; 
+//         notionalInterest = quoted_yield; //this accounts for duration as well
+//         interestAPR = quoted_yield.divWadDown(duration.mulWadDown(principal)); 
 
-        loanStatus = LoanStatus.approvedNotDrawdowned;
-    }
+//         loanStatus = LoanStatus.approvedNotDrawdowned;
+//     }
 
-    function onMaturity() external onlyUtilizer {
-        require(loanStatus == LoanStatus.prepayment_fulfilled || loanStatus == LoanStatus.matured,"Not matured"); 
-        require(block.number > resolveBlock, "Block equal"); 
+//     function onMaturity() external onlyUtilizer {
+//         require(loanStatus == LoanStatus.prepayment_fulfilled || loanStatus == LoanStatus.matured,"Not matured"); 
+//         require(block.number > resolveBlock, "Block equal"); 
 
-        if (collateral_type == CollateralType.liquidatable || collateral_type == CollateralType.nonLiquid ){
-            releaseAllCollateral(); 
-        }
+//         if (collateral_type == CollateralType.liquidatable || collateral_type == CollateralType.nonLiquid ){
+//             releaseAllCollateral(); 
+//         }
 
-        else proxy.changeOwnership(borrower);
+//         else proxy.changeOwnership(borrower);
         
-        bool isPrepaid = loanStatus == LoanStatus.prepayment_fulfilled? true:false;
-        // Write to storage resolve details (principal+interest repaid, is prepaid, etc) 
-        vault.pingMaturity(address(this), isPrepaid); 
+//         bool isPrepaid = loanStatus == LoanStatus.prepayment_fulfilled? true:false;
+//         // Write to storage resolve details (principal+interest repaid, is prepaid, etc) 
+//         vault.pingMaturity(address(this), isPrepaid); 
 
-    }
+//     }
 
-    /// @notice borrower can see how much to repay now starting from last repayment time, also used to calculated
-    /// how much interest to repay for the current principalOwed, which can be changed 
-    function interestToRepay() public view returns(uint256){
+//     /// @notice borrower can see how much to repay now starting from last repayment time, also used to calculated
+//     /// how much interest to repay for the current principalOwed, which can be changed 
+//     function interestToRepay() public view returns(uint256){
 
-        // Normalized to year
-        uint256 elapsedTime = toYear(getCurrentTime() - lastRepaymentTime);
-        // Owed interest from last timestamp till now  + any unpaid interest that has accumulated
-        return elapsedTime.mulWadDown(interestAPR.mulWadDown(principalOwed)) + accumulated_interest ; 
-    }
+//         // Normalized to year
+//         uint256 elapsedTime = toYear(getCurrentTime() - lastRepaymentTime);
+//         // Owed interest from last timestamp till now  + any unpaid interest that has accumulated
+//         return elapsedTime.mulWadDown(interestAPR.mulWadDown(principalOwed)) + accumulated_interest ; 
+//     }
 
-    event Drawdown(uint256 amount);
-    /// @notice Allows a borrower to borrow on their creditline.
-    /// This creditline allows only lump sum drawdowns, all approved principal needs to be borrowed
-    /// which would start the interest timer 
-    function drawdown() external onlyUtilizer{
-        require(vault.isTrusted(this), "Not approved");
-        require(loanStatus == LoanStatus.approvedNotDrawdowned, "Already borrowed"); 
-        loanStatus = LoanStatus.drawdowned; 
+//     event Drawdown(uint256 amount);
+//     /// @notice Allows a borrower to borrow on their creditline.
+//     /// This creditline allows only lump sum drawdowns, all approved principal needs to be borrowed
+//     /// which would start the interest timer 
+//     function drawdown() external onlyUtilizer{
+//         require(vault.isTrusted(this), "Not approved");
+//         require(loanStatus == LoanStatus.approvedNotDrawdowned, "Already borrowed"); 
+//         loanStatus = LoanStatus.drawdowned; 
 
-        drawdown_block = block.timestamp; 
-        lastRepaymentTime = block.timestamp;
+//         drawdown_block = block.timestamp; 
+//         lastRepaymentTime = block.timestamp;
 
-        totalOwed = principal + notionalInterest;
-        principalOwed = principal;
-        interestOwed = notionalInterest;
+//         totalOwed = principal + notionalInterest;
+//         principalOwed = principal;
+//         interestOwed = notionalInterest;
 
-        underlyingTransfer( msg.sender, principal );
+//         underlyingTransfer( msg.sender, principal );
 
-        emit Drawdown(principal);
-    }
+//         emit Drawdown(principal);
+//     }
 
-    event Repay(uint256 amount);
-    /// @notice allows a borrower to repay their loan
-    /// Standard repayment structure is repaying interest for the owed principal periodically and
-    /// whenever principal is repayed interest owed is decreased proportionally 
-    function repay( uint256 _repay_amount) external onlyUtilizer{
-        require(vault.isTrusted(this), "Not approved");
+//     event Repay(uint256 amount);
+//     /// @notice allows a borrower to repay their loan
+//     /// Standard repayment structure is repaying interest for the owed principal periodically and
+//     /// whenever principal is repayed interest owed is decreased proportionally 
+//     function repay( uint256 _repay_amount) external onlyUtilizer{
+//         require(vault.isTrusted(this), "Not approved");
 
-        uint256 owedInterest = interestToRepay();
-        uint256 repay_principal; 
-        uint256 repay_interest = _repay_amount; 
+//         uint256 owedInterest = interestToRepay();
+//         uint256 repay_principal; 
+//         uint256 repay_interest = _repay_amount; 
 
-        // Push remaineder to repaying principal 
-        if (_repay_amount >= owedInterest){
-            repay_principal += (_repay_amount - owedInterest);  
-            repay_interest = owedInterest;
-            accumulated_interest = 0; 
-        }
+//         // Push remaineder to repaying principal 
+//         if (_repay_amount >= owedInterest){
+//             repay_principal += (_repay_amount - owedInterest);  
+//             repay_interest = owedInterest;
+//             accumulated_interest = 0; 
+//         }
 
-        //else repay_amount is less than owed interest, accumulate the debt 
-        else accumulated_interest = owedInterest - repay_interest;
+//         //else repay_amount is less than owed interest, accumulate the debt 
+//         else accumulated_interest = owedInterest - repay_interest;
 
-        if(handleRepay(repay_principal, repay_interest)){
+//         if(handleRepay(repay_principal, repay_interest)){
 
-            // Save resolve block, so that onMaturity can be called later
-            resolveBlock = block.number; 
+//             // Save resolve block, so that onMaturity can be called later
+//             resolveBlock = block.number; 
 
-            // Prepayment //TODO cases where repayed a significant portion at the start but paid rest at maturity date
-            if (isPaymentPremature()) loanStatus = LoanStatus.prepayment_fulfilled; 
+//             // Prepayment //TODO cases where repayed a significant portion at the start but paid rest at maturity date
+//             if (isPaymentPremature()) loanStatus = LoanStatus.prepayment_fulfilled; 
 
-            // Repayed at full maturity 
-            else loanStatus = LoanStatus.matured; 
+//             // Repayed at full maturity 
+//             else loanStatus = LoanStatus.matured; 
 
-        }
+//         }
 
-        lastRepaymentTime = getCurrentTime();  
+//         lastRepaymentTime = getCurrentTime();  
 
-        underlyingTransferFrom(msg.sender, address(this), _repay_amount);
+//         underlyingTransferFrom(msg.sender, address(this), _repay_amount);
 
-        emit Repay(_repay_amount);
+//         emit Repay(_repay_amount);
 
-    }   
+//     }   
 
-    /// @notice updates balances after repayment
-    /// need to remove min.
-    function handleRepay(uint256 repay_principal, uint256 repay_interest) internal returns(bool){
-        totalOwed -= Math.min((repay_principal + repay_interest), totalOwed); 
-        principalOwed -= Math.min(repay_principal, principalOwed);
-        interestOwed -= Math.min(repay_interest, interestOwed);
+//     /// @notice updates balances after repayment
+//     /// need to remove min.
+//     function handleRepay(uint256 repay_principal, uint256 repay_interest) internal returns(bool){
+//         totalOwed -= Math.min((repay_principal + repay_interest), totalOwed); 
+//         principalOwed -= Math.min(repay_principal, principalOwed);
+//         interestOwed -= Math.min(repay_interest, interestOwed);
 
-        principalRepayed += repay_principal;
-        interestRepayed += repay_interest; 
-        if (repay_principal > 0) adjustInterestOwed(); 
+//         principalRepayed += repay_principal;
+//         interestRepayed += repay_interest; 
+//         if (repay_principal > 0) adjustInterestOwed(); 
 
-        bool fullyRepayed = (principalOwed == 0 && interestOwed == 0)? true : false; 
-        return fullyRepayed; 
-    }
+//         bool fullyRepayed = (principalOwed == 0 && interestOwed == 0)? true : false; 
+//         return fullyRepayed; 
+//     }
 
-    function setGracePeriod() external {}
+//     function setGracePeriod() external {}
 
-    /// @notice callable by anyone 
-    function beginGracePeriod() external {
-       // require(block.timestamp >= drawdown_block + toSeconds(duration), "time err"); 
-        require(principalOwed > 0 && interestOwed > 0, "repaid"); 
-        gracePeriodStart = block.timestamp; 
-        loanStatus = LoanStatus.grace_period; 
-    }
+//     /// @notice callable by anyone 
+//     function beginGracePeriod() external {
+//        // require(block.timestamp >= drawdown_block + toSeconds(duration), "time err"); 
+//         require(principalOwed > 0 && interestOwed > 0, "repaid"); 
+//         gracePeriodStart = block.timestamp; 
+//         loanStatus = LoanStatus.grace_period; 
+//     }
 
-    function declareDefault() external onlyAuthorized {
-       // require(gracePeriodStart + gracePeriod >= block.timestamp);
-        require(loanStatus == LoanStatus.grace_period); 
+//     function declareDefault() external onlyAuthorized {
+//        // require(gracePeriodStart + gracePeriod >= block.timestamp);
+//         require(loanStatus == LoanStatus.grace_period); 
 
-        loanStatus = LoanStatus.isDefault; 
-    }
+//         loanStatus = LoanStatus.isDefault; 
+//     }
 
-    /// @notice should be called  at default by validators
-    /// calling this function will go thorugh the necessary process
-    /// to recoup bad debt, and will push the remaining funds to vault
-    function onDefault() external onlyAuthorized{
-        require(loanStatus == LoanStatus.isDefault); 
+//     /// @notice should be called  at default by validators
+//     /// calling this function will go thorugh the necessary process
+//     /// to recoup bad debt, and will push the remaining funds to vault
+//     function onDefault() external onlyAuthorized{
+//         require(loanStatus == LoanStatus.isDefault); 
 
-        // If collateral is liquidateable, liquidate at dex and push to vault
-        if (isLiquidatable(collateral)) {
-            liquidateAndPushToVault(); //TODO get pool 
-        }
+//         // If collateral is liquidateable, liquidate at dex and push to vault
+//         if (isLiquidatable(collateral)) {
+//             liquidateAndPushToVault(); //TODO get pool 
+//         }
 
-        // Else for non liquid governance tokens or ownership, should auction off 
-        else {
-            auctionAndPushToVault(); 
-        }
+//         // Else for non liquid governance tokens or ownership, should auction off 
+//         else {
+//             auctionAndPushToVault(); 
+//         }
 
-        //Testing purposes only 
-        underlying.transferFrom(msg.sender, address(this), principal/2); 
+//         //Testing purposes only 
+//         underlying.transferFrom(msg.sender, address(this), principal/2); 
 
-    }
+//     }
 
-    /// @notice when principal/interest owed becomes 0, need to find out if this is prepaid
-    function isPaymentPremature() internal returns(bool){
-        // bool timeCondition = getCurrentTime() <= drawdown_block + toSeconds(duration); 
-        bool amountCondition = (principal+notionalInterest) > (principalRepayed + interestRepayed) + DUST; 
+//     /// @notice when principal/interest owed becomes 0, need to find out if this is prepaid
+//     function isPaymentPremature() internal returns(bool){
+//         // bool timeCondition = getCurrentTime() <= drawdown_block + toSeconds(duration); 
+//         bool amountCondition = (principal+notionalInterest) > (principalRepayed + interestRepayed) + DUST; 
 
-        // timeCondition implies amountCondition, but not the other way around 
-        return amountCondition; 
-    }
+//         // timeCondition implies amountCondition, but not the other way around 
+//         return amountCondition; 
+//     }
 
 
-    function toYear(uint256 sec) internal pure returns(uint256){
-        return (sec*1e18)/uint256(31536000); 
-    }
+//     function toYear(uint256 sec) internal pure returns(uint256){
+//         return (sec*1e18)/uint256(31536000); 
+//     }
 
-    function toSeconds(uint256 y) internal pure returns(uint256){
-        return uint256(31536000).mulWadDown(y); 
-    }
+//     function toSeconds(uint256 y) internal pure returns(uint256){
+//         return uint256(31536000).mulWadDown(y); 
+//     }
 
-    function getRemainingOwed() public view returns(uint256, uint256){
-        return(principalOwed, interestOwed); 
-    }
+//     function getRemainingOwed() public view returns(uint256, uint256){
+//         return(principalOwed, interestOwed); 
+//     }
 
-    function getCurrentLoanStatus() public view returns(uint256){}
-}
+//     function getCurrentLoanStatus() public view returns(uint256){}
+// }
 
 
 contract Proxy{

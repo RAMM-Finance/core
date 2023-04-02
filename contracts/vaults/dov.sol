@@ -15,7 +15,7 @@ import {Vault} from "./vault.sol";
 contract CoveredCallOTC is Instrument{
     using FixedPointMathLib for uint256; 
 
-    address public immutable utilizer;
+    // address public immutable utilizer;
     uint256 public immutable strikePrice;
     uint256 public immutable pricePerContract; 
     uint256 public immutable shortCollateral; 
@@ -44,7 +44,6 @@ contract CoveredCallOTC is Instrument{
         ) Instrument(_vault, _utilizer){
         // TODO shortcollateral must equal principal 
         require(_longCollateral == _shortCollateral.mulWadDown(_pricePerContract), "incorrect setting"); 
-        utilizer = _utilizer;
         strikePrice = _strikePrice; 
         pricePerContract = _pricePerContract; 
         shortCollateral = _shortCollateral; 
@@ -59,6 +58,10 @@ contract CoveredCallOTC is Instrument{
         oracle = _oracle; 
     }
 
+    // function resolveCondition() external override view returns(bool) {
+    //     return true;
+    // }
+
     function returnCollateral() public onlyUtilizer{
         // can't return when approved, only can return when denied.  
         require(block.timestamp<= tradeTime, "redeem window passed"); 
@@ -68,7 +71,7 @@ contract CoveredCallOTC is Instrument{
     /// @notice returns true if the instrument can be approved
     /// and funds can be directed from vault. Utilizer must have escrowed
     /// to this contract before  
-    function instrumentApprovalCondition() public override view returns(bool){
+    function approvalCondition() public override view returns(bool){
         return underlying.balanceOf(address(this)) >= longCollateral;
     }
     uint256 public testqueriedPrice=1e18; 
@@ -117,7 +120,7 @@ contract CoveredCallOTC is Instrument{
     }
 
     /// @notice called at maturity
-    function readyForWithdrawal() public view override returns(bool){
+    function resolveCondition() external view override returns(bool){
         return ( (block.timestamp >= maturityTime + timeThreshold && profit == 0)
                 || utilizerClaimed); 
     }
@@ -126,7 +129,7 @@ contract CoveredCallOTC is Instrument{
     deposit for the utilizer
      */
     function deposit() public onlyUtilizer {
-        transfer_liq_from(msg.sender, address(this), longCollateral);
+        underlyingTransferFrom(msg.sender, address(this), longCollateral);
     }
 
     function instrumentStaticSnapshot() public view returns (uint256 _strikePrice, uint256 _pricePerContract, uint256 _shortCollateral, uint256 _longCollateral, uint256 _maturityTime, uint256 _tradeTime, address _oracle){

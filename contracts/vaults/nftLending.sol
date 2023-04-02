@@ -38,11 +38,16 @@ contract SimpleNFTPool is Instrument, ERC4626{
 
     mapping(bytes32=> bool )public  accepted; 
     bytes32[] acceptedList; 
-    address public utilizer;  
+    //address public utilizer;  
 
     function borrowAllowed() public returns(bool){
         return true; 
     }
+
+    function resolveCondition() external view override returns (bool) {
+        return true; 
+    }
+
     function totalAssets() public view override returns (uint256){
         return asset.balanceOf(address(this)); 
     }

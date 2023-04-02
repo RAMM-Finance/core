@@ -6,10 +6,10 @@ import "../contracts/protocol/controller.sol";
 import {MarketManager} from "../contracts/protocol/marketmanager.sol";
 // import {ReputationNFT} from "../contracts/protocol/reputationtoken.sol";
 import {Cash} from "../contracts/utils/Cash.sol";
-import {CreditLine, MockBorrowerContract} from "../contracts/vaults/instrument.sol";
+// import {CreditLine, MockBorrowerContract} from "../contracts/vaults/instrument.sol";
 import {LinearCurve} from "../contracts/bonds/GBC.sol";
 import {FixedPointMath} from "../contracts/bonds/libraries.sol";
-import {CoveredCallOTC} from "../contracts/vaults/dov.sol";
+// import {CoveredCallOTC} from "../contracts/vaults/dov.sol";
 import {ERC20} from "solmate/tokens/ERC20.sol";
 import {SimpleNFTPool} from "../contracts/vaults/nftLending.sol";
 import {ReputationManager} from "../contracts/protocol/reputationmanager.sol";
@@ -56,7 +56,7 @@ contract ApprovalTest is CustomTestBase {
         setUsers();
 
         nftPool = new SimpleNFTPool(vault_ad, toku, address(collateral));
-        nftPool.setUtilizer(toku);
+        //nftPool.setUtilizer(toku);
 
         // initiateLendingPool(vault_ad);
         doInvest(vault_ad,  toku, 1e18*10000);

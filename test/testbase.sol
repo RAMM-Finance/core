@@ -5,16 +5,17 @@ import "../contracts/protocol/controller.sol";
 import {MarketManager} from "../contracts/protocol/marketmanager.sol";
 // import {ReputationNFT} from "../contracts/protocol/reputationtoken.sol";
 import {Cash} from "../contracts/utils/Cash.sol";
-import {CreditLine, MockBorrowerContract} from "../contracts/vaults/instrument.sol";
+import {MockBorrowerContract} from "../contracts/vaults/instrument.sol";
 import {LinearCurve} from "../contracts/bonds/GBC.sol"; 
+import {ERC20CreditLine} from "../contracts/instruments/creditline.sol";
 import {FixedPointMath} from "../contracts/bonds/libraries.sol"; 
 import {CoveredCallOTC} from "../contracts/vaults/dov.sol";
 import {ERC20} from "solmate/tokens/ERC20.sol";
 import {SimpleNFTPool} from "../contracts/vaults/nftLending.sol"; 
 import {ReputationManager} from "../contracts/protocol/reputationmanager.sol";
-import {LeverageManager} from "../contracts/protocol/leveragemanager.sol"; 
-import {Instrument} from "../contracts/vaults/instrument.sol"; 
-import {StorageHandler} from "../contracts/global/GlobalStorage.sol"; 
+import {LeverageManager} from "../contracts/protocol/leveragemanager.sol";
+import {Instrument} from "../contracts/vaults/instrument.sol";
+import {StorageHandler} from "../contracts/global/GlobalStorage.sol";
 import "contracts/global/types.sol"; 
 import {PoolInstrument} from "../contracts/instruments/poolInstrument.sol";
 import {TestNFT} from "../contracts/utils/TestNFT.sol";
@@ -49,7 +50,7 @@ contract CustomTestBase is Test {
     Cash collateral2; 
     CoveredCallOTC otc; 
     MockBorrowerContract borrowerContract = new MockBorrowerContract();
-    CreditLine instrument;
+    ERC20CreditLine erc20Creditline;
     SimpleNFTPool nftPool; 
     LeverageManager leverageManager; 
     ValidatorManager validatorManager; 
@@ -311,7 +312,7 @@ contract CustomTestBase is Test {
         data.expectedYield = interest;
         data.duration = duration;
         data.description = "test";
-        data.instrument_address = address(instrument);
+        data.instrument_address = address(erc20Creditline);
         data.instrument_type = InstrumentType.CreditLine;
         data.maturityDate = 10; 
 
@@ -324,52 +325,56 @@ contract CustomTestBase is Test {
     }
 
     function initiateCreditline() public {
-        instrument = new CreditLine(
-            vault_ad, 
-            jott, principal, interest, duration, faceValue, 
-            address(collateral ), address(collateral), principal, 2
-            ); 
-        instrument.setUtilizer(jott); 
+        erc20Creditline = new ERC20CreditLine(
+            vault_ad,
+            jott,
+            principal,
+            interest,
+            duration,
+            address(collateral),
+            principal
+        );
+        //instrument.setUtilizer(jott); 
 
         initiateCreditMarket(); 
     }
 
-    function makeCreditlineMarket(address creditline, uint256 vaultId) public returns (uint256 marketId) {
-        InstrumentData memory data;
-        data.trusted = false; 
-        data.balance = 0;
-        data.faceValue = CreditLine(creditline).faceValue();
-        data.marketId = 0; 
-        data.principal = CreditLine(creditline).principal();
-        data.expectedYield = CreditLine(creditline).notionalInterest();
-        data.duration = CreditLine(creditline).duration();
-        data.description = "test";
-        data.instrument_address = address(creditline);
-        data.instrument_type = InstrumentType.CreditLine;
-        data.maturityDate = 0;
-        marketId = controller.initiateMarket(
-            creditline,
-            data,
-            vaultId
-        );
-    }
+    // function makeCreditlineMarket(address creditline, uint256 vaultId) public returns (uint256 marketId) {
+    //     InstrumentData memory data;
+    //     data.trusted = false; 
+    //     data.balance = 0;
 
-    function createCreditlineInstrument(uint256 vaultId, uint256 principal, uint256 yield, uint256 duration) public returns (address creditline) {
-        address vault = address(controller.getVaultfromId(vaultId));
-        CreditLine creditline = new CreditLine(
-            vault, 
-            utilizer1, 
-            principal, 
-            yield,
-            duration,
-            principal + yield,
-            address(0), 
-            address(0),
-            0,
-            3
-        );
-        return address(creditline);
-    }
+    //     data.principal = BaseCreditLine(creditline).principal();
+    //     data.expectedYield = CreditLine(creditline).notionalInterest();
+    //     data.faceValue = CreditLine(creditline).faceValue();
+    //     data.marketId = 0;
+    //     data.duration = CreditLine(creditline).duration();
+    //     data.description = "test";
+    //     data.instrument_address = address(creditline);
+    //     data.instrument_type = InstrumentType.CreditLine;
+    //     data.maturityDate = 0;
+    //     marketId = controller.initiateMarket(
+    //         creditline,
+    //         data,
+    //         vaultId
+    //     );
+    // }
+
+    // function createCreditlineInstrument(uint256 vaultId, uint256 principal, uint256 yield, uint256 duration) public returns (address creditline) {
+    //     address vault = address(controller.getVaultfromId(vaultId));
+    //     CreditLine creditline = new CreditLine(
+    //         vault,
+    //         utilizer1, 
+    //         principal,
+    //         yield,
+    //         duration,
+    //         address(0),
+    //         address(0),
+    //         0,
+    //         3
+    //     );
+    //     return address(creditline);
+    // }
 
     function initiateOptionsOTCMarket() public{
         if(address(otc) == address(0))
@@ -383,7 +388,7 @@ contract CustomTestBase is Test {
             10,
             block.timestamp); 
 
-        otc.setUtilizer(toku); 
+        // otc.setUtilizer(toku); 
         InstrumentData memory data;
         data.trusted = false; 
         data.balance = 0;
@@ -487,9 +492,9 @@ contract CustomTestBase is Test {
      */
     function resolveMarket(uint256 marketId) public {
         vm.startPrank(deployer);
-        controller.beforeResolve(marketId); 
+        //controller.resolveInstrument1(marketId); 
 
-        // controller.beforeResolve(marketId); 
+        controller.beforeResolve(marketId); 
         controller.resolveMarket(marketId);
         vm.stopPrank();
     }

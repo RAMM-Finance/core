@@ -12,7 +12,7 @@ import {PoolInstrument} from "../instruments/poolInstrument.sol";
 
 import "forge-std/console.sol";
 import {CoveredCallOTC} from "../vaults/dov.sol";
-import { CreditLine } from "../vaults/instrument.sol";
+// import { CreditLine } from "../vaults/instrument.sol";
 
 import "../global/types.sol"; 
 
@@ -148,19 +148,18 @@ contract Fetcher {
         bool approvalStatus;
     }
 
-    struct CreditlineBundle {
-        address collateral;
-        address oracle;
-        // tenor === instrument duration.
-        uint256 collateralBalance;
-        uint256 principalRepayed;
-        uint256 interestRepayed;
-        uint256 totalOwed;
-        bool approvalCondition;
-        CreditLine.CollateralType collateralType;
-        CreditLine.LoanStatus loanStatus;
-
-    }
+    // struct CreditlineBundle {
+    //     address collateral;
+    //     address oracle;
+    //     // tenor === instrument duration.
+    //     uint256 collateralBalance;
+    //     uint256 principalRepayed;
+    //     uint256 interestRepayed;
+    //     uint256 totalOwed;
+    //     bool approvalCondition;
+    //     CreditLine.CollateralType collateralType;
+    //     CreditLine.LoanStatus loanStatus;
+    // }
 
     struct InstrumentBundle {
         uint256 marketId;
@@ -187,7 +186,7 @@ contract Fetcher {
         uint256 approvalPrice;
         PoolBundle poolData;
         OptionsBundle optionsData;
-        CreditlineBundle creditlineData;
+        // CreditlineBundle creditlineData;
     }
 
     function buildAssetBundle(ERC20 _asset) internal view returns (AssetBundle memory _bundle) {
@@ -293,23 +292,24 @@ contract Fetcher {
             bundle.poolData = buildPoolBundle(mid, vid, controller, marketManager);
         } else if (data.instrument_type == InstrumentType.CoveredCallShort) {
             bundle.optionsData = buildCoveredCallBundle(bundle.instrument_address);
-        } else if (data.instrument_type == InstrumentType.CreditLine) {
-            bundle.creditlineData = buildCreditlineBundle(bundle.instrument_address);
         }
+        // else if (data.instrument_type == InstrumentType.CreditLine) {
+        //     bundle.creditlineData = buildCreditlineBundle(bundle.instrument_address);
+        // }
     }
 
-    function buildCreditlineBundle(address instrument) internal view returns (CreditlineBundle memory bundle) {
-        CreditLine creditline = CreditLine(instrument);
-        bundle.collateral = creditline.collateral();
-        bundle.collateralBalance = creditline.collateral_balance();
-        bundle.collateralType = creditline.collateral_type();
-        bundle.oracle = creditline.oracle();
-        bundle.loanStatus = creditline.loanStatus();
-        bundle.principalRepayed = creditline.principalRepayed();
-        bundle.totalOwed = creditline.totalOwed();
-        bundle.interestRepayed = creditline.interestRepayed();
-        // bundle.approvalCondition = creditline.instrumentApprovalCondition();
-    }
+    // function buildCreditlineBundle(address instrument) internal view returns (CreditlineBundle memory bundle) {
+    //     CreditLine creditline = CreditLine(instrument);
+    //     bundle.collateral = creditline.collateral();
+    //     bundle.collateralBalance = creditline.collateral_balance();
+    //     bundle.collateralType = creditline.collateral_type();
+    //     bundle.oracle = creditline.oracle();
+    //     bundle.loanStatus = creditline.loanStatus();
+    //     bundle.principalRepayed = creditline.principalRepayed();
+    //     bundle.totalOwed = creditline.totalOwed();
+    //     bundle.interestRepayed = creditline.interestRepayed();
+    //     // bundle.approvalCondition = creditline.instrumentApprovalCondition();
+    // }
 
     function buildCoveredCallBundle(address instrument) internal view returns (OptionsBundle memory bundle) {
         CoveredCallOTC instrumentContract = CoveredCallOTC(instrument);

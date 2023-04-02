@@ -6,7 +6,7 @@ import  "../contracts/protocol/controller.sol";
 import {MarketManager} from "../contracts/protocol/marketmanager.sol";
 // import {ReputationNFT} from "../contracts/protocol/reputationtoken.sol";
 import {Cash} from "../contracts/utils/Cash.sol";
-import {CreditLine, MockBorrowerContract} from "../contracts/vaults/instrument.sol";
+// import {CreditLine, MockBorrowerContract} from "../contracts/vaults/instrument.sol";
 import {LinearCurve} from "../contracts/bonds/GBC.sol"; 
 import {FixedPointMath} from "../contracts/bonds/libraries.sol"; 
 import {CoveredCallOTC} from "../contracts/vaults/dov.sol";
@@ -54,7 +54,7 @@ contract PoolInstrumentTest is CustomTestBase {
         setUsers();
 
         nftPool = new SimpleNFTPool(  vault_ad, toku, address(collateral)); 
-        nftPool.setUtilizer(toku); 
+        //nftPool.setUtilizer(toku); 
 
         initiateSimpleNFTLendingPool(); 
         doInvest(vault_ad,  toku, 1e18*10000); 

@@ -946,6 +946,29 @@ contract PoolInstrument is
         return true;
     }
 
+    function assetOracle(uint256 totalSupply)
+        public
+        view
+        virtual
+        override
+        returns (uint256)
+    {
+        // Default balance oracle
+        // console.log('totalasset', uint256(totalAsset.amount), uint256(totalAsset.shares)); 
+        // console.log('totalSupply', totalSupply, previewMint(1e18)); 
+        return totalSupply.mulWadDown(previewMint(1e18));
+        //TODO custom oracle
+    }
+
+    function balanceOfUnderlying(address user) public view override returns (uint256){
+        if(user == address(this)) return   _totalAssetAvailable(totalAsset,totalBorrow);
+        else return underlying.balanceOf(user); 
+    }
+
+    function resolveCondition() external view override returns (bool) {
+        return true;
+    }
+
     /// ERC4626 LOGIC
 
     function totalAssetAvailable() public view returns (uint256) {
@@ -1086,20 +1109,6 @@ contract PoolInstrument is
         return convertToAssets(shares);
     }
 
-    function assetOracle(uint256 totalSupply)
-        public
-        view
-        virtual
-        override
-        returns (uint256)
-    {
-        // Default balance oracle
-        // console.log('totalasset', uint256(totalAsset.amount), uint256(totalAsset.shares)); 
-        // console.log('totalSupply', totalSupply, previewMint(1e18)); 
-        return totalSupply.mulWadDown(previewMint(1e18));
-        //TODO custom oracle
-    }
-
     // TODO doesn't use the UTIL_PREC, just defaults to 1e18
     function getUtilizationRate() public view returns(uint256){
         return (uint256(totalBorrow.amount) * 1e18) / uint256(totalAsset.amount); 
@@ -1111,14 +1120,9 @@ contract PoolInstrument is
 
     /// @notice to modify totalassets very privileged function 
     function modifyTotalAsset(bool add, uint256 amount) external 
-    //onlyManager 
+    //onlyManager
     {
         if(add) totalAsset.amount += uint128(amount); 
         else totalAsset.amount -= uint128(amount); 
-    }
-
-    function balanceOfUnderlying(address user) public view override returns (uint256){
-        if(user == address(this)) return   _totalAssetAvailable(totalAsset,totalBorrow);
-        else return underlying.balanceOf(user); 
     }
 }

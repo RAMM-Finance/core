@@ -461,7 +461,7 @@ contract Controller {
         //     resolveCondition(marketId),
         //     "not enough validators have voted to resolve"
         // );
-        vaults[id_parent[marketId]].beforeResolve(marketId);
+        vaults[id_parent[marketId]].resolveInstrument1(marketId);
     }
 
     event MarketResolved(
@@ -482,7 +482,7 @@ contract Controller {
             uint256 extra_gain,
             uint256 total_loss,
             bool premature
-        ) = getVault(marketId).resolveInstrument(marketId);
+        ) = getVault(marketId).resolveInstrument2(marketId);
         // TODO updating if only market is pool.
         updateRedemptionPrice(
             marketId,
@@ -612,7 +612,7 @@ contract Controller {
         vault.closeInstrument(marketId);
 
         // Harvests/records all profit & losses
-        vault.beforeResolve(marketId);
+        vault.resolveInstrument1(marketId);
         return true;
     }
 
@@ -680,7 +680,7 @@ contract Controller {
             "!marketCondition"
         );
         require(
-            vault.approvalCondition(marketId),
+            vault.instrumentApprovalCondition(marketId),
             "!instrumentCondition"
         );
         marketManager.approveMarket(marketId);

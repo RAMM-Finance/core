@@ -6,7 +6,8 @@ import "forge-std/console.sol";
 import  "../contracts/protocol/controller.sol";
 import {MarketManager} from "../contracts/protocol/marketmanager.sol";
 import {Cash} from "../contracts/utils/Cash.sol";
-import {CreditLine, MockBorrowerContract} from "../contracts/vaults/instrument.sol";
+// import {CreditLine, MockBorrowerContract} from "../contracts/vaults/instrument.sol";
+import {ERC20CreditLine} from "../contracts/instruments/creditline.sol";
 import {LinearCurve} from "../contracts/bonds/GBC.sol"; 
 import {LinearPiecewiseCurve, SwapParams} from "../contracts/bonds/linearCurve.sol"; 
 
@@ -22,7 +23,7 @@ contract FixedTest is CustomTestBase {
     using FixedPointMath for uint256; 
     using stdStorage for StdStorage; 
 
-  
+    ERC20CreditLine instrument;
 
     function setUp() public {
 
@@ -59,12 +60,22 @@ contract FixedTest is CustomTestBase {
 
         doInvest(vault_ad,  toku, 1e18*10000); 
 
-        instrument = new CreditLine(
+        // address vault,
+        // address _borrower,
+        // uint256 _proposedPrincipal,
+        // uint256 _proposedNotionalInterest, 
+        // uint256 _duration,
+        // uint256 _requiredBalance,
+        // address _collateral
+        instrument = new ERC20CreditLine(
             vault_ad, 
-            jott, principal, interest, duration, faceValue, 
-            address(collateral ), address(collateral), principal, 2
-            ); 
-        instrument.setUtilizer(jott); 
+            jott, 
+            principal, 
+            interest, 
+            duration, 
+            address(collateral),
+            principal
+        ); 
 
         otc = new CoveredCallOTC(
             vault_ad, toku, 
@@ -76,7 +87,7 @@ contract FixedTest is CustomTestBase {
             10, 
             block.timestamp
             ); 
-        otc.setUtilizer(toku); 
+        //otc.setUtilizer(toku); 
 
         initiateCreditMarket(); 
         initiateOptionsOTCMarket(); 
@@ -111,10 +122,10 @@ contract FixedTest is CustomTestBase {
         console.log('?'); 
         testVars1 memory vars; 
 
-        address proxy =  instrument.getProxy(); 
-        borrowerContract.changeOwner(proxy); 
-        borrowerContract.autoDelegate(proxy);
-        assertEq(borrowerContract.owner(), proxy); 
+        // address proxy =  instrument.getProxy(); 
+        // borrowerContract.changeOwner(proxy); 
+        // borrowerContract.autoDelegate(proxy);
+        // assertEq(borrowerContract.owner(), proxy); 
 
         vars.marketId = controller.getMarketId(jott); 
 
@@ -189,10 +200,10 @@ contract FixedTest is CustomTestBase {
 
     function somelongsomeshort(testVars2 memory vars, bool finish) public {
 
-        address proxy =  instrument.getProxy(); 
-        borrowerContract.changeOwner(proxy); 
-        borrowerContract.autoDelegate(proxy);
-        assertEq(borrowerContract.owner(), proxy); 
+        // address proxy =  instrument.getProxy(); 
+        // borrowerContract.changeOwner(proxy); 
+        // borrowerContract.autoDelegate(proxy);
+        // assertEq(borrowerContract.owner(), proxy); 
 
         if(vars.utilizer==address(0)) vars.utilizer = jott;  
         vars.marketId = controller.getMarketId(vars.utilizer); 

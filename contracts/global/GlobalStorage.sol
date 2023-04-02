@@ -71,8 +71,7 @@ contract StorageHandler{
 		// if lendingpool, update psu based on new urate 
 		else{
 			PricingInfos[marketId].storeNewPSU(getPoolUtilRate(marketId)); 
-		} 
-
+		}
 	}
 
 	function getPoolUtilRate(uint256 marketId) public view returns(uint256){

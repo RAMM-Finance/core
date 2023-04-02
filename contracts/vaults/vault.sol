@@ -308,11 +308,12 @@ contract Vault is ERC4626 {
 
         totalInstrumentHoldings -= underlyingAmount;
 
-        if (redeem)
-            require(
-                instrument.redeemUnderlying(underlyingAmount),
-                "REDEEM_FAILED"
-            );
+        if (redeem) instrument.redeemUnderlying(underlyingAmount);
+            // require(
+            //     ,
+            //     "REDEEM_FAILED"
+            // );
+            
 
         emit InstrumentWithdrawal(
             instrument_data[instrument].marketId,
@@ -561,20 +562,19 @@ contract Vault is ERC4626 {
         // emit ProposalAdded(data);
     }
 
-    //event MaturityDateSet(uint256 indexed marketId, address indexed instrument, uint256 maturityDate);
-
-    // function setMaturityDate(uint256 marketId) internal {
-
-    //     instrument_data[fetchInstrument(marketId)].maturityDate = instrument_data[fetchInstrument(marketId)].duration + block.timestamp;
-    //     emit MaturityDateSet(marketId, address(fetchInstrument(marketId)), instrument_data[fetchInstrument(marketId)].maturityDate);
-    // }
+    /// RESOLUTION LOGIC
 
     /// @notice function called when instrument resolves from within
     function pingMaturity(address instrument, bool premature) external {
         require(msg.sender == instrument || isTrusted(Instrument(instrument)));
         uint256 marketId = instrument_data[Instrument(instrument)].marketId;
-        beforeResolve(marketId);
+        resolveInstrument1(marketId);
         resolveBeforeMaturity[marketId] = premature;
+    }
+
+    /// @notice returns true if instrument is ready to resolve (so resolveInstrument1 -> resolveInstrument2).
+    function readyToResolve(uint256 marketId) public view returns (bool) {
+        return Instruments[marketId].resolveCondition();
     }
 
     /// @notice RESOLVE FUNCTION #1
@@ -582,31 +582,31 @@ contract Vault is ERC4626 {
     /// records blocknumber such that resolveInstrument is called after this function
     /// records balances+PnL of instrument
     /// @dev need to store internal balance that is used to calculate the redemption price
-    function beforeResolve(uint256 marketId) public {
+    // resolve fixed.
+    function resolveInstrument1(uint256 marketId) public returns (bool imm) {
         Instrument _instrument = Instruments[marketId];
 
         require(
             msg.sender == address(_instrument) ||
-                msg.sender == address(controller),
+            msg.sender == address(controller),
             "Not allowed"
         );
         require(isTrusted(_instrument), "Not trusted");
 
         // Should revert if can't be resolved
-        _instrument.prepareWithdraw();
-
-        // Record profit/loss used for calculation of redemption price
+        require(_instrument.resolveCondition(), "!resolve");
         harvest(marketId);
-
-        _instrument.store_internal_balance();
+        _instrument.storeInternalBalance();
         prepareResolveBlock[marketId] = ResolveVar(block.number, true);
+        // Record profit/loss used for calculation of redemption price
+
     }
 
     //event InstrumentResolve(uint256 indexed marketId, uint256 instrumentBalance, bool atLoss, uint256 extraGain, uint256 totalLoss, bool prematureResolve);
     /// @notice RESOLVE FUNCTION #2
     /// @dev In cases of default, needs to be called AFTER the principal recouperation attempts
     /// like liquidations, auctions, etc such that the redemption price takes into account the maturity balance
-    function resolveInstrument(uint256 marketId)
+    function resolveInstrument2(uint256 marketId)
         external
         onlyController
         returns (
@@ -727,7 +727,7 @@ contract Vault is ERC4626 {
         Instrument instrument = fetchInstrument(marketId);
 
         // If instrument has non-underlying tokens, liquidate them first.
-        instrument.liquidateAllPositions();
+        // instrument.liquidateAllPositions();
     }
 
     function viewPrincipalAndYield(uint256 marketId)
@@ -740,6 +740,10 @@ contract Vault is ERC4626 {
             instrument_data[Instruments[marketId]].principal,
             instrument_data[Instruments[marketId]].expectedYield
         );
+    }
+
+    function isValidator(address user, address instrument) external returns (bool) {
+        return (controller.isValidator(instrument_data[Instrument(instrument)].marketId ,user));
     }
 
     /// @notice a minting restrictor is set for different vaults

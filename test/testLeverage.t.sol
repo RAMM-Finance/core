@@ -6,7 +6,7 @@ import "../contracts/protocol/controller.sol";
 import {MarketManager} from "../contracts/protocol/marketmanager.sol";
 // import {ReputationNFT} from "../contracts/protocol/reputationtoken.sol";
 import {Cash} from "../contracts/utils/Cash.sol";
-import {CreditLine, MockBorrowerContract} from "../contracts/vaults/instrument.sol";
+// import {CreditLine, MockBorrowerContract} from "../contracts/vaults/instrument.sol";
 import {LinearCurve} from "../contracts/bonds/GBC.sol"; 
 import {FixedPointMath} from "../contracts/bonds/libraries.sol"; 
 import {CoveredCallOTC} from "../contracts/vaults/dov.sol";
